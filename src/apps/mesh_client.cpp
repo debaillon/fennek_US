@@ -876,7 +876,7 @@ bool begin() {
   settings::MeshParams p = settings::meshParams();
   Serial.printf("[MESH] bereit: '%s' @ %.3f MHz SF%u BW%.1f CR4/%u %udBm%s\n",
                 s_mesh->name(), (double)p.freqMhz, p.sf, (double)p.bwKhz, p.cr, p.txDbm,
-                settings::meshEco() ? " [RX-Eco]" : " (Noise-Floor-Kalibrierung läuft)");
+                settings::meshEco() ? " [RX-Eco]" : " (noise-floor calibration in progress)");
 
   // Chat-Verlauf vom SD-Log wiederherstellen (falls Karte steckt).
   loadHistoryFromSd();

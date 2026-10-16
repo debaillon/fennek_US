@@ -43,86 +43,86 @@ namespace {
 char s_line[200];
 int  s_len = 0;
 
-// Mesh bei Bedarf initialisieren (für Sende-Befehle ohne UI).
+// Initialize Mesh when needed for send commands without the UI.
 bool ensureMesh() {
   if (mesh_client::ready()) return true;
-  Serial.println("[CON] Mesh nicht initialisiert — starte ...");
+  Serial.println("[CON] Mesh is not initialized — starting ...");
   bool ok = mesh_client::begin();
-  Serial.printf("[CON] mesh init: %s\n", ok ? "OK" : "FEHLGESCHLAGEN");
+  Serial.printf("[CON] mesh init: %s\n", ok ? "OK" : "FAILED");
   return ok;
 }
 
 void cmdHelp() {
-  Serial.println("[CON] Befehle:");
-  Serial.println("[CON]   status            - Systen-/Mesh-Status");
-  Serial.println("[CON]   time              - Uhrzeit/Qualität/Quelle (Zeit-Sync)");
-  Serial.println("[CON]   time set <...>    - Zeit setzen (YYYY-MM-DD HH:MM, lokal)");
-  Serial.println("[CON]   time sync         - NTP-Sync jetzt erzwingen (WLAN)");
-  Serial.println("[CON]   tz <POSIX-TZ>     - Zeitzone setzen (Default Europe/Berlin)");
-  Serial.println("[CON]   sleep             - Standby ausloesen (wie Langdruck)");
-  Serial.println("[CON]   eink hib [on|off] - E-Ink-Controller-Deep-Sleep im Standby (Default aus)");
-  Serial.println("[CON]   alarm             - Wecker auflisten");
-  Serial.println("[CON]   alarm <i> <hh:mm> [tage] - Wecker setzen (tage: einmal|taeglich|mo,di,..)");
+  Serial.println("[CON] Commands:");
+  Serial.println("[CON]   status            - system and Mesh status");
+  Serial.println("[CON]   time              - clock/time quality/source");
+  Serial.println("[CON]   time set <...>    - set time (YYYY-MM-DD HH:MM, local)");
+  Serial.println("[CON]   time sync         - force an NTP sync now (Wi-Fi)");
+  Serial.println("[CON]   tz <POSIX-TZ>     - set time zone (default Europe/Berlin)");
+  Serial.println("[CON]   sleep             - enter standby (like a long press)");
+  Serial.println("[CON]   eink hib [on|off] - E-Ink controller deep sleep in standby (default off)");
+  Serial.println("[CON]   alarm             - list alarms");
+  Serial.println("[CON]   alarm <i> <hh:mm> [tage] - set alarm (days: einmal|taeglich|mo,di,..)");
   Serial.println("[CON]   alarm <i> off / <i> mode ton|blink|vibra|beides|alle / sound <pfad> / test / stop / snooze");
-  Serial.println("[CON]   mesh init         - Mesh-Radio initialisieren");
-  Serial.println("[CON]   mesh eco [on|off] - RX-Duty-Cycle (Radio-Sparmodus) zeigen/setzen");
-  Serial.println("[CON]   advert            - Zero-Hop-Advert senden (mit Akku-Telemetrie)");
-  Serial.println("[CON]   advert flood      - Flood-Advert (mehrhopfaehig, erreicht entfernte Nodes)");
-  Serial.println("[CON]   pos [<lat> <lon>] - Node-Position zeigen/setzen (Standortbake im Advert)");
-  Serial.println("[CON]   gps [sek] / off   - GPS-Test: rohe NMEA + Fix lesen (Default 10 s), Modul aus");
-  Serial.println("[CON]   public <text>     - Nachricht an Public-Channel");
-  Serial.println("[CON]   dm <idx> <text>   - Direktnachricht an Kontakt #idx");
-  Serial.println("[CON]   contacts          - Kontaktliste");
-  Serial.println("[CON]   contacts reset    - alle Kontakte löschen (Neuaufbau aus Adverts)");
-  Serial.println("[CON]   channels          - beigetretene Kanäle");
-  Serial.println("[CON]   join <name>       - Hashtag-Kanal beitreten (z.B. join test)");
-  Serial.println("[CON]   chan <name> <txt> - Nachricht an Hashtag-Kanal");
-  Serial.println("[CON]   msgs              - Nachrichten-Verlauf dumpen");
-  Serial.println("[CON]   meshlog           - Ende des SD-Nachrichten-Logs zeigen");
-  Serial.println("[CON]   battlog           - Akku-/Aktivitaets-Log (BATTLOG) dumpen");
-  Serial.println("[CON]   gauge             - BQ27220-Register dumpen (RM/FCC/SoC, read-only)");
-  Serial.println("[CON]   i2cscan           - I2C-Bus abklopfen (RTC auf 0x51?)");
-  Serial.println("[CON]   ls <pfad>         - SD-Verzeichnis listen (z.B. ls /books)");
-  Serial.println("[CON]   rm <pfad>         - Datei/Ordner rekursiv loeschen (auch ueberlange Calibre-Pfade)");
-  Serial.println("[CON]   books             - Bücher-Scan neu ausführen + dumpen");
-  Serial.println("[CON]   wifi list         - bekannte WLANs auflisten");
-  Serial.println("[CON]   wifi ssid <name>  - WLAN-SSID von Profil 0 setzen (NVS)");
-  Serial.println("[CON]   wifi pass <pw>    - WLAN-Passwort von Profil 0 setzen (NVS)");
-  Serial.println("[CON]   wifi add <name> [pw] - weiteres WLAN-Profil anlegen");
-  Serial.println("[CON]   wifi del <n>      - WLAN-Profil n loeschen");
-  Serial.println("[CON]   wifi status       - WLAN-/Webserver-Status");
-  Serial.println("[CON]   wifi start        - Web-Dateiverwaltung starten");
-  Serial.println("[CON]   wifi stop         - Web-Dateiverwaltung stoppen");
-  Serial.println("[CON]   nav url <url>     - Navidrome-Server-URL setzen");
-  Serial.println("[CON]   nav user <name>   - Navidrome-Benutzer setzen");
-  Serial.println("[CON]   nav pass <pw>     - Navidrome-Passwort setzen");
-  Serial.println("[CON]   nav on|off        - Scrobbeln ein-/ausschalten");
-  Serial.println("[CON]   nav test          - Subsonic-Ping (WLAN)");
-  Serial.println("[CON]   scrobble          - offene Scrobbles zeigen");
-  Serial.println("[CON]   scrobble flush    - offene Scrobbles jetzt hochladen (WLAN)");
+  Serial.println("[CON]   mesh init         - initialize the Mesh radio");
+  Serial.println("[CON]   mesh eco [on|off] - show/set RX duty-cycle (radio power saving)");
+  Serial.println("[CON]   advert            - send a zero-hop advertisement (with battery telemetry)");
+  Serial.println("[CON]   advert flood      - send a multi-hop advertisement to distant nodes");
+  Serial.println("[CON]   pos [<lat> <lon>] - show/set node position (location beacon in advertisement)");
+  Serial.println("[CON]   gps [sek] / off   - read raw NMEA and fix (default 10 s), or turn module off");
+  Serial.println("[CON]   public <text>     - send a message to the public channel");
+  Serial.println("[CON]   dm <idx> <text>   - send a direct message to contact #idx");
+  Serial.println("[CON]   contacts          - list contacts");
+  Serial.println("[CON]   contacts reset    - delete all contacts (rebuild from advertisements)");
+  Serial.println("[CON]   channels          - list joined channels");
+  Serial.println("[CON]   join <name>       - join a hashtag channel (e.g. join test)");
+  Serial.println("[CON]   chan <name> <txt> - send a message to a hashtag channel");
+  Serial.println("[CON]   msgs              - dump message history");
+  Serial.println("[CON]   meshlog           - show the end of the SD message log");
+  Serial.println("[CON]   battlog           - dump the battery/activity log (BATTLOG)");
+  Serial.println("[CON]   gauge             - dump BQ27220 registers (RM/FCC/SoC, read-only)");
+  Serial.println("[CON]   i2cscan           - scan I2C bus (RTC at 0x51?)");
+  Serial.println("[CON]   ls <path>         - list SD directory (e.g. ls /books)");
+  Serial.println("[CON]   rm <path>         - recursively delete file/folder (including long Calibre paths)");
+  Serial.println("[CON]   books             - rescan and dump books");
+  Serial.println("[CON]   wifi list         - list known Wi-Fi networks");
+  Serial.println("[CON]   wifi ssid <name>  - set Wi-Fi SSID for profile 0 (NVS)");
+  Serial.println("[CON]   wifi pass <pw>    - set Wi-Fi password for profile 0 (NVS)");
+  Serial.println("[CON]   wifi add <name> [pw] - add another Wi-Fi profile");
+  Serial.println("[CON]   wifi del <n>      - delete Wi-Fi profile n");
+  Serial.println("[CON]   wifi status       - Wi-Fi/web server status");
+  Serial.println("[CON]   wifi start        - start web file manager");
+  Serial.println("[CON]   wifi stop         - stop web file manager");
+  Serial.println("[CON]   nav url <url>     - set Navidrome server URL");
+  Serial.println("[CON]   nav user <name>   - set Navidrome username");
+  Serial.println("[CON]   nav pass <pw>     - set Navidrome password");
+  Serial.println("[CON]   nav on|off        - enable/disable scrobbling");
+  Serial.println("[CON]   nav test          - Subsonic ping (Wi-Fi)");
+  Serial.println("[CON]   scrobble          - show pending scrobbles");
+  Serial.println("[CON]   scrobble flush    - upload pending scrobbles now (Wi-Fi)");
   Serial.println("[CON]   ollama url <url>  - Ollama-Server (z. B. http://10.0.0.5:11434)");
   Serial.println("[CON]   ollama model <m>  - Ollama-Modell (z. B. llama3.2)");
-  Serial.println("[CON]   ollama on|off     - Notizen automatisch schoenschreiben");
-  Serial.println("[CON]   ollama / test     - Status / Verbindungstest (WLAN)");
-  Serial.println("[CON]   ollama flush      - offene Notizen jetzt polieren (WLAN)");
-  Serial.println("[CON]   podcast           - Feeds + lokale Folgen zeigen");
-  Serial.println("[CON]   podcast feed <url>- Feed abonnieren (feeds.txt)");
-  Serial.println("[CON]   podcast rm <idx>  - Feed entfernen");
-  Serial.println("[CON]   podcast on|off    - Auto-Sync vor Standby ein/aus");
-  Serial.println("[CON]   podcast sync      - neueste Folgen jetzt laden (WLAN)");
-  Serial.println("[CON]   calibre           - Calibre-Sync-Status");
-  Serial.println("[CON]   calibre url <url> - Calibre-Web (z. B. https://calibre.example)");
-  Serial.println("[CON]   calibre user/pass - Calibre-Web-Login (OPDS-Basic-Auth)");
-  Serial.println("[CON]   calibre shelf <s> - Buecherregal, Name oder ID (Default Fennek)");
-  Serial.println("[CON]   calibre on|off    - Auto-Sync vor Standby ein/aus");
-  Serial.println("[CON]   calibre sync      - neue Buecher jetzt laden (WLAN)");
-  Serial.println("[CON]   ota               - OTA-Status (Version + Update-URL)");
-  Serial.println("[CON]   ota url <url>     - Update-Quelle (GitHub-Release-API/Manifest)");
-  Serial.println("[CON]   ota check         - auf neue Firmware pruefen (WLAN)");
-  Serial.println("[CON]   ota update|force  - Firmware laden + flashen + Reboot (WLAN)");
-  Serial.println("[CON]   settings show     - aktuelle Einstellungen anzeigen");
-  Serial.println("[CON]   settings save     - Einstellungen nach /fennek.ini (SD)");
-  Serial.println("[CON]   settings load     - /fennek.ini ins NVS einlesen");
+  Serial.println("[CON]   ollama on|off     - automatically proofread notes");
+  Serial.println("[CON]   ollama / test     - status / connection test (Wi-Fi)");
+  Serial.println("[CON]   ollama flush      - proofread pending notes now (Wi-Fi)");
+  Serial.println("[CON]   podcast           - show feeds and local episodes");
+  Serial.println("[CON]   podcast feed <url>- subscribe to a feed (feeds.txt)");
+  Serial.println("[CON]   podcast rm <idx>  - remove a feed");
+  Serial.println("[CON]   podcast on|off    - toggle auto-sync before standby");
+  Serial.println("[CON]   podcast sync      - download latest episodes now (Wi-Fi)");
+  Serial.println("[CON]   calibre           - Calibre sync status");
+  Serial.println("[CON]   calibre url <url> - Calibre-Web (e.g. https://calibre.example)");
+  Serial.println("[CON]   calibre user/pass - Calibre-Web login (OPDS basic auth)");
+  Serial.println("[CON]   calibre shelf <s> - bookshelf name or ID (default Fennek)");
+  Serial.println("[CON]   calibre on|off    - toggle auto-sync before standby");
+  Serial.println("[CON]   calibre sync      - download new books now (Wi-Fi)");
+  Serial.println("[CON]   ota               - OTA status (version + update URL)");
+  Serial.println("[CON]   ota url <url>     - update source (GitHub release API/manifest)");
+  Serial.println("[CON]   ota check         - check for firmware updates (Wi-Fi)");
+  Serial.println("[CON]   ota update|force  - download, flash, and reboot (Wi-Fi)");
+  Serial.println("[CON]   settings show     - show current settings");
+  Serial.println("[CON]   settings save     - save settings to /fennek.ini (SD)");
+  Serial.println("[CON]   settings load     - load /fennek.ini into NVS");
 }
 
 void cmdSettingsShow() {
@@ -138,34 +138,34 @@ void cmdWifiStatus() {
   webfm::ssid(ssid, sizeof(ssid));
   char pass[65];
   settings::wifiPass(pass, sizeof(pass));
-  const char* st = "aus";
+  const char* st = "off";
   switch (webfm::state()) {
-    case webfm::State::CONNECTING: st = "verbinde ..."; break;
-    case webfm::State::RUNNING:    st = "läuft"; break;
-    case webfm::State::FAILED:     st = "FEHLGESCHLAGEN"; break;
+    case webfm::State::CONNECTING: st = "connecting ..."; break;
+    case webfm::State::RUNNING:    st = "running"; break;
+    case webfm::State::FAILED:     st = "FAILED"; break;
     default: break;
   }
   char ip[16];
   webfm::ipStr(ip, sizeof(ip));
-  Serial.printf("[CON] WiFi: SSID='%s' Passwort=%s | Profile: %d | Status: %s%s%s | Requests=%lu\n",
-                ssid[0] ? ssid : "(nicht gesetzt)",
-                pass[0] ? "gesetzt" : "(nicht gesetzt)", settings::wifiCount(), st,
+  Serial.printf("[CON] Wi-Fi: SSID='%s' password=%s | profiles: %d | status: %s%s%s | requests=%lu\n",
+                ssid[0] ? ssid : "(not set)",
+                pass[0] ? "set" : "(not set)", settings::wifiCount(), st,
                 ip[0] ? " http://" : "", ip,
                 (unsigned long)webfm::requestCount());
 }
 
-// SD-Verzeichnis listen (Diagnose, nicht rekursiv).
+// List an SD directory (diagnostic, not recursive).
 void cmdLs(const char* path) {
-  if (!board::sdReady()) { Serial.println("[CON] Keine SD-Karte"); return; }
+  if (!board::sdReady()) { Serial.println("[CON] No SD card"); return; }
   spiLock();
   File d = SD.open(path);
   if (!d) {
     spiUnlock();
-    Serial.printf("[CON] '%s' existiert nicht\n", path);
+    Serial.printf("[CON] '%s' does not exist\n", path);
     return;
   }
   if (!d.isDirectory()) {
-    Serial.printf("[CON] %s ist eine Datei (%u Bytes)\n", path, (unsigned)d.size());
+    Serial.printf("[CON] %s is a file (%u bytes)\n", path, (unsigned)d.size());
     d.close();
     spiUnlock();
     return;
@@ -174,20 +174,21 @@ void cmdLs(const char* path) {
   File f;
   while ((f = d.openNextFile())) {
     if (f.isDirectory()) Serial.printf("[CON]   %s/\n", f.name());
-    else                 Serial.printf("[CON]   %s  (%u Bytes)\n", f.name(), (unsigned)f.size());
+    else                 Serial.printf("[CON]   %s  (%u bytes)\n", f.name(), (unsigned)f.size());
     f.close();
     n++;
   }
   d.close();
   spiUnlock();
-  Serial.printf("[CON] %d Eintrag/Einträge in %s\n", n, path);
+  Serial.printf("[CON] %d item(s) in %s\n", n, path);
 }
 
-// Rekursives Löschen für die Konsole. Eigener großer Pfadpuffer (512 statt der
-// 192er-WebFM-Puffer), weil Calibre-Dateinamen den Pfad auf >240 Zeichen treiben
-// — die einzelnen Pfad-Komponenten bleiben aber unter dem FATFS-Limit (255), nur
-// die festen Firmware-Puffer waren zu klein. f.name() liefert in arduino-esp32
-// 2.0.x den Basisnamen, daher Pfad selbst zusammensetzen. Aufruf unter spiLock!
+// Recursively delete from the console. Use a larger path buffer (512 instead
+// of WebFM's 192 bytes) because Calibre filenames can make paths longer than
+// 240 characters. Individual path components remain below FATFS's 255-byte
+// limit; the firmware's fixed buffers were simply too small. arduino-esp32
+// 2.0.x f.name() returns only the basename, so build the path manually.
+// Call while holding spiLock.
 bool rmTree(const char* path) {
   File f = SD.open(path);
   if (!f) return false;
@@ -206,32 +207,32 @@ bool rmTree(const char* path) {
 }
 
 void cmdRm(const char* path) {
-  if (!board::sdReady()) { Serial.println("[CON] Keine SD-Karte"); return; }
-  // Sicherheitsnetz: keine Wurzel-/Mountpunkt-Löschung.
+  if (!board::sdReady()) { Serial.println("[CON] No SD card"); return; }
+  // Safety check: never delete the root or mount point.
   if (path[0] != '/' || strlen(path) < 2 || strcmp(path, "/sd") == 0) {
-    Serial.println("[CON] Ungueltiger Pfad");
+    Serial.println("[CON] Invalid path");
     return;
   }
   spiLock();
   bool exists = SD.exists(path);
   bool ok = exists && rmTree(path);
   spiUnlock();
-  if (!exists)   Serial.printf("[CON] '%s' existiert nicht\n", path);
-  else if (ok)   Serial.printf("[CON] Geloescht: %s\n", path);
-  else           Serial.printf("[CON] Loeschen (teilweise) fehlgeschlagen: %s\n", path);
+  if (!exists)   Serial.printf("[CON] '%s' does not exist\n", path);
+  else if (ok)   Serial.printf("[CON] Deleted: %s\n", path);
+  else           Serial.printf("[CON] Delete failed (possibly partial): %s\n", path);
 }
 
 // Letzte ~2 KB des SD-Nachrichten-Logs ausgeben.
 void cmdMeshLog() {
-  if (!board::sdReady()) { Serial.println("[CON] Keine SD-Karte"); return; }
+  if (!board::sdReady()) { Serial.println("[CON] No SD card"); return; }
   spiLock();
   if (!SD.exists("/meshcore/messages.log")) {
     spiUnlock();
-    Serial.println("[CON] /meshcore/messages.log existiert (noch) nicht");
+    Serial.println("[CON] /meshcore/messages.log does not exist yet");
     return;
   }
   File f = SD.open("/meshcore/messages.log");
-  if (!f) { spiUnlock(); Serial.println("[CON] Log nicht lesbar"); return; }
+  if (!f) { spiUnlock(); Serial.println("[CON] Log is unreadable"); return; }
   uint32_t sz = f.size();
   uint32_t from = (sz > 2048) ? sz - 2048 : 0;
   f.seek(from);
@@ -239,17 +240,17 @@ void cmdMeshLog() {
   int rd = f.read((uint8_t*)buf, 2048);
   f.close();
   spiUnlock();
-  if (rd <= 0) { Serial.println("[CON] Log leer"); return; }
+  if (rd <= 0) { Serial.println("[CON] Log is empty"); return; }
   buf[rd] = '\0';
-  Serial.printf("[CON] /meshcore/messages.log (%u Bytes, letzte %d):\n", (unsigned)sz, rd);
+  Serial.printf("[CON] /meshcore/messages.log (%u bytes, last %d):\n", (unsigned)sz, rd);
   Serial.println(buf);
 }
 
-// Akku-/Aktivitäts-Log (BATTLOG) komplett über Serial ausgeben. Gechunkt unter
-// spiLock, Netz-/Serial-I/O bleibt simpel (USB, kein SPI). Nur sinnvoll mit
-// -D BATTLOG; ohne das Flag existiert die Datei nicht.
+// Print the entire battery/activity log (BATTLOG) to Serial in chunks while
+// holding spiLock. Network/serial I/O uses USB, not SPI. This is useful only
+// with -D BATTLOG; without that flag, the file does not exist.
 void cmdBatLog() {
-  if (!board::sdReady()) { Serial.println("[CON] Keine SD-Karte"); return; }
+  if (!board::sdReady()) { Serial.println("[CON] No SD card"); return; }
   // Erst den PSRAM-Ring auf die SD spülen: sonst fehlen genau die Zeilen der
   // laufenden Sitzung (der Ring wird nur alle 2 min bzw. vor dem Standby
   // geschrieben) — und dazu gehören die „Schlaf"-Zeilen aus logSleepDebug(),
@@ -260,11 +261,11 @@ void cmdBatLog() {
   spiLock();
   if (!SD.exists(path)) {
     spiUnlock();
-    Serial.println("[CON] /.fennek/battery.log existiert (noch) nicht (BATTLOG aktiv?)");
+    Serial.println("[CON] /.fennek/battery.log does not exist yet (is BATTLOG enabled?)");
     return;
   }
   File f = SD.open(path, FILE_READ);
-  if (!f) { spiUnlock(); Serial.println("[CON] Log nicht lesbar"); return; }
+  if (!f) { spiUnlock(); Serial.println("[CON] Log is not readable"); return; }
   uint32_t sz = f.size();
   spiUnlock();
   Serial.printf("[CON] %s (%u Bytes):\n", path, (unsigned)sz);
@@ -296,7 +297,7 @@ void cmdCat(const char* path) {
   File f = ok ? SD.open(path, FILE_READ) : File();
   uint32_t sz = f ? f.size() : 0;
   spiUnlock();
-  if (!ok || !f) { Serial.printf("[CON] %s nicht lesbar\n", path); return; }
+  if (!ok || !f) { Serial.printf("[CON] %s is not readable\n", path); return; }
   Serial.printf("[CON] %s (%u Bytes):\n", path, (unsigned)sz);
   static char buf[1025];
   uint32_t off = 0;
@@ -347,8 +348,8 @@ void cmdI2cScan() {
       found++;
     }
   }
-  Serial.printf("[CON] %d Gerät(e) gefunden. %s\n", found,
-                found ? "" : "Bus stumm — Verkabelung/Pins prüfen.");
+  Serial.printf("[CON] Found %d device(s). %s\n", found,
+                found ? "" : "Bus is silent — check wiring and pins.");
 }
 
 void cmdStatus() {
@@ -365,12 +366,12 @@ void cmdStatus() {
   // 5=DeepSleep-Wake 12=SW; Wake 3=EXT1/Knopf 4=Timer). Achtung: Der UNTERE
   // Seitenknopf ist der Hardware-Reset -> immer Reset-Grund=1, Firmware
   // sieht den Druck nie.
-  Serial.printf("[CON] Boot: Reset-Grund=%d Wake-Quelle=%d ext1=0x%llx GPIO0=%d\n",
+  Serial.printf("[CON] Boot: reset reason=%d wake source=%d ext1=0x%llx GPIO0=%d\n",
                 (int)esp_reset_reason(), (int)esp_sleep_get_wakeup_cause(),
                 (unsigned long long)esp_sleep_get_ext1_wakeup_status(),
                 (int)digitalRead(0));
   if (!mesh_client::ready()) {
-    Serial.println("[CON] Mesh: nicht initialisiert ('mesh init')");
+    Serial.println("[CON] Mesh: not initialized ('mesh init')");
     return;
   }
   int nf; uint32_t rx, tx;
@@ -379,7 +380,7 @@ void cmdStatus() {
   Serial.printf("[CON] Mesh: '%s' @ %.3f MHz SF%u BW%.1f CR4/%u %udBm | NoiseFloor=%d dBm RX=%lu TX=%lu\n",
                 mesh_client::nodeName(), (double)p.freqMhz, p.sf, (double)p.bwKhz,
                 p.cr, p.txDbm, nf, (unsigned long)rx, (unsigned long)tx);
-  Serial.printf("[CON] Kontakte=%d Nachrichten=%d RTC=%lu Quelle=%s estErr=%lus\n",
+  Serial.printf("[CON] Contacts=%d messages=%d RTC=%lu source=%s estErr=%lus\n",
                 mesh_client::contactCount(), mesh_client::msgCount(),
                 (unsigned long)mesh_client::rtcTime(),
                 timesync::source(), (unsigned long)timesync::estErrSeconds());
@@ -397,7 +398,7 @@ void cmdTime() {
   Serial.printf("[CON] Zeit lokal: %04d-%02d-%02d %02d:%02d:%02d (%s)\n",
                 loc.tm_year + 1900, loc.tm_mon + 1, loc.tm_mday,
                 loc.tm_hour, loc.tm_min, loc.tm_sec, tz);
-  Serial.printf("[CON]   UTC=%lu (%02d:%02d:%02d) Quelle=%s Qualität=%s "
+  Serial.printf("[CON]   UTC=%lu (%02d:%02d:%02d) source=%s quality=%s "
                 "estErr=%lus Drift=%uppm\n",
                 (unsigned long)e, utc.tm_hour, utc.tm_min, utc.tm_sec,
                 timesync::source(), timesync::qualityStr(),
@@ -419,13 +420,13 @@ void cmdTimeSet(const char* arg) {
   lt.tm_hour = h; lt.tm_min = mi; lt.tm_sec = s;
   lt.tm_isdst = -1;                  // mktime soll Sommerzeit selbst bestimmen
   time_t utc = mktime(&lt);          // interpretiert lt in der gesetzten Zeitzone
-  if (utc <= 0) { Serial.println("[CON] Ungültiges Datum"); return; }
+  if (utc <= 0) { Serial.println("[CON] Invalid date"); return; }
   timesync::setManualTime((uint32_t)utc);
   cmdTime();
 }
 
 void cmdContacts() {
-  if (!mesh_client::ready()) { Serial.println("[CON] Mesh nicht initialisiert"); return; }
+  if (!mesh_client::ready()) { Serial.println("[CON] Mesh not initialized"); return; }
   int n = mesh_client::contactCount();
   Serial.printf("[CON] %d Kontakt(e):\n", n);
   for (int i = 0; i < n; i++) {
@@ -459,7 +460,7 @@ void cmdPos(const char* arg) {
 }
 
 void alarmPrintList() {
-  Serial.println("[CON] Wecker:");
+  Serial.println("[CON] Alarms:");
   const char* dn[7] = {"Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"};
   for (int i = 0; i < alarmclock::count(); i++) {
     alarmclock::Alarm a = alarmclock::get(i);
@@ -477,7 +478,7 @@ void alarmPrintList() {
   }
   char snd[TRACK_PATH_LEN];
   alarmclock::soundPath(snd, sizeof(snd));
-  Serial.printf("[CON]   Klingelton: %s\n", snd[0] ? snd : "(erster Titel)");
+  Serial.printf("[CON]   Ringtone: %s\n", snd[0] ? snd : "(first track)");
 }
 
 // "mo,di,fr" -> Bitmaske (bit0=Mo); "taeglich"/leer -> 0 (täglich).
@@ -498,7 +499,7 @@ void cmdAlarm(const char* arg) {
   if (strcmp(arg, "snooze") == 0)     { alarmclock::snooze(); return; }
   if (strncmp(arg, "sound ", 6) == 0) {
     alarmclock::setSoundPath(arg + 6);
-    Serial.printf("[CON] Klingelton: %s\n", arg + 6);
+    Serial.printf("[CON] Ringtone: %s\n", arg + 6);
     return;
   }
   int i = atoi(arg);
@@ -510,7 +511,7 @@ void cmdAlarm(const char* arg) {
   sp++;
   if (strncmp(sp, "off", 3) == 0) {
     alarmclock::clear(i);
-    Serial.printf("[CON] Wecker %d aus\n", i);
+    Serial.printf("[CON] Alarm %d off\n", i);
     return;
   }
   if (strncmp(sp, "mode ", 5) == 0) {                  // Signal-Modus pro Wecker
@@ -524,7 +525,7 @@ void cmdAlarm(const char* arg) {
     alarmclock::Alarm a = alarmclock::get(i);
     a.signal = v;
     alarmclock::set(i, a);
-    Serial.printf("[CON] Wecker %d Signal: %u (1=Ton 2=Blink 3=beides)\n", i, v);
+    Serial.printf("[CON] Alarm %d signal: %u (1=tone 2=blink 3=both)\n", i, v);
     return;
   }
   int hh, mm;
@@ -541,7 +542,7 @@ void cmdAlarm(const char* arg) {
   a.once = strstr(daysStr, "einmal") || strstr(daysStr, "once") || strstr(daysStr, "1x");
   a.dowMask = a.once ? 0 : alarmParseDays(daysStr);
   alarmclock::set(i, a);
-  Serial.printf("[CON] Wecker %d: %02d:%02d %s gesetzt\n", i, hh, mm,
+  Serial.printf("[CON] Alarm %d: %02d:%02d %s set\n", i, hh, mm,
                 a.once ? "(einmalig)" : a.dowMask ? "(Wochentage)" : "(taeglich)");
 }
 
@@ -643,13 +644,13 @@ void cmdGps(const char* arg) {
 
   Serial.printf("[GPS] %lu Bytes, %lu Zeilen empfangen\n", bytes, lines);
   if (bytes == 0)
-    Serial.println("[GPS] KEINE Daten — Verkabelung/Enable (GPIO39) prüfen.");
+    Serial.println("[GPS] NO DATA — check wiring and enable (GPIO39).");
   else if (lines == 0)
-    Serial.println("[GPS] Bytes, aber keine gültigen Zeilen — vermutlich falsche Baudrate (GPS_BAUD).");
+    Serial.println("[GPS] Bytes received, but no valid lines — likely incorrect baud rate (GPS_BAUD).");
   // Zeit kommt oft vor dem Positionsfix (RMC-Datum+Zeit) — als Uhr-Sync melden.
   if (fix.epochUtc > 1700000000UL) {
     timesync::gpsSync(fix.epochUtc);
-    Serial.printf("[GPS] UTC=%lu an timesync gemeldet (Quelle jetzt '%s')\n",
+    Serial.printf("[GPS] UTC=%lu reported to timesync (current source: '%s')\n",
                   (unsigned long)fix.epochUtc, timesync::source());
   }
   if (fix.valid)
@@ -657,7 +658,7 @@ void cmdGps(const char* arg) {
                   fix.lat, fix.lon, (unsigned)fix.sats, (double)fix.hdop,
                   (double)fix.altM, (double)fix.speedKmh);
   else
-    Serial.printf("[GPS] noch kein Positionsfix (zuletzt Sat=%u) — unter freiem Himmel erneut testen.\n",
+    Serial.printf("[GPS] No position fix yet (last satellites=%u) — try again outdoors.\n",
                   (unsigned)fix.sats);
   gps::end();
   Serial.println("[GPS] Modul aus");
@@ -666,7 +667,7 @@ void cmdGps(const char* arg) {
 // BHI260-IMU testen: Firmware laden (~10 s), 2 s lesen, Werte ausgeben.
 void cmdGyro() {
   Serial.println("[CON] Gyro: BHI260 init (Firmware-Upload ~10 s) ...");
-  if (!gyro::begin()) { Serial.println("[CON] Gyro init fehlgeschlagen"); return; }
+  if (!gyro::begin()) { Serial.println("[CON] Gyro initialization failed"); return; }
   for (int i = 0; i < 20; i++) {
     gyro::poll();
     delay(100);
@@ -686,8 +687,8 @@ void cmdRec(const char* arg) {
   if (arg && *arg) { int v = atoi(arg); if (v > 0 && v <= 30) secs = v; }
   const char* path = "/rectest.wav";
   Serial.printf("[CON] Aufnahme %d s -> %s (jetzt sprechen!) ...\n", secs, path);
-  if (!audio::beginMic()) { Serial.println("[CON] I2S0-Handover fehlgeschlagen"); return; }
-  if (!mic::startRecording(path)) { audio::endMic(); Serial.println("[CON] Mikro-Init/SD fehlgeschlagen"); return; }
+  if (!audio::beginMic()) { Serial.println("[CON] I2S0 handoff failed"); return; }
+  if (!mic::startRecording(path)) { audio::endMic(); Serial.println("[CON] Microphone initialization or SD failed"); return; }
   uint16_t maxLvl = 0;
   uint32_t t0 = millis();
   while (millis() - t0 < (uint32_t)secs * 1000) {
@@ -717,7 +718,7 @@ void handleLine(char* line) {
   if (strcmp(line, "time") == 0)            { cmdTime(); return; }
   if (strncmp(line, "time set ", 9) == 0)   { cmdTimeSet(line + 9); return; }
   if (strcmp(line, "time sync") == 0) {
-    if (!timesync::forceSyncNow()) Serial.println("[CON] NTP-Sync fehlgeschlagen");
+    if (!timesync::forceSyncNow()) Serial.println("[CON] NTP sync failed");
     else cmdTime();
     return;
   }
@@ -753,7 +754,7 @@ void handleLine(char* line) {
   if (strcmp(line, "contacts reset") == 0)  {
     if (!ensureMesh()) return;
     mesh_client::resetContacts();
-    Serial.println("[CON] Kontakte gelöscht (Neuaufbau aus Adverts)");
+    Serial.println("[CON] Contacts deleted (will rebuild from adverts)");
     return;
   }
   if (strcmp(line, "contacts") == 0)        { cmdContacts(); return; }
@@ -809,13 +810,13 @@ void handleLine(char* line) {
     int idx = atoi(line + 9);
     if (idx < 0 || idx >= settings::wifiCount()) { Serial.println("[CON] Ungueltiger Index"); return; }
     settings::wifiRemove(idx);
-    Serial.printf("[CON] WLAN-Profil %d geloescht\n", idx);
+    Serial.printf("[CON] Wi-Fi profile %d deleted\n", idx);
     return;
   }
   if (strcmp(line, "wifi status") == 0)     { cmdWifiStatus(); return; }
   if (strcmp(line, "sleep") == 0)           { power::enterStandby(); return; }
   if (strcmp(line, "wifi start") == 0) {
-    if (!webfm::start()) Serial.println("[CON] Start fehlgeschlagen — erst 'wifi ssid <name>' setzen");
+    if (!webfm::start()) Serial.println("[CON] Start failed — set 'wifi ssid <name>' first");
     return;
   }
   if (strcmp(line, "wifi stop") == 0)       { webfm::stop(); return; }
@@ -839,7 +840,7 @@ void handleLine(char* line) {
   if (strcmp(line, "nav test") == 0) {
     char msg[64];
     bool ok = scrobble::ping(msg, sizeof(msg));
-    Serial.printf("[CON] Navidrome-Test: %s (%s)\n", ok ? "OK" : "Fehler", msg);
+    Serial.printf("[CON] Navidrome test: %s (%s)\n", ok ? "OK" : "Error", msg);
     return;
   }
   if (strcmp(line, "scrobble") == 0) {
@@ -868,7 +869,7 @@ void handleLine(char* line) {
   if (strcmp(line, "ollama test") == 0) {
     char msg[64];
     bool ok = notes_ai::ping(msg, sizeof(msg));
-    Serial.printf("[CON] Ollama-Test: %s (%s)\n", ok ? "OK" : "Fehler", msg);
+    Serial.printf("[CON] Ollama test: %s (%s)\n", ok ? "OK" : "Error", msg);
     return;
   }
   if (strcmp(line, "ollama") == 0) {
@@ -886,12 +887,12 @@ void handleLine(char* line) {
   }
   if (strncmp(line, "podcast feed ", 13) == 0) {
     bool ok = podcast::addFeed(line + 13, nullptr);
-    Serial.printf("[CON] Feed %s: %s\n", ok ? "hinzugefuegt" : "Fehler", line + 13);
+    Serial.printf("[CON] Feed %s: %s\n", ok ? "added" : "Error", line + 13);
     return;
   }
   if (strncmp(line, "podcast rm ", 11) == 0) {
     int idx = atoi(line + 11);
-    Serial.printf("[CON] Feed %d %s\n", idx, podcast::removeFeed(idx) ? "entfernt" : "Fehler");
+    Serial.printf("[CON] Feed %d %s\n", idx, podcast::removeFeed(idx) ? "removed" : "Error");
     return;
   }
   if (strcmp(line, "podcast on") == 0)  { settings::setPodcastAutoSync(true);  Serial.println("[CON] Podcast-Auto-Sync EIN"); return; }
@@ -912,19 +913,19 @@ void handleLine(char* line) {
       podcast::Local loc;
       bool have = podcast::localEpisode(f, &loc);
       Serial.printf("[CON]   [%d] %s  (%s)\n", i, f.name,
-                    have ? loc.title : "keine Folge");
+                    have ? loc.title : "no episode");
     }
     return;
   }
   // --- Kalender (iCal, read-only) ---
   if (strncmp(line, "cal feed ", 9) == 0) {
     bool ok = calendar::addFeed(line + 9);
-    Serial.printf("[CON] Kalender-Feed %s: %s\n", ok ? "hinzugefuegt" : "Fehler", line + 9);
+    Serial.printf("[CON] Calendar feed %s: %s\n", ok ? "added" : "Error", line + 9);
     return;
   }
   if (strncmp(line, "cal rm ", 7) == 0) {
     int idx = atoi(line + 7);
-    Serial.printf("[CON] Feed %d %s\n", idx, calendar::removeFeed(idx) ? "entfernt" : "Fehler");
+    Serial.printf("[CON] Feed %d %s\n", idx, calendar::removeFeed(idx) ? "removed" : "Error");
     return;
   }
   if (strncmp(line, "cal user ", 9) == 0) { settings::setCalDavUser(line + 9); Serial.printf("[CON] CalDAV-User: '%s'\n", line + 9); return; }
@@ -947,7 +948,7 @@ void handleLine(char* line) {
   if (strncmp(line, "todo url ", 9) == 0)  { settings::setTodoUrl(line + 9);  Serial.printf("[CON] Todo-URL: '%s'\n", line + 9); return; }
   if (strncmp(line, "todo user ", 10) == 0){ settings::setTodoUser(line + 10);Serial.printf("[CON] Todo-User: '%s'\n", line + 10); return; }
   if (strncmp(line, "todo pass ", 10) == 0){ settings::setTodoPass(line + 10);Serial.println("[CON] Todo-Passwort gesetzt"); return; }
-  if (strncmp(line, "todo path ", 10) == 0){ settings::setTodoPath(line + 10);Serial.printf("[CON] Todo-Pfad: '%s'\n", line + 10); return; }
+  if (strncmp(line, "todo path ", 10) == 0){ settings::setTodoPath(line + 10);Serial.printf("[CON] Todo path: '%s'\n", line + 10); return; }
   if (strcmp(line, "todo on") == 0)  { settings::setTodoEnabled(true);  Serial.println("[CON] Todo-Sync EIN"); return; }
   if (strcmp(line, "todo off") == 0) { settings::setTodoEnabled(false); Serial.println("[CON] Todo-Sync AUS"); return; }
   if (strcmp(line, "todo sync") == 0) {
@@ -957,7 +958,7 @@ void handleLine(char* line) {
   }
   if (strcmp(line, "todo") == 0) {
     char url[160], path[160]; settings::todoUrl(url, sizeof(url)); settings::todoPath(path, sizeof(path));
-    Serial.printf("[CON] Todo=%s URL='%s' Pfad='%s'; %d Aufgaben, %d offen\n",
+    Serial.printf("[CON] Todo=%s URL='%s' path='%s'; %d tasks, %d open\n",
                   settings::todoEnabled() ? "an" : "aus", url, path,
                   reinschrift_svc::count(), reinschrift_svc::pendingCount());
     return;
@@ -1000,20 +1001,20 @@ void handleLine(char* line) {
   if (strcmp(line, "settings show") == 0)   { cmdSettingsShow(); return; }
   if (strcmp(line, "settings save") == 0) {
     Serial.println(settingsfile::exportToSd()
-        ? "[CON] Einstellungen nach /fennek.ini gesichert"
-        : "[CON] Sichern fehlgeschlagen (keine SD?)");
+        ? "[CON] Settings saved to /fennek.ini"
+        : "[CON] Save failed (no SD card?)");
     return;
   }
   if (strcmp(line, "settings load") == 0) {
     Serial.println(settingsfile::importFromSd()
-        ? "[CON] Einstellungen aus /fennek.ini geladen"
-        : "[CON] Laden fehlgeschlagen (keine SD / Datei fehlt?)");
+        ? "[CON] Settings loaded from /fennek.ini"
+        : "[CON] Load failed (no SD card or file missing?)");
     return;
   }
   if (strcmp(line, "channels") == 0) {
-    if (!mesh_client::ready()) { Serial.println("[CON] Mesh nicht initialisiert"); return; }
+    if (!mesh_client::ready()) { Serial.println("[CON] Mesh not initialized"); return; }
     int n = mesh_client::channelCount();
-    Serial.printf("[CON] %d Kanal/Kanäle:\n", n);
+    Serial.printf("[CON] %d channel(s):\n", n);
     for (int i = 0; i < n; i++) {
       char nm[36];
       mesh_client::channelName(i, nm, sizeof(nm));

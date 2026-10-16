@@ -43,7 +43,7 @@ inline void shuffle(int* idx, int n, uint32_t (*rnd)(uint32_t)) {
 
 // Stabile Sortierung nach Leitner-Box aufsteigend (niedrige Box zuerst =
 // weniger Gelerntes bevorzugt). Insertion-Sort: stabil, hält die zufällige
-// Reihenfolge innerhalb gleicher Box -> "Shuffle innerhalb gleicher Priorität".
+// Order within the same box -> "shuffle within the same priority".
 // `boxOf(i)` liefert die Box des Karten-Index i (Lambda/Funktor in der App).
 template <typename BoxFn>
 inline void stableSortByBox(int* idx, int n, BoxFn boxOf) {

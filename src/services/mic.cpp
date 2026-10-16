@@ -51,8 +51,8 @@ namespace mic {
 bool startRecording(const char* path) {
   if (s_rec) return false;
   if (!s_enabled) {
-    Serial.println("[MIC] Aufnahme deaktiviert: PDM braucht I2S0 (vom DAC belegt) "
-                   "— Audio-Engine-Handover noch nicht implementiert");
+    Serial.println("[MIC] Recording disabled: PDM requires I2S0 (in use by DAC) "
+                   "— audio engine handoff is not implemented yet");
     return false;
   }
   if (!board::sdReady()) return false;
@@ -158,7 +158,7 @@ uint32_t stopRecording() {
   }
 
   uint32_t secs = s_dataBytes / (kRate * 2);
-  Serial.printf("[MIC] Aufnahme beendet: %lu Bytes (%lus), Peak=%u/%d %s\n",
+  Serial.printf("[MIC] Recording ended: %lu bytes (%lus), peak=%u/%d %s\n",
                 (unsigned long)s_dataBytes, (unsigned long)secs,
                 (unsigned)s_level, 32767,
                 s_level < 64 ? "-> STUMM?" : "");

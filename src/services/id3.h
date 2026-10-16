@@ -2,14 +2,14 @@
 // Copyright (C) 2026 Dr. Daniel Dumke
 
 // =============================================================================
-// id3.h — minimaler ID3-Tag-Reader (Titel/Künstler/Album).
+// id3.h — minimal ID3 tag reader (title/artist/album).
 //
-// Unterstützt ID3v2.2/2.3/2.4 (Frames TIT2/TPE1/TALB bzw. TT2/TP1/TAL) mit
-// Latin-1-, UTF-16- und UTF-8-Encodings sowie ID3v1 als Fallback. Ergebnisse
-// werden als UTF-8 geliefert (Anzeige konvertiert via gui::toCp437).
+// Supports ID3v2.2/2.3/2.4 (TIT2/TPE1/TALB or TT2/TP1/TAL frames) with
+// Latin-1, UTF-16, and UTF-8 encodings, plus ID3v1 as a fallback. Results are
+// returned as UTF-8 (the display converts them via gui::toCp437).
 //
-// Frame-Payloads werden übersprungen (seek), nicht gelesen — auch Dateien mit
-// großem Cover-Art-Frame (APIC) scannen schnell.
+// Frame payloads are skipped with seek rather than read, so files with large
+// cover-art frames (APIC) are still scanned quickly.
 // =============================================================================
 #pragma once
 
@@ -22,13 +22,13 @@ struct Tags {
   char title[64];
   char artist[48];
   char album[48];
-  uint32_t fsize;   // Dateigröße (0 = Datei ließ sich nicht öffnen) — der
-                    // readdir-Scan der Bibliothek kennt keine Größen, sie
-                    // werden hier beim ohnehin nötigen Öffnen mitgeliefert.
+  uint32_t fsize;   // File size (0 = file could not be opened). The library's
+                    // readdir scan has no sizes, so they are captured when
+                    // the file is opened here as part of normal processing.
 };
 
-// Tags aus einer Audio-Datei lesen. Nimmt spiLock() selbst.
-// true, wenn mindestens ein Feld gefunden wurde (leere Felder = "").
+// Read tags from an audio file. Acquires spiLock() internally.
+// Returns true if at least one field was found (empty fields = "").
 bool read(const char* path, Tags& out);
 
 }  // namespace id3

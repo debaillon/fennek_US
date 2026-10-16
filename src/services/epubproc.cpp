@@ -513,7 +513,7 @@ bool convertBegin(const char* epubPath, const char* txtPath) {
   s_cv.zip = new EpubZipReader();
   if (!s_cv.zip || !s_cv.zip->open(s_cv.epubFile)) {
     spiUnlock();
-    Serial.println("[EPUB] ZIP-Struktur nicht lesbar");
+    Serial.println("[EPUB] ZIP structure is unreadable");
     cleanup(false);
     s_cv.failed = true;
     return false;
@@ -522,7 +522,7 @@ bool convertBegin(const char* epubPath, const char* txtPath) {
   char opfPath[kXmlBufSize] = "";
   if (!findOpfPath(s_cv.zip, opfPath, sizeof(opfPath))) {
     spiUnlock();
-    Serial.println("[EPUB] OPF nicht gefunden");
+    Serial.println("[EPUB] OPF not found");
     cleanup(false);
     s_cv.failed = true;
     return false;
@@ -535,7 +535,7 @@ bool convertBegin(const char* epubPath, const char* txtPath) {
   if (!parseOpf(s_cv.zip, opfPath, baseDir, title, sizeof(title),
                 &s_cv.chapterPaths, &s_cv.chapterCount)) {
     spiUnlock();
-    Serial.println("[EPUB] OPF/Spine nicht parsebar");
+    Serial.println("[EPUB] Could not parse OPF/Spine");
     cleanup(false);
     s_cv.failed = true;
     return false;

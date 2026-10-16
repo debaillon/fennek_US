@@ -319,7 +319,7 @@ bool downloadOne(const char* base, uint32_t id,
   spiUnlock();
   if (!open) {
     http->end(); delete http; delete cs; delete cp;
-    Serial.println("[CALIBRE] SD-Datei nicht offen");
+    Serial.println("[CALIBRE] Could not open SD file");
     return false;
   }
 
@@ -398,23 +398,23 @@ bool syncCore(bool autoRun, char* log, size_t logN) {
   settings::calibreUser(s_user, sizeof(s_user));
   settings::calibrePass(s_pass, sizeof(s_pass));
 
-  if (!base[0])           { setLog("keine Server-URL"); return false; }
-  if (settings::wifiCount() == 0) { setLog("kein WLAN konfiguriert"); return false; }
-  if (!board::sdReady())  { setLog("keine SD-Karte"); return false; }
-  if (webfm::state() != webfm::State::OFF) { setLog("WLAN belegt"); return false; }
+  if (!base[0])           { setLog("No server URL"); return false; }
+  if (settings::wifiCount() == 0) { setLog("Wi-Fi is not configured"); return false; }
+  if (!board::sdReady())  { setLog("No SD card"); return false; }
+  if (webfm::state() != webfm::State::OFF) { setLog("Wi-Fi is busy"); return false; }
 
   uint32_t nowE = timesync::now();
   if (autoRun) {
     if (s_lastSyncEpoch && nowE >= s_lastSyncEpoch &&
         nowE - s_lastSyncEpoch < kAutoMinIntervalSecs) {
-      setLog("Intervall nicht erreicht");
+      setLog("Sync interval has not elapsed");
       return true;
     }
     if (s_failCount > 0 && s_lastAttemptEpoch != 0 && nowE >= s_lastAttemptEpoch) {
       uint8_t shift = s_failCount > kBackoffMaxShift ? kBackoffMaxShift : s_failCount;
       uint32_t wait = kBackoffBaseSecs << shift;
       if (wait > kBackoffMaxSecs) wait = kBackoffMaxSecs;
-      if (nowE - s_lastAttemptEpoch < wait) { setLog("Back-off aktiv"); return false; }
+      if (nowE - s_lastAttemptEpoch < wait) { setLog("Backoff active"); return false; }
     }
     s_lastAttemptEpoch = nowE;
   }
@@ -487,11 +487,11 @@ bool syncCore(bool autoRun, char* log, size_t logN) {
   }
 
   char m[64];
-  if (!connected)     snprintf(m, sizeof(m), "WLAN-Fehler");
-  else if (authFail)  snprintf(m, sizeof(m), "Auth-Fehler (User/Passwort?)");
-  else if (noShelf)   snprintf(m, sizeof(m), "Regal nicht gefunden");
-  else if (found < 0) snprintf(m, sizeof(m), "Server-Fehler");
-  else snprintf(m, sizeof(m), "%d im Regal, %d neu, %d Fehler%s",
+  if (!connected)     snprintf(m, sizeof(m), "Wi-Fi error");
+  else if (authFail)  snprintf(m, sizeof(m), "Authentication error (username/password?)");
+  else if (noShelf)   snprintf(m, sizeof(m), "Bookshelf not found");
+  else if (found < 0) snprintf(m, sizeof(m), "Server error");
+  else snprintf(m, sizeof(m), "%d in bookshelf, %d new, %d errors%s",
                 found, fresh, failed, more ? ", Rest folgt" : "");
   setLog(m);
   Serial.printf("[CALIBRE] %s\n", m);

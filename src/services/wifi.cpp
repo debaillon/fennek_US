@@ -42,7 +42,7 @@ bool pickBest(char* ssid, size_t ns, char* pass, size_t np) {
     // Scan-Fehler) → Slot 0 als Rückfall, damit ein einzelnes bekanntes Netz
     // weiter funktioniert.
     best = 0;
-    Serial.println("[WIFI] Kein Scan-Treffer, nutze Slot 0");
+    Serial.println("[WIFI] No scan match; using slot 0");
   } else {
     char sel[33];
     settings::wifiSsidAt(best, sel, sizeof(sel));

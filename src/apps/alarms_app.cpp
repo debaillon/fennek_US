@@ -337,7 +337,7 @@ class AlarmsApp : public App {
     if (s_screen == EDIT) {
       g.setTextSize(1);
       char hdr[24];
-      snprintf(hdr, sizeof(hdr), "\x11 Wecker %d", s_editIdx + 1);   // 0x11 = ◄
+      snprintf(hdr, sizeof(hdr), "\x11 Alarm %d", s_editIdx + 1);    // 0x11 = ◄
       g.setCursor(8, TOP + 2);
       gui::print(g, hdr);
       int y = TOP + 12;

@@ -160,7 +160,7 @@ const char* baseName(const char* p) {
 // Künstler/Album aus dem Verzeichnis (relativ zur Scan-Wurzel) ableiten.
 void deriveArtistAlbum(const char* dir, char* artist, size_t aLen, char* album, size_t bLen) {
   strncpy(artist, "(unbekannt)", aLen - 1); artist[aLen - 1] = '\0';
-  strncpy(album,  "(kein Album)", bLen - 1); album[bLen - 1] = '\0';
+  strncpy(album,  "(No album)", bLen - 1); album[bLen - 1] = '\0';
 
   const char* rel = dir;
   size_t rl = strlen(s_root);
@@ -234,13 +234,13 @@ int countSlashes(const char* p) { int n = 0; for (; *p; p++) if (*p == '/') n++;
 
 void addTrackPath(const char* full) {
   if (strlen(full) >= TRACK_PATH_LEN) {
-    Serial.printf("[FENNEK] Pfad zu lang (>%d), übersprungen: %s\n", TRACK_PATH_LEN - 1, full);
+    Serial.printf("[FENNEK] Path too long (>%d), skipped: %s\n", TRACK_PATH_LEN - 1, full);
     return;
   }
   if (!ensureCapacity(s_scanCount + 1)) {
     if (!s_limitWarned) {
       s_limitWarned = true;
-      Serial.printf("[FENNEK] Bibliothek: Limit bei %d Tracks erreicht (%s) — weitere Dateien werden ignoriert\n",
+      Serial.printf("[FENNEK] Library: reached the limit of %d tracks (%s) — remaining files will be ignored\n",
                     s_scanCount, s_scanCount >= TRACKS_HARD_MAX ? "Hard-Max" : "Speicher voll");
     }
     return;
@@ -530,7 +530,7 @@ static void finishScan() {
   s_scanGen++;
   buildIndexes();
   writeTrackCache();
-  Serial.printf("[FENNEK] Bibliothek: %d Tracks, %d Playlists (%d Blöcke à %d, PSRAM frei %u KB)\n",
+  Serial.printf("[FENNEK] Library: %d tracks, %d playlists (%d blocks of %d, %u KB free PSRAM)\n",
                 s_count, s_nPlaylists, s_cap / TRACK_BLOCK, TRACK_BLOCK,
                 (unsigned)(heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024));
 }
@@ -566,7 +566,7 @@ void scanStep(int maxEntries) {
             strncpy(s_dirStack[s_dirStackN], full, TRACK_PATH_LEN - 1);
             s_dirStack[s_dirStackN][TRACK_PATH_LEN - 1] = '\0';
             s_dirStackN++;
-          } else Serial.println("[FENNEK] Scan: Verzeichnis-Stack voll, Teilbaum übersprungen");
+          } else Serial.println("[FENNEK] Scan: directory stack full; subtree skipped");
         }
       } else if (s_scanMode == 0 && isAudioFile(nm)) {
         addTrackPath(full);
@@ -593,7 +593,7 @@ void scanStep(int maxEntries) {
   }
   unlock();
   if (fallback) {
-    Serial.println("[FENNEK] Keine Tracks unter " MP3_DIR " — durchsuche die ganze Karte");
+    Serial.println("[FENNEK] No tracks in " MP3_DIR " — scanning the entire card");
     startScan("/");
     s_rootFallbackTried = true;
   }
@@ -649,7 +649,7 @@ bool loadCache() {
   }
   s_scanGen++;
   buildIndexes();
-  Serial.printf("[FENNEK] Bibliothek aus Cache: %d Tracks, %d Playlists (Tags %d/%d)\n",
+  Serial.printf("[FENNEK] Library from cache: %d tracks, %d playlists (tags %d/%d)\n",
                 s_count, s_nPlaylists, s_tagDone, s_tagTotal);
   unlock();
   return true;

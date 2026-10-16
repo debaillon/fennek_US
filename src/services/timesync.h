@@ -68,7 +68,7 @@ uint32_t    now();              // aktuelle Uhrzeit (Unix-Epoche, UTC)
 uint32_t    estErrSeconds();    // geschätzter Fehler in Sekunden
 bool        isStale();          // estErrSeconds() über der Schwelle (~5 min)?
 const char* source();           // "NTP" / "Mesh" / "NVS" / "—"
-const char* qualityStr();       // "gut" / "mäßig" / "schlecht"
+const char* qualityStr();       // "good" / "fair" / "poor"
 uint16_t    driftPpm();         // gelernte Oszillator-Drift
 
 }  // namespace timesync

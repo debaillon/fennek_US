@@ -123,7 +123,7 @@ void ensureBeepWav() {
 
   spiLock();
   File f = SD.open(kBeepPath, FILE_WRITE);
-  if (!f) { spiUnlock(); Serial.println("[ALARM] Piepton: SD-Open fehlgeschlagen"); return; }
+  if (!f) { spiUnlock(); Serial.println("[ALARM] Beep: failed to open SD file"); return; }
   uint8_t hdr[44];
   auto p32 = [](uint8_t* d, uint32_t v){ d[0]=v; d[1]=v>>8; d[2]=v>>16; d[3]=v>>24; };
   auto p16 = [](uint8_t* d, uint16_t v){ d[0]=v; d[1]=v>>8; };
@@ -178,7 +178,7 @@ void startRing(const char* why, uint8_t signal) {
       audio::queueCommit(0);
       audio::setRepeat(audio::Repeat::One);
     } else {
-      Serial.println("[ALARM] Kein Klingelton + keine SD — nur Backlight");
+      Serial.println("[ALARM] No ringtone and no SD card — backlight only");
     }
   }
   const bool wantVibra = (s_ringSignal & alarmclock::SIG_VIBRA) != 0;
@@ -319,7 +319,7 @@ void poll() {
         dowMatches(s_alarms[i], lt)) {
       s_lastFireMin = curMin;
       char w[16];
-      snprintf(w, sizeof(w), "Wecker %d", i);
+      snprintf(w, sizeof(w), "Alarm %d", i);
       startRing(w, s_alarms[i].signal);
       if (s_alarms[i].once) { s_alarms[i].enabled = false; persist(i); }  // einmalig: danach aus
       return;

@@ -38,7 +38,7 @@ bool begin() {
     s_bhy.setFirmware(bhy2_firmware_image, sizeof(bhy2_firmware_image));
     Serial.println("[GYRO] BHI260 Firmware-Upload (~10 s) ...");
     if (!s_bhy.init(Wire, PIN_I2C_SDA, PIN_I2C_SCL, BHI260AP_SLAVE_ADDRESS_L)) {
-      Serial.printf("[GYRO] init fehlgeschlagen (Fehlercode %d)\n", s_bhy.getError());
+      Serial.printf("[GYRO] Initialization failed (error code %d)\n", s_bhy.getError());
       s_data.ok = false;
       return false;
     }

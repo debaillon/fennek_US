@@ -5,7 +5,8 @@
 // mic.h — PDM-Mikrofon-Aufnahme nach WAV (Audionotizen).
 //
 // Nutzt den zweiten I2S-Controller (I2S_NUM_1) im PDM-RX-Modus (CLK 18 / DATA 17),
-// getrennt vom DAC-Ausgang (I2S_NUM_0). 16 kHz mono 16-bit reicht für Sprache.
+// Separate from the DAC output (I2S_NUM_0). 16 kHz mono 16-bit is sufficient
+// for speech.
 // poll() liest DMA-Häppchen und schreibt sie gechunkt unter spiLock auf die SD;
 // die fertige WAV ist über die normale Audio-Engine abspielbar.
 //

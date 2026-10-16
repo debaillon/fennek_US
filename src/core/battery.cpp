@@ -109,7 +109,7 @@ bool external() {
 // programmiert (Werks-Default für eine größere Zelle), liest die %-Anzeige bei
 // vollem 4,2-V-Akku zu niedrig. Schreibt NICHTS.
 void dumpGauge() {
-  if (!s_ready) { Serial.println("[CON] Gauge: kein I2C-Ack (0x55)"); return; }
+  if (!s_ready) { Serial.println("[CON] Gauge: no I2C ACK (0x55)"); return; }
 
   uint16_t mv   = read16(REG_VOLTAGE);
   int16_t  cur  = (int16_t)read16(REG_CURRENT);

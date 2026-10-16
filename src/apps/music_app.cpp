@@ -287,7 +287,7 @@ void drawListArea(Adafruit_GFX& g) {
 
   if (M <= 0) {
     if (library::scanning()) {
-      gui::printAt(g, 10, 80, "Suche Musik ...", 2);
+      gui::printAt(g, 10, 80, "Searching music ...", 2);
       gui::printAt(g, 10, 110, "(playing in background)", 1);
     } else {
       gui::printAt(g, 10, 80, i18n::tr(i18n::Str::EmptyList), 2);

@@ -24,7 +24,7 @@
   #include <esp32/rom/miniz.h>
   #define HAS_ROM_TINFL 1
 #else
-  #warning "ROM miniz nicht gefunden - DEFLATE-Eintraege werden nicht unterstuetzt"
+  #warning "ROM miniz not found - DEFLATE entries are not supported"
   #define HAS_ROM_TINFL 0
 #endif
 

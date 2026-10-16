@@ -335,7 +335,7 @@ void retain(const char* slug, const char* keepBase) {
   for (int i = 0; i < nv; ++i) {
     char full[160]; snprintf(full, sizeof(full), "%s/%s", dir, victims[i]);
     SD.remove(full);
-    Serial.printf("[PODCAST] alte Folge entfernt: %s\n", victims[i]);
+    Serial.printf("[PODCAST] Removed old episode: %s\n", victims[i]);
   }
   spiUnlock();
 }

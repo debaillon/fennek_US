@@ -186,7 +186,7 @@ void drawSleepBanner(Adafruit_GFX& g) {
     struct tm al;
     localtime_r(&at, &al);
     char aw[24];
-    snprintf(aw, sizeof(aw), "Wecker %02d:%02d", al.tm_hour, al.tm_min);
+    snprintf(aw, sizeof(aw), "Alarm %02d:%02d", al.tm_hour, al.tm_min);
     gui::printAt(g, 6, kBannerY + 24, aw, 1);
   }
   char pct[10];
@@ -495,7 +495,7 @@ void enterStandby() {
   //    Timer-Dauer daraus ab (min. Stunden-Takt). 0 = kein Wecker → Stunden-Takt.
   s_alarmWakeEpoch = alarmclock::nextDueEpoch(timesync::now());
   if (s_alarmWakeEpoch)
-    Serial.printf("[FENNEK] Nächster Wecker in %ld s\n",
+    Serial.printf("[FENNEK] Next alarm in %ld s\n",
                   (long)(s_alarmWakeEpoch - timesync::now()));
   armWakeups();
   s_sleepPhase = PH_SLEEP_OK;
@@ -513,7 +513,7 @@ bool handleTimerWake() {
     uint32_t now = (uint32_t)time(nullptr);
     if (now + kAlarmWakeSlackSec >= s_alarmWakeEpoch) {
       s_alarmWakeEpoch = 0;
-      Serial.println("[FENNEK] Wecker-Wake — fahre voll hoch zum Klingeln");
+      Serial.println("[FENNEK] Alarm wake — powering up fully to ring");
       return false;
     }
   }
@@ -525,9 +525,9 @@ bool handleTimerWake() {
   esp_task_wdt_add(NULL);
   s_sleepPhase = PH_WAKE_START;
 
-  // Minimal-Pfad: nur Power, I2C (Akku-Gauge), Settings (Sprache des
-  // Hinweis-Texts) und Display — kein SD-Mount, kein Audio, keine Apps.
-  // Akku-% aufs Schlafbild, dann sofort zurück in den Deep Sleep.
+  // Minimal path: power, I2C (battery gauge), settings (for the wake-up
+  // message), and display only — no SD mount, audio, or apps.
+  // Show the battery percentage, then return to deep sleep immediately.
   board::powerOn();          // erzeugt auch g_spiMutex (render* lockt!)
   board::initBus();
   Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL, I2C_HZ);
@@ -543,14 +543,14 @@ bool handleTimerWake() {
   // die Differenz zum vorigen Eintrag den Schlaf misst und nicht den Wake.
   histAdd(PH_WAKE_START, s_sleepPct, battery::milliVolts(),
           battery::remainingCapacity());
-  Serial.printf("[FENNEK] Timer-Wake #%lu: Akku %u%% — zurück in Deep Sleep\n",
+  Serial.printf("[FENNEK] Timer wake #%lu: battery %u%% — returning to deep sleep\n",
                 (unsigned long)s_timerWakes, (unsigned)s_sleepPct);
 
   // Tiefentladeschutz: bei kritischem Akku auf Batterie den Display-Refresh
   // sparen (E-Ink-Booster ist der teuerste Teil des Wakes) — armWakeups()
   // unten stellt dann auch den Stunden-Timer ab.
   if (s_sleepPct <= kCritPct && !battery::external()) {
-    Serial.println("[PWR] Akku kritisch — kein Banner-Refresh");
+    Serial.println("[PWR] Battery critically low — skipping banner refresh");
   } else {
     s_sleepPhase = PH_WAKE_DISPLAY;
     display::beginAfterSleep();

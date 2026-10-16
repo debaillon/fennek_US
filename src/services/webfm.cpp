@@ -57,15 +57,15 @@ void sendJsonOk() { s_server->send(200, "application/json", "{\"ok\":true}"); }
 bool argPath(char* out, size_t n, bool forWrite, bool sendError = true) {
   String p = s_server->arg("path");
   if (p.length() == 0 || p.length() >= n) {
-    if (sendError) sendJsonErr(400, "Pfad fehlt oder zu lang");
+    if (sendError) sendJsonErr(400, "Path is missing or too long");
     return false;
   }
   if (p[0] != '/' || p.indexOf("..") >= 0) {
-    if (sendError) sendJsonErr(400, "ungueltiger Pfad");
+    if (sendError) sendJsonErr(400, "Invalid path");
     return false;
   }
   if (forWrite && p.startsWith("/.fennek")) {
-    if (sendError) sendJsonErr(403, "geschuetzter Pfad");
+    if (sendError) sendJsonErr(403, "Protected path");
     return false;
   }
   strncpy(out, p.c_str(), n - 1);
@@ -190,7 +190,7 @@ void handleUploadData() {
     char dir[kMaxPath];
     if (!argPath(dir, sizeof(dir), true, false)) {
       s_upErrCode = 403;
-      s_upErr = "Zielpfad ungueltig oder geschuetzt (/.fennek)";
+      s_upErr = "Destination path is invalid or protected (/.fennek)";
       return;
     }
     if (!board::sdReady()) {
@@ -208,7 +208,7 @@ void handleUploadData() {
     if (n <= 0 || n >= (int)sizeof(s_upPath)) {
       s_upPath[0] = '\0';
       s_upErrCode = 400;
-      s_upErr = "Pfad zu lang";
+      s_upErr = "Path is too long";
       return;
     }
     spiLock();
@@ -330,8 +330,8 @@ void handleDelete() {
   bool ok = rmRecursive(p);
   spiUnlock();
 
-  if (ok) { Serial.printf("[WEBFM] Gelöscht: %s\n", p); sendJsonOk(); }
-  else    sendJsonErr(500, "Loeschen fehlgeschlagen");
+  if (ok) { Serial.printf("[WEBFM] Deleted: %s\n", p); sendJsonOk(); }
+  else    sendJsonErr(500, "Delete failed");
 }
 
 void handleMkdir() {
@@ -347,7 +347,7 @@ void handleMkdir() {
 
   if (ok) sendJsonOk();
   else if (exists) sendJsonErr(409, "Already exists");
-  else             sendJsonErr(500, "mkdir fehlgeschlagen");
+  else             sendJsonErr(500, "mkdir failed");
 }
 
 // --- OTA-Firmware-Update -----------------------------------------------------
@@ -359,7 +359,7 @@ void handleMkdir() {
 void drawOtaScreen(Adafruit_GFX& g) {
   g.fillScreen(GxEPD_WHITE);
   gui::printAt(g, 16, 120, "Firmware-Update", 3);
-  gui::printAt(g, 16, 160, "laeuft - bitte das Geraet", 2);
+  gui::printAt(g, 16, 160, "In progress - please wait", 2);
   gui::printAt(g, 16, 184, "Do NOT turn off.", 2);
   gui::printAt(g, 16, 230, "Neustart erfolgt automatisch.", 2);
 }
@@ -494,7 +494,7 @@ void poll() {
     s_server->handleClient();
     if (s_rebootPending) {
       // Antwort ist raus (handleClient hat sie versandt) — jetzt neu starten.
-      Serial.println("[WEBFM] OTA fertig — Reboot in neue Version");
+      Serial.println("[WEBFM] OTA complete — rebooting into new version");
       delay(300);
       ESP.restart();
     }

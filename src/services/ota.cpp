@@ -238,10 +238,11 @@ bool apply(const char* downloadUrl, char* errOut, size_t errCap) {
   };
   if (!downloadUrl || !downloadUrl[0]) return fail("No firmware URL");
 
-  // 302 selbst auflösen (GitHub -> release-assets.githubusercontent.com); umgeht
-  // die wackelige Cross-Host-Redirect-Logik von httpUpdate. Die signierte
-  // Asset-URL ist lang (~900 Z. mit X-Amz-/sig-Query) — Puffer großzügig, sonst
-  // wird sie abgeschnitten und der Flash-GET liefert 4xx (httpUpdate-Fehler -104).
+  // Resolve HTTP 302 redirects here (GitHub -> release-assets.githubusercontent.com)
+  // to avoid httpUpdate's unreliable cross-host redirect handling. The signed
+  // asset URL is long (~900 characters with X-Amz/signature query parameters),
+  // so use a generous buffer to avoid truncation and a 4xx flash GET
+  // (httpUpdate error -104).
   char finalUrl[1400];
   if (!resolveRedirect(downloadUrl, finalUrl, sizeof(finalUrl)))
     return fail("Redirect resolution failed");
@@ -252,7 +253,7 @@ bool apply(const char* downloadUrl, char* errOut, size_t errCap) {
   WiFiClient* client;
   if (https) { cs.setInsecure(); client = &cs; } else client = &cp;
 
-  httpUpdate.rebootOnUpdate(false);                       // Reboot steuert der Aufrufer
+  httpUpdate.rebootOnUpdate(false);                       // The caller controls reboot
   httpUpdate.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
   Update.onProgress(otaProgress);
 
@@ -267,7 +268,7 @@ bool apply(const char* downloadUrl, char* errOut, size_t errCap) {
   return fail(m);
 }
 
-// --- Headless-Pfad (Konsole) --------------------------------------------------
+// --- Headless path (console) --------------------------------------------------
 namespace {
 void runConsole(bool doApply, bool force) {
   if (webfm::state() != webfm::State::OFF) {
@@ -283,7 +284,7 @@ void runConsole(bool doApply, bool force) {
   if (!wifiUp(ssid, pass)) { Serial.println("[OTA] Wi-Fi connection failed"); wifiDown(); return; }
 
   CheckResult r = check(url);
-  if (!r.ok) { Serial.printf("[OTA] Pruefung fehlgeschlagen: %s\n", r.err); wifiDown(); return; }
+  if (!r.ok) { Serial.printf("[OTA] Check failed: %s\n", r.err); wifiDown(); return; }
   Serial.printf("[OTA] current=%s  latest=%s  %s\n", r.current, r.latest,
                 r.updateAvail ? "(update available)" : "(up to date)");
 
@@ -300,7 +301,7 @@ void runConsole(bool doApply, bool force) {
     delay(200);
     ESP.restart();
   } else {
-    Serial.printf("[OTA] Fehlgeschlagen: %s\n", err);
+    Serial.printf("[OTA] Failed: %s\n", err);
     wifiDown();
   }
 }
@@ -309,7 +310,7 @@ void runConsole(bool doApply, bool force) {
 void consoleCheck()             { runConsole(false, false); }
 void consoleUpdate(bool force)  { runConsole(true,  force); }
 
-// --- On-Device-Pfad (Settings-App) -------------------------------------------
+// --- On-device path (Settings app) -------------------------------------------
 CheckResult deviceCheck(ProgressFn progress) {
   CheckResult r;
   snprintf(r.current, sizeof(r.current), "%s", FENNEK_VERSION);
@@ -330,7 +331,7 @@ CheckResult deviceCheck(ProgressFn progress) {
   }
 
   if (progress) progress("Checking version", -1);
-  r = check(url);          // füllt ok/err/current/latest/url/updateAvail
+  r = check(url);          // Sets ok/err/current/latest/url/updateAvail
   wifiDown();
   return r;
 }

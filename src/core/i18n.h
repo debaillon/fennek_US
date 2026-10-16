@@ -102,7 +102,7 @@
   X(ReaderHint,    "Put .txt/.epub in /books.") \
   X(FmtReaderFound,"%d found") /* fmt: %d */ \
   X(ReaderRescan,  "R: rescan") \
-  /* --- Notizen --- */ \
+  /* --- Notes --- */ \
   X(NotesToday,    "+ Today") \
   X(NotesEmpty,    "No notes yet") \
   X(NotesDelQ,     "Delete? Enter=yes") \
@@ -143,13 +143,13 @@
   X(LblFontSize,   "Font size") \
   X(FontSmall,     "Small") \
   X(FontLarge,     "Large") \
-  X(HintEnterSave, "Enter saves") /* max 19 Z. */ \
-  X(HintNameEdit,  "Enter: edit name") /* max 19 Z. */ \
-  X(HintEdit,      "Enter: edit") /* max 19 Z. */ \
+  X(HintEnterSave, "Enter saves") /* max 19 characters */ \
+  X(HintNameEdit,  "Enter: edit name") /* max 19 characters */ \
+  X(HintEdit,      "Enter: edit") /* max 19 characters */ \
   X(LblWifiSsid,   "Wi-Fi SSID") \
   X(LblWifiPass,   "Wi-Fi password") \
-  X(HintChange,    "A/D or tap changes") /* max 19 Z. */ \
-  X(FmtBattery,    "Batt. %u%%%s (%u mV)") /* fmt: %u %s %u, max 20 Z. */ \
+  X(HintChange,    "A/D or tap changes") /* max 19 characters */ \
+  X(FmtBattery,    "Batt. %u%%%s (%u mV)") /* fmt: %u %s %u, max 20 characters */ \
   /* --- Games menu --- */ \
   X(Game2048,      "2048") \
   X(GameMines,     "Minesweeper") \

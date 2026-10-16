@@ -2,25 +2,25 @@
 // Copyright (C) 2026 Dr. Daniel Dumke
 
 // =============================================================================
-// notes_ai.h — Notizen automatisch "schoenschreiben" via Ollama (lokales LLM).
+// notes_ai.h — Automatically polish notes with Ollama (local LLM).
 //
-// Hintergrund (CLAUDE.md): WLAN und Audio schliessen sich auf dieser Hardware
-// aus (WiFi-Task auf Core 0 verdraengt den Audio-Task, beide teilen den SPI-
-// Bus). Es gibt also kein dauerhaftes WLAN — das etablierte "WLAN ist frei"-
-// Fenster ist der Pre-Standby-Lauf (analog scrobble::flushBeforeStandby() und
-// timesync::syncBeforeStandby()).
+// Background (CLAUDE.md): Wi-Fi and audio are mutually exclusive on this
+// hardware (the Wi-Fi task on Core 0 displaces the audio task, and both share
+// the SPI bus). There is no persistent Wi-Fi connection, so the established
+// "Wi-Fi available" window is the pre-standby run (like
+// scrobble::flushBeforeStandby() and timesync::syncBeforeStandby()).
 //
-// Ablauf: vor dem Auto-Standby werden alle Tagesnotizen (/notes/*.md) gesucht,
-// die seit dem letzten Polieren geaendert wurden (Hash-Vergleich gegen
-// /.fennek/notes_ai.state). Die HEUTIGE Notiz wird ausgelassen (der gerade
-// wachsende Tagestext soll nicht mitten am Tag umformuliert werden). Jede
-// Notiz geht per HTTP-POST an Ollamas /api/generate (stream:false); die
-// Antwort ersetzt die Notiz direkt auf der SD. Danach wird der neue Hash
-// gespeichert, damit unveraenderte Notizen nicht erneut durchlaufen.
+// Flow: before automatic standby, scan all daily notes (/notes/*.md) that have
+// changed since the last polish (hash comparison with /.fennek/notes_ai.state).
+// Skip today's note so a note that is still growing is not rewritten during
+// the day. Send each note to Ollama's /api/generate with HTTP POST (stream:false)
+// and replace it directly on the SD card. Save the new hash so unchanged notes
+// are not processed again.
 //
-// SD-Disziplin wie scrobble: Lesen/Schreiben gechunkt unter spiLock, der HTTP-
-// Verkehr ausschliesslich NACH spiUnlock (Netz ⊥ SPI-Bus). Laeuft nur aus dem
-// Arduino-loop()/der Konsole (Core 1) — kein Audio-Task, daher kein Mutex.
+// SD access follows scrobble's rules: read and write in chunks under spiLock;
+// perform HTTP traffic only AFTER spiUnlock (network and SPI bus are separate).
+// Runs only from Arduino loop()/the console (Core 1), never the audio task, so
+// no mutex is needed.
 // =============================================================================
 #pragma once
 
@@ -28,21 +28,21 @@
 
 namespace notes_ai {
 
-// Anzahl Notizen, die seit dem letzten Polieren geaendert wurden (ohne die
-// heutige). Scannt die SD — nur fuer Status/Konsole gedacht.
+// Number of notes changed since the last polish (excluding today's note).
+// Scans the SD card; intended only for status/console use.
 int pendingCount();
 
-// Blockierender Lauf vor dem Auto-Standby (verwaltet WLAN selbst, mit RTC-RAM-
-// Back-off nach Fehlschlaegen). No-op ohne offene Notizen bzw. ohne
-// Konfiguration. true = nichts zu tun oder >=1 Notiz poliert.
+// Blocking run before automatic standby (manages Wi-Fi and uses RTC RAM for
+// backoff after failures). No-op when there are no pending notes or no
+// configuration. true = nothing to do or at least one note polished.
 bool flushBeforeStandby();
 
-// Wie flushBeforeStandby(), aber ohne Back-off — fuer die Konsole ("ollama
-// flush") zum sofortigen Test. logN bekommt eine kurze Statuszeile.
+// Like flushBeforeStandby(), but without backoff, for immediate console testing
+// ("ollama flush"). logN receives a short status line.
 bool flushNow(char* log, size_t logN);
 
-// Verbindungstest (Konsole "ollama test"): WLAN auf, GET /api/tags, wieder aus.
-// msg erhaelt einen Status-Text.
+// Connection test (console "ollama test"): turn Wi-Fi on, GET /api/tags, then
+// turn Wi-Fi off. msg receives a status message.
 bool ping(char* msg, size_t msgN);
 
 }  // namespace notes_ai

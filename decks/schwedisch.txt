@@ -1,758 +1,758 @@
-# Schwedisch — komplettes Deck (vorn Schwedisch, hinten Deutsch)
-# Ein gemischtes Deck aus Grundwortschatz, Zahlen/Zeit, Alltag, Reise,
-# Verben, Adjektiven und nützlichen Sätzen. Trenner = Tabulator.
+# English — translated Swedish/German vocabulary deck (English front and back)
+# A mixed deck covering core vocabulary, numbers and time, daily life, travel,
+# verbs, adjectives, and useful phrases. Fields are separated by tabs.
 
-# --- Begrüßung & Höflichkeit ---
-hej	hallo
-hejsan	hallöchen
-hej hej	tschüss
-hej då	auf Wiedersehen
-god morgon	guten Morgen
-god middag	guten Tag (mittags)
-god kväll	guten Abend
-god natt	gute Nacht
-välkommen	willkommen
-tack	danke
-tack så mycket	vielen Dank
-tusen tack	tausend Dank
-varsågod	bitte (gern geschehen)
-ja	ja
-nej	nein
-kanske	vielleicht
-ursäkta	entschuldigung
-förlåt	es tut mir leid
-ingen orsak	keine Ursache
-ingen fara	kein Problem
-vi ses	bis bald
-vi ses snart	bis bald
-ha det bra	mach's gut
-hur är läget?	wie läuft's?
-trevligt att träffas	schön, dich kennenzulernen
+# --- Greetings and courtesy ---
+hello	hello
+hi there	hello there
+goodbye	goodbye
+goodbye	goodbye
+good morning	good morning
+good afternoon	good afternoon
+good evening	good evening
+good night	good night
+welcome	welcome
+thank you	thank you
+thank you very much	thank you very much
+many thanks	a thousand thanks
+you're welcome	please (you're welcome)
+yes	yes
+no	no
+maybe	maybe
+excuse me	excuse me
+sorry	I'm sorry
+you're welcome	you're welcome
+no problem	no problem
+see you	see you soon
+see you soon	see you soon
+take care	take care
+How are you?	How's it going?
+nice to meet you	nice to meet you
 
-# --- Pronomen ---
-jag	ich
-du	du
-han	er
-hon	sie
-den	er/sie/es (utrum)
-det	es (neutrum)
-vi	wir
-ni	ihr
-de	sie (Plural)
-min	mein
-din	dein
-hans	sein
-hennes	ihr
-vår	unser
-er	euer
-deras	ihr (Plural)
-denna	diese
-detta	dieses
-någon	jemand
-något	etwas
-ingen	niemand
-inget	nichts
-alla	alle
-allt	alles
-själv	selbst
-varandra	einander
+# --- Pronouns ---
+I	I
+you	you
+he	he
+she	she
+it (common gender)	he/she/it (common gender)
+it	it (neuter)
+we	we
+you (plural)	you (plural)
+they	they (plural)
+my	my
+your	your
+his	his
+her	her
+our	our
+your (plural)	your (plural)
+their	their (plural)
+this	this
+this	this (neuter)
+someone	someone
+something	something
+no one	no one
+nothing	nothing
+everyone	everyone
+everything	everything
+oneself	oneself
+each other	each other
 
-# --- Fragewörter ---
-vad	was
-vem	wer
-vilken	welcher
-vilket	welches
-var	wo
-vart	wohin
-varifrån	woher
-när	wann
-hur	wie
-varför	warum
-hur mycket	wie viel
-hur många	wie viele
-hur länge	wie lange
-vad för	was für
+# --- Question words ---
+what	what
+who	who
+which one	which one
+which (neuter)	which (neuter)
+where	where
+where to	where to
+where from	where from
+when	when
+how	how
+why	why
+how much	how much
+how many	how many
+how long	how long
+what kind of	what kind of
 
-# --- Zahlen ---
-noll	null
-en	eins
-ett	eins (neutrum)
-två	zwei
-tre	drei
-fyra	vier
-fem	fünf
-sex	sechs
-sju	sieben
-åtta	acht
-nio	neun
-tio	zehn
-elva	elf
-tolv	zwölf
-tretton	dreizehn
-fjorton	vierzehn
-femton	fünfzehn
-sexton	sechzehn
-sjutton	siebzehn
-arton	achtzehn
-nitton	neunzehn
-tjugo	zwanzig
-tjugoen	einundzwanzig
-trettio	dreißig
-fyrtio	vierzig
-femtio	fünfzig
-sextio	sechzig
-sjuttio	siebzig
-åttio	achtzig
-nittio	neunzig
-hundra	hundert
-tusen	tausend
-miljon	Million
-första	erste
-andra	zweite
-tredje	dritte
-fjärde	vierte
-femte	fünfte
-hälften	die Hälfte
-ett par	ein paar
-ett dussin	ein Dutzend
+# --- Numbers ---
+zero	zero
+one	one
+one	one (neuter)
+two	two
+three	three
+four	four
+five	five
+six	six
+seven	seven
+eight	eight
+nine	nine
+ten	ten
+eleven	eleven
+twelve	twelve
+thirteen	thirteen
+fourteen	fourteen
+fifteen	fifteen
+sixteen	sixteen
+seventeen	seventeen
+eighteen	eighteen
+nineteen	nineteen
+twenty	twenty
+twenty one	twenty-one
+thirty	thirty
+forty	forty
+fifty	fifty
+sixty	sixty
+seventy	seventy
+eighty	eighty
+ninety	ninety
+one hundred	hundred
+one thousand	one thousand
+million	million
+first	first
+second	second
+third	third
+fourth	fourth
+fifth	fifth
+half	half
+a couple	a couple
+a dozen	a dozen
 
-# --- Wochentage & Monate ---
-måndag	Montag
-tisdag	Dienstag
-onsdag	Mittwoch
-torsdag	Donnerstag
-fredag	Freitag
-lördag	Samstag
-söndag	Sonntag
-vecka	die Woche
-helg	das Wochenende
-januari	Januar
-februari	Februar
-mars	März
-april	April
-maj	Mai
-juni	Juni
-juli	Juli
-augusti	August
-september	September
-oktober	Oktober
+# --- Days and months ---
+Monday	Monday
+Tuesday	Tuesday
+Wednesday	Wednesday
+Thursday	Thursday
+Friday	Friday
+Saturday	Saturday
+Sunday	Sunday
+week	week
+weekend	weekend
+January	January
+February	February
+March	March
+April	April
+May	May
+June	June
+July	July
+August	Aug
+September	September
+October	October
 november	November
-december	Dezember
-månad	der Monat
-år	das Jahr
+December	December
+month	month
+year	year
 
-# --- Zeit ---
-idag	heute
-imorgon	morgen
-igår	gestern
-i övermorgon	übermorgen
-i förrgår	vorgestern
-nu	jetzt
-sedan	dann/danach
-snart	bald
-alltid	immer
-aldrig	nie
-ofta	oft
-ibland	manchmal
-sällan	selten
-tidigt	früh
-sent	spät
-morgon	der Morgen
-förmiddag	der Vormittag
-eftermiddag	der Nachmittag
-kväll	der Abend
-natt	die Nacht
-dag	der Tag
-timme	die Stunde
-minut	die Minute
-sekund	die Sekunde
-klocka	die Uhr
-i tid	rechtzeitig
-en stund	eine Weile
+# --- Time ---
+today	today
+tomorrow	tomorrow
+yesterday	yesterday
+the day after tomorrow	the day after tomorrow
+the day before yesterday	the day before yesterday
+now	now
+then / afterward	then / afterward
+soon	soon
+always	always
+never	never
+often	often
+sometimes	sometimes
+rarely	rarely
+early	early
+late	late
+morning	morning
+morning	morning
+afternoon	afternoon
+evening	evening
+night	night
+day	day
+hour	hour
+minute	minute
+second	second
+clock	clock
+in time	in time
+a while	a while
 
-# --- Farben ---
-färg	die Farbe
-röd	rot
-blå	blau
-gul	gelb
-grön	grün
-vit	weiß
-svart	schwarz
-grå	grau
-brun	braun
-rosa	rosa
+# --- Colors ---
+color	color
+red	red
+blue	blue
+yellow	yellow
+green	green
+white	white
+black	black
+gray	gray
+brown	brown
+pink	pink
 orange	orange
-lila	lila
-ljus	hell
-mörk	dunkel
+purple	purple
+light	bright
+dark	dark
 
-# --- Familie & Menschen ---
-familj	die Familie
-mamma	die Mutter
-pappa	der Vater
-föräldrar	die Eltern
-barn	das Kind
-son	der Sohn
-dotter	die Tochter
-bror	der Bruder
-syster	die Schwester
-syskon	die Geschwister
-mormor	die Großmutter (mütt.)
-morfar	der Großvater (mütt.)
-farmor	die Großmutter (vät.)
-farfar	der Großvater (vät.)
-man	der Mann/Ehemann
-kvinna	die Frau
-fru	die Ehefrau
-pojke	der Junge
-flicka	das Mädchen
-vän	der Freund
-kompis	der Kumpel
-granne	der Nachbar
-människa	der Mensch
-folk	die Leute
-namn	der Name
+# --- Family and people ---
+family	family
+mother	mother
+father	father
+parents	parents
+child	child
+son	son
+daughter	daughter
+brother	brother
+sister	sister
+siblings	siblings
+grandmother (maternal)	grandmother (maternal)
+grandfather (maternal)	grandfather (maternal)
+grandmother (paternal)	grandmother (paternal)
+grandfather (paternal)	grandfather (paternal)
+man	man/husband
+woman	woman
+wife	wife
+boy	boy
+girl	girl
+friend	friend
+buddy	buddy
+neighbor	neighbor
+person	person
+people	people
+name	name
 
-# --- Körper ---
-kropp	der Körper
-huvud	der Kopf
-hår	das Haar
-öga	das Auge
-ögon	die Augen
-öra	das Ohr
-näsa	die Nase
-mun	der Mund
-tand	der Zahn
-tunga	die Zunge
-hals	der Hals
-arm	der Arm
-hand	die Hand
-finger	der Finger
-ben	das Bein
-fot	der Fuß
-rygg	der Rücken
-mage	der Bauch
-hjärta	das Herz
-hud	die Haut
+# --- Body ---
+body	body
+head	head
+hair	hair
+eye	eye
+eyes	eyes
+ear	ear
+nose	nose
+mouth	mouth
+tooth	tooth
+tongue	tongue
+neck	neck
+arm	arm
+hand	hand
+finger	finger
+leg	leg
+foot	foot
+back	back
+stomach	stomach
+heart	heart
+skin	skin
 
-# --- Essen & Trinken ---
-mat	das Essen
-frukost	das Frühstück
-lunch	das Mittagessen
-middag	das Abendessen
-fika	die Kaffeepause
-bröd	das Brot
-smör	die Butter
-ost	der Käse
-ägg	das Ei
-kött	das Fleisch
-fisk	der Fisch
-kyckling	das Hähnchen
-korv	die Wurst
-potatis	die Kartoffel
-ris	der Reis
-pasta	die Nudeln
-grönsaker	das Gemüse
-frukt	das Obst
-äpple	der Apfel
-banan	die Banane
-apelsin	die Orange
-tomat	die Tomate
-sallad	der Salat
-soppa	die Suppe
-socker	der Zucker
-salt	das Salz
-peppar	der Pfeffer
-glass	das Eis
-choklad	die Schokolade
-kaka	der Kuchen
-godis	die Süßigkeiten
-vatten	das Wasser
-mjölk	die Milch
-juice	der Saft
-kaffe	der Kaffee
-te	der Tee
-öl	das Bier
-vin	der Wein
-saft	der Sirup/Saft
+# --- Food and drink ---
+food	food
+breakfast	breakfast
+lunch	lunch
+dinner	dinner
+coffee break	coffee break
+bread	bread
+butter	butter
+cheese	cheese
+egg	egg
+meat	meat
+fish	fish
+chicken	chicken
+sausage	sausage
+potato	potato
+rice	rice
+pasta	noodles
+vegetables	vegetables
+fruit	fruit
+apple	apple
+banana	banana
+orange	orange
+tomato	tomato
+salad	salad
+soup	soup
+sugar	sugar
+salt	salt
+pepper	pepper
+ice cream	ice cream
+chocolate	chocolate
+cake	cake
+sweets	sweets
+water	water
+milk	milk
+juice	juice
+coffee	coffee
+tea	tea
+beer	beer
+wine	wine
+juice	syrup/juice
 
-# --- Im Restaurant & Einkauf ---
-meny	die Speisekarte
-restaurang	das Restaurant
-kafé	das Café
-affär	das Geschäft
-butik	der Laden
-mataffär	der Lebensmittelladen
-marknad	der Markt
-pris	der Preis
-pengar	das Geld
-kontant	bar
-betalkort	die Bankkarte
-kvitto	der Kassenbon
-rabatt	der Rabatt
-billig	billig
-dyr	teuer
-gratis	kostenlos
-öppen	geöffnet
-stängd	geschlossen
-räkning	die Rechnung
-beställa	bestellen
+# --- Restaurants and shopping ---
+menu	menu
+restaurant	restaurant
+cafe	cafe
+store	store
+shop	store
+grocery store	grocery store
+market	market
+price	price
+money	money
+cash	cash
+payment card	bank card
+receipt	receipt
+discount	discount
+cheap	cheap
+expensive	expensive
+free	free
+open	open
+closed	closed
+bill	bill
+order	order
 
-# --- Reisen & Verkehr ---
-resa	die Reise
-bil	das Auto
-buss	der Bus
-tåg	der Zug
-flyg	das Flugzeug
-båt	das Boot
-cykel	das Fahrrad
-taxi	das Taxi
-station	der Bahnhof
-flygplats	der Flughafen
-hållplats	die Haltestelle
-biljett	die Fahrkarte
-karta	die Karte (Landkarte)
-väg	der Weg
-gata	die Straße
-torg	der Platz
-bro	die Brücke
-hotell	das Hotel
-rum	das Zimmer
-nyckel	der Schlüssel
-bagage	das Gepäck
-resväska	der Koffer
-pass	der Reisepass
-gräns	die Grenze
-riktning	die Richtung
-höger	rechts
-vänster	links
-rakt fram	geradeaus
-nära	nah
-långt	weit
+# --- Travel and transportation ---
+trip	trip
+car	car
+bus	bus
+train	train
+flight	plane
+boat	boat
+bicycle	bike
+taxi	taxi
+train station	train station
+airport	airport
+transit stop	stop
+ticket	ticket
+map	map
+road	way
+street	street
+city square	square
+bridge	bridge
+hotel	hotel
+room	room
+key	key
+baggage	luggage
+suitcase	suitcase
+passport	passport
+border	border
+direction	direction
+right	right
+left	left
+straight ahead	straight ahead
+near	close
+far	far
 
-# --- Natur & Wetter ---
-natur	die Natur
-väder	das Wetter
-sol	die Sonne
-regn	der Regen
-snö	der Schnee
-vind	der Wind
-moln	die Wolke
-himmel	der Himmel
-sjö	der See
-hav	das Meer
-flod	der Fluss
-berg	der Berg
-skog	der Wald
-träd	der Baum
-blomma	die Blume
-gräs	das Gras
-sten	der Stein
-strand	der Strand
-ö	die Insel
-mark	der Boden
-eld	das Feuer
-is	das Eis
-varm	warm
-kall	kalt
-soligt	sonnig
-molnigt	bewölkt
-det regnar	es regnet
-det snöar	es schneit
+# --- Nature and weather ---
+nature	nature
+weather	weather
+sun	sun
+rain	rain
+snow	snow
+wind	wind
+cloud	cloud
+sky	sky
+lake	lake
+sea	sea
+river	river
+mountain	mountain
+forest	forest
+tree	tree
+flower	flower
+grass	grass
+stone	stone
+beach	beach
+island	island
+ground	floor
+fire	fire
+ice cream	ice cream
+warm	warm
+cold	cold
+sunny	sunny
+cloudy	cloudy
+it is raining	it's raining
+it is snowing	it's snowing
 
-# --- Jahreszeiten ---
-årstid	die Jahreszeit
-våren	der Frühling
-sommar	der Sommer
-höst	der Herbst
-vinter	der Winter
+# --- Seasons ---
+season	season
+spring	spring
+summer	summer
+fall	fall
+winter	winter
 
-# --- Tiere ---
-djur	das Tier
-hund	der Hund
-katt	die Katze
-häst	das Pferd
-ko	die Kuh
-gris	das Schwein
-får	das Schaf
-fågel	der Vogel
-mus	die Maus
-björn	der Bär
-älg	der Elch
-räv	der Fuchs
-varg	der Wolf
-ekorre	das Eichhörnchen
+# --- Animals ---
+animal	animal
+dog	dog
+cat	cat
+horse	horse
+cow	cow
+pig	pig
+sheep	sheep
+bird	bird
+mouse	mouse
+bear	bear
+moose	moose
+fox	fox
+wolf	wolf
+squirrel	squirrel
 
-# --- Haus & Wohnen ---
-hus	das Haus
-hem	das Zuhause
-lägenhet	die Wohnung
-dörr	die Tür
-fönster	das Fenster
-vägg	die Wand
-golv	der Boden
-tak	das Dach
-trappa	die Treppe
-kök	die Küche
-sovrum	das Schlafzimmer
-badrum	das Badezimmer
-vardagsrum	das Wohnzimmer
-trädgård	der Garten
-bord	der Tisch
-stol	der Stuhl
-säng	das Bett
-soffa	das Sofa
-lampa	die Lampe
-spegel	der Spiegel
-kylskåp	der Kühlschrank
-spis	der Herd
+# --- Home and living ---
+house	house
+home	home
+apartment	apartment
+door	door
+window	window
+wall	wall
+floor	floor
+ceiling / roof	ceiling / roof
+stairs	stairs
+kitchen	kitchen
+bedroom	bedroom
+bathroom	bathroom
+living room	living room
+garden	garden
+table	table
+chair	chair
+bed	bed
+sofa	sofa
+lamp	lamp
+mirror	mirror
+refrigerator	refrigerator
+stove	stove
 
-# --- Kleidung ---
-kläder	die Kleidung
-skjorta	das Hemd
-tröja	der Pullover
-byxor	die Hose
-klänning	das Kleid
-kjol	der Rock
-jacka	die Jacke
-kappa	der Mantel
-skor	die Schuhe
-strumpor	die Socken
-mössa	die Mütze
-hatt	der Hut
-handskar	die Handschuhe
-halsduk	der Schal
-bälte	der Gürtel
+# --- Clothing ---
+clothes	clothing
+shirt	shirt
+sweater	sweater
+pants	pants
+dress	dress
+skirt	skirt
+jacket	jacket
+coat	coat
+shoes	shoes
+socks	socks
+cap	hat
+hat	hat
+gloves	gloves
+scarf	scarf
+belt	belt
 
-# --- Schule & Arbeit ---
-skola	die Schule
-universitet	die Universität
-lärare	der Lehrer
-elev	der Schüler
-student	der Student
-lektion	der Unterricht
-läxa	die Hausaufgabe
-prov	die Prüfung
-penna	der Stift
-papper	das Papier
-arbete	die Arbeit
-jobb	der Job
-kontor	das Büro
-företag	die Firma
-chef	der Chef
-kollega	der Kollege
-möte	das Treffen/Meeting
-lön	der Lohn
-yrke	der Beruf
-dator	der Computer
-telefon	das Telefon
-mobil	das Handy
+# --- School and work ---
+school	school
+university	university
+teacher	teacher
+student	student
+student	student
+lesson	lesson
+homework	homework
+test	exam
+pen	pen
+paper	paper
+work	work
+job	job
+office	office
+company	company
+boss	boss
+colleague	colleague
+meeting	meeting/meeting
+salary	salary
+profession	profession
+computer	computer
+telephone	telephone
+cell phone	cell phone
 
-# --- Stadt & öffentliche Orte ---
-stad	die Stadt
-by	das Dorf
-land	das Land
-huvudstad	die Hauptstadt
-centrum	das Zentrum
-park	der Park
-sjukhus	das Krankenhaus
-apotek	die Apotheke
-bank	die Bank
-post	die Post
-kyrka	die Kirche
-museum	das Museum
-bibliotek	die Bibliothek
-polis	die Polizei
-brandkår	die Feuerwehr
-toalett	die Toilette
+# --- City and public places ---
+city	city
+village	village
+country	country
+capital city	capital
+center	center
+park	park
+hospital	hospital
+pharmacy	pharmacy
+bank	bank
+mail	post office
+church	church
+museum	museum
+library	library
+police	police
+fire department	fire department
+toilet	toilet
 
-# --- Gesundheit ---
-hälsa	die Gesundheit
-sjuk	krank
-frisk	gesund
-ont	der Schmerz
-huvudvärk	die Kopfschmerzen
-feber	das Fieber
-förkyld	erkältet
-medicin	das Medikament
-läkare	der Arzt
-tandläkare	der Zahnarzt
-sjuksköterska	die Krankenschwester
-hjälp	die Hilfe
-ambulans	der Krankenwagen
+# --- Health ---
+health	health
+sick	sick
+healthy	healthy
+pain	pain
+headache	headache
+fever	fever
+to have a cold	to have a cold
+medicine	medication
+doctor	doctor
+dentist	dentist
+nurse	nurse
+help	help
+ambulance	ambulance
 
-# --- Verben ---
-att vara	sein
-att ha	haben
-att göra	machen/tun
-att gå	gehen
-att komma	kommen
-att se	sehen
-att höra	hören
-att säga	sagen
-att tala	sprechen
-att fråga	fragen
-att svara	antworten
-att äta	essen
-att dricka	trinken
-att sova	schlafen
-att vakna	aufwachen
-att stå	stehen
-att sitta	sitzen
-att ligga	liegen
-att springa	rennen
-att köpa	kaufen
-att sälja	verkaufen
-att betala	bezahlen
-att läsa	lesen
-att skriva	schreiben
-att lära	lernen/lehren
-att förstå	verstehen
-att veta	wissen
-att tro	glauben
-att tänka	denken
-att vilja	wollen
-att kunna	können
-att måste	müssen
-att få	dürfen/bekommen
-att börja	anfangen
-att sluta	aufhören
-att öppna	öffnen
-att stänga	schließen
-att ge	geben
-att ta	nehmen
-att hjälpa	helfen
-att arbeta	arbeiten
-att resa	reisen
-att köra	fahren
-att vänta	warten
-att leta	suchen
-att hitta	finden
-att glömma	vergessen
-att minnas	sich erinnern
-att tycka om	mögen
-att älska	lieben
-att behöva	brauchen
-att använda	benutzen
-att bo	wohnen
-att leva	leben
-att dö	sterben
-att träffa	treffen
-att ringa	anrufen
-att skicka	schicken
-att visa	zeigen
-att lyssna	zuhören
-att titta	schauen
-att laga	kochen/reparieren
-att städa	putzen
-att tvätta	waschen
-att spela	spielen
-att sjunga	singen
-att dansa	tanzen
-att simma	schwimmen
-att skratta	lachen
-att gråta	weinen
-att le	lächeln
+# --- Verbs ---
+to be	be
+to have	have
+to do	do/do
+to go	go
+to come	come
+to see	see
+to hear	hear
+to say	say
+to speak	speak
+to ask	ask
+to answer	answer
+to eat	eat
+to drink	drink
+to sleep	sleep
+to wake up	wake up
+to stand	stand
+to sit	sit
+to lie down	lie
+to run	run
+to buy	buy
+to sell	sell
+to pay	pay
+to read	read
+to write	write
+to learn	learn/teach
+to understand	understand
+to know	know
+to believe	believe
+to think	think
+to want	want
+to be able to	can
+to have to	have to
+to get / to be allowed to	to get / to be allowed to
+to begin	start
+to stop	to stop
+to open	open
+to close	close
+to give	give
+to take	take
+to help	help
+to work	work
+to travel	travel
+to drive	drive
+to wait	wait
+to search	search
+to find	find
+to forget	to forget
+to remember	remember
+to like	like
+to love	love
+to need	need
+to use	use
+to live	live
+to live	live
+to die	die
+to meet	meet
+to call	call
+to send	send
+to show	show
+to listen	listen
+to watch	look
+to cook / to repair	to cook / to repair
+to clean	clean
+to wash	wash
+to play	play
+to sing	sing
+to dance	dance
+to swim	swim
+to laugh	laugh
+to cry	cry
+to smile	smile
 
-# --- Adjektive ---
-stor	groß
-liten	klein
-bra	gut
-dålig	schlecht
-ny	neu
-gammal	alt
-ung	jung
-lång	lang/groß
-kort	kurz
-hög	hoch
-låg	niedrig
-snabb	schnell
-långsam	langsam
-lätt	leicht
-svår	schwer/schwierig
-tung	schwer (Gewicht)
-stark	stark
-svag	schwach
-ren	sauber
-smutsig	schmutzig
-full	voll
-tom	leer
-rik	reich
-fattig	arm
-glad	froh
-ledsen	traurig
-arg	wütend
-trött	müde
-hungrig	hungrig
-törstig	durstig
-vacker	schön
-ful	hässlig
-snäll	nett
-elak	gemein
-rolig	lustig
-tråkig	langweilig
-viktig	wichtig
-farlig	gefährlich
-säker	sicher
-rädd	ängstlich
-nöjd	zufrieden
-intressant	interessant
-enkel	einfach
-torr	trocken
-våt	nass
-mjuk	weich
-hård	hart
+# --- Adjectives ---
+large	big
+small	small
+good	good
+bad	bad
+new	new
+old	old
+young	young
+long / tall	long / tall
+short	short
+high	high
+low	low
+fast	fast
+slow	slow
+easy	easy
+difficult	difficult/difficult
+heavy	heavy (weight)
+strong	strong
+weak	weak
+clean	clean
+dirty	dirty
+drunk	full
+empty	empty
+rich	rich
+poor	poor
+happy	glad
+sad	sad
+angry	angry
+tired	tired
+hungry	hungry
+thirsty	thirsty
+beautiful	beautiful
+ugly	ugly
+kind	nice
+mean	mean
+funny	funny
+boring	boring
+important	important
+dangerous	dangerous
+safe / certain	safe / certain
+afraid	anxious
+satisfied	satisfied
+interesting	interesting
+simple	easy
+dry	dry
+wet	wet
+soft	soft
+hard	hard
 
-# --- Adverbien & kleine Wörter ---
-mycket	sehr/viel
-lite	wenig
-mer	mehr
-mest	am meisten
-mindre	weniger
-också	auch
-bara	nur
-redan	schon
-ännu	noch
-igen	wieder
-tillsammans	zusammen
-ensam	allein
-här	hier
-där	dort
-hemma	zu Hause
-ute	draußen
-inne	drinnen
-uppe	oben
-nere	unten
-verkligen	wirklich
-nästan	fast
-precis	genau
-tyvärr	leider
-gärna	gern
-naturligtvis	natürlich
+# --- Adverbs and small words ---
+a lot	very/much
+little	little
+more	more
+most	most
+less	less
+too	also
+just	just
+already	already
+yet	yet
+again	again
+together	together
+alone	alone
+here	here
+there	there
+at home	at home
+outside	outside
+inside	inside
+upstairs	upstairs
+downstairs	downstairs
+really	really
+almost	almost
+precisely	exactly
+unfortunately	unfortunately
+gladly	gladly
+of course	of course
 
-# --- Präpositionen & Konjunktionen ---
-och	und
-eller	oder
-men	aber
-för	denn/für
-att	dass
-om	wenn/ob
-därför att	weil
-så	so/also
-i	in
-på	auf/an
-under	unter
-över	über
-bredvid	neben
-mellan	zwischen
-bakom	hinter
-framför	vor
-till	zu/nach
-från	von/aus
-med	mit
-utan	ohne
-mot	gegen
-genom	durch
-hos	bei
-efter	nach
-före	vor (zeitlich)
+# --- Prepositions and conjunctions ---
+and	and
+or	or
+but	but
+for	because/for
+that	that
+if	if/if
+because	because
+so	so/so
+in	in
+on	on/on
+under	under
+over	about
+beside	next to
+between	between
+behind	behind
+in front of	in front of / before
+to	to/after
+from	from/from
+with	with
+without	without
+against	against
+through	through
+at	at
+after	after
+before	before (in time)
 
-# --- Nützliche Sätze ---
-Hur mår du?	Wie geht es dir?
-Jag mår bra, tack.	Mir geht es gut, danke.
-Vad heter du?	Wie heißt du?
-Jag heter Daniel.	Ich heiße Daniel.
-Varifrån kommer du?	Woher kommst du?
-Jag kommer från Tyskland.	Ich komme aus Deutschland.
-Talar du engelska?	Sprichst du Englisch?
-Jag talar lite svenska.	Ich spreche etwas Schwedisch.
-Jag förstår inte.	Ich verstehe nicht.
-Kan du upprepa det?	Kannst du das wiederholen?
-Kan du tala långsammare?	Kannst du langsamer sprechen?
-Vad betyder det?	Was bedeutet das?
-Hur säger man det på svenska?	Wie sagt man das auf Schwedisch?
-Vad kostar det?	Was kostet das?
-Var ligger toaletten?	Wo ist die Toilette?
-Var ligger stationen?	Wo ist der Bahnhof?
-Jag skulle vilja ha en kaffe.	Ich hätte gern einen Kaffee.
-Notan, tack.	Die Rechnung, bitte.
-Vad är klockan?	Wie spät ist es?
-Klockan är tre.	Es ist drei Uhr.
-Jag är hungrig.	Ich bin hungrig.
-Jag är törstig.	Ich bin durstig.
-Jag är trött.	Ich bin müde.
-Det var gott.	Das war lecker.
-Vi ses imorgon.	Wir sehen uns morgen.
-Ha en trevlig dag!	Hab einen schönen Tag!
-Ursäkta mig.	Entschuldigung.
-Lycka till!	Viel Glück!
-Grattis!	Herzlichen Glückwunsch!
-Smaklig måltid!	Guten Appetit!
-Skål!	Prost!
-Hur gammal är du?	Wie alt bist du?
-Jag är trettio år.	Ich bin dreißig Jahre alt.
-Var bor du?	Wo wohnst du?
-Jag bor i Berlin.	Ich wohne in Berlin.
-Kan du hjälpa mig?	Kannst du mir helfen?
-Jag har gått vilse.	Ich habe mich verlaufen.
-Hur kommer jag till centrum?	Wie komme ich ins Zentrum?
-Det är långt härifrån.	Das ist weit von hier.
-Vänta lite.	Warte einen Moment.
-Jag vet inte.	Ich weiß nicht.
-Inga problem.	Kein Problem.
-Det gör inget.	Das macht nichts.
-Vad bra!	Wie gut!
-Vad synd.	Wie schade.
-Jag är förkyld.	Ich bin erkältet.
-Jag behöver en läkare.	Ich brauche einen Arzt.
-Ring polisen!	Ruf die Polizei!
-Hjälp!	Hilfe!
-Var försiktig.	Sei vorsichtig.
-Vi ses senare.	Bis später.
-Sov gott.	Schlaf gut.
-Trevlig resa!	Gute Reise!
-Det är vackert här.	Hier ist es schön.
-Jag tycker om det.	Das gefällt mir.
-Jag älskar dig.	Ich liebe dich.
-Saknar dig.	Ich vermisse dich.
-Vad gör du?	Was machst du?
-Jag arbetar hemifrån.	Ich arbeite von zu Hause.
-Ses vi imorgon?	Sehen wir uns morgen?
-Hur var din dag?	Wie war dein Tag?
-Det var en bra dag.	Es war ein guter Tag.
+# --- Useful phrases ---
+How are you?	How are you?
+I'm fine, thanks.	I'm fine, thank you.
+What is your name?	What's your name?
+My name is Daniel.	My name is Daniel.
+Where are you from?	Where do you come from?
+I come from Germany.	I come from Germany.
+Do you speak English?	Do you speak English?
+I speak a little Swedish.	I speak a little Swedish.
+I don't understand.	I don't understand.
+Can you repeat that?	Can you repeat that?
+Can you speak more slowly?	Can you speak slower?
+What does this mean?	What does that mean?
+How do you say it in Swedish?	How do you say that in Swedish?
+What does it cost?	What does this cost?
+Where is the restroom?	Where is the restroom?
+Where is the station located?	Where is the train station?
+I would like a coffee.	I would like some coffee.
+The check, please.	The check, please.
+What time is it?	What time is it?
+It's three o'clock.	It's three o'clock.
+I'm hungry.	I'm hungry.
+I'm thirsty.	I'm thirsty.
+I'm tired.	I'm tired.
+It was good.	That was delicious.
+See you tomorrow.	See you tomorrow.
+Have a nice day!	Have a nice day!
+Excuse me.	Excuse me.
+Good luck!	Good luck!
+Congratulations!	Congratulations!
+Enjoy your meal!	Enjoy your meal!
+Cheers!	Cheers!
+How old are you?	How old are you?
+I am thirty years old.	I am thirty years old.
+Where do you live?	Where do you live?
+I live in Berlin.	I live in Berlin.
+Can you help me?	Can you help me?
+I have lost my way.	I've lost my way.
+How do I get to the center?	How do I get to the center?
+It's far from here.	That's far from here.
+Wait a little.	Wait a moment.
+I don't know.	I don't know.
+No problem.	No problem.
+It doesn't matter.	It doesn't matter.
+That's great!	That's great!
+What a pity.	What a shame.
+I have a cold.	I have a cold.
+I need a doctor.	I need a doctor.
+Call the police!	Call the police!
+Help!	Help!
+Be careful.	Be careful.
+See you later.	See you later.
+Sleep well.	Sleep well.
+Have a nice trip!	Have a good trip!
+It's beautiful here.	It's beautiful here.
+I enjoy it.	I like that.
+I love you.	I love you.
+I miss you.	I miss you.
+What are you doing?	What are you doing?
+I work from home.	I work from home.
+Will we see each other tomorrow?	Will we see each other tomorrow?
+How was your day?	How was your day?
+It was a good day.	It was a good day.
 
-# --- Gesprächsführung & Kommunikation ---
-Får jag fråga en sak?	Darf ich etwas fragen?
-Vad tycker du om det?	Was hältst du davon?
-Jag håller med dig.	Ich stimme dir zu.
-Jag håller inte med.	Ich stimme nicht zu.
-Det stämmer.	Das stimmt.
-Å andra sidan ...	Andererseits ...
-Å ena sidan ...	Einerseits ...
-Kan du förklara mer?	Kannst du mehr erklären?
-Vad menar du med det?	Was meinst du damit?
-Låt mig tänka efter.	Lass mich nachdenken.
-Det är en bra fråga.	Das ist eine gute Frage.
-Sammanfattningsvis ...	Zusammenfassend ...
-Till exempel ...	Zum Beispiel ...
-Med andra ord ...	Mit anderen Worten ...
-Får jag avbryta?	Darf ich unterbrechen?
-Kan vi prata om det senare?	Können wir später darüber reden?
-Jag är inte säker.	Ich bin mir nicht sicher.
-Vi får se.	Mal sehen.
-Det beror på.	Das kommt darauf an.
-Jag tror det.	Ich glaube schon.
-Jag tror inte det.	Ich glaube nicht.
-Helt rätt.	Ganz genau.
-Precis.	Genau.
-Vad synd!	Wie schade!
-Ärligt talat ...	Ehrlich gesagt ...
-Som jag ser det ...	So wie ich es sehe ...
-Det låter bra.	Das klingt gut.
-Det är upp till dig.	Das ist deine Entscheidung.
-Jag förstår vad du menar.	Ich verstehe, was du meinst.
-Kan du ge ett exempel?	Kannst du ein Beispiel geben?
-Vad gäller saken?	Worum geht es?
-Låt oss börja.	Lass uns anfangen.
-Är det något mer?	Gibt es noch etwas?
-Tack för samtalet.	Danke für das Gespräch.
+# --- Conversation and communication ---
+May I ask you something?	May I ask you something?
+What do you think about it?	What do you think of it?
+I agree with you.	I agree with you.
+I don't agree.	I don't agree.
+That's right.	That's correct.
+On the other hand...	On the other hand...
+On the one hand...	On the one hand...
+Can you explain further?	Can you explain further?
+What do you mean by that?	What do you mean by that?
+Let me think about it.	Let me think.
+That's a good question.	That's a good question.
+In summary...	In summary...
+For example...	For example...
+In other words...	In other words...
+May I interrupt?	May I interrupt?
+Can we talk about it later?	Can we talk about it later?
+I'm not sure.	I'm not sure.
+We'll see.	Let's see.
+It depends.	It depends.
+I think so.	I think so.
+I don't think so.	I don't think so.
+Absolutely right.	Exactly.
+Exactly.	Exactly.
+What a pity!	What a shame!
+Honestly...	Honestly...
+As I see it...	The way I see it...
+That sounds good.	That sounds good.
+It's up to you.	That is your decision.
+I understand what you mean.	I understand what you mean.
+Can you give an example?	Can you give an example?
+What is this about?	What is this about?
+Let's begin.	Let's get started.
+Is there anything more?	Is there anything else?
+Thanks for the conversation.	Thanks for the conversation.

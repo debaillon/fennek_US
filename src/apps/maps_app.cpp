@@ -199,7 +199,7 @@ class MapsApp : public App {
     if (f.epochUtc > 1700000000UL) {
       if (!s_gpsTimeSeen) {   // Einmal pro Session: belegt, dass RMC-Zeit ankommt
         s_gpsTimeSeen = true;
-        Serial.printf("[MAPS] GPS-Zeit empfangen: %lu UTC (Fix=%s) -> timesync\n",
+        Serial.printf("[MAPS] Received GPS time: %lu UTC (fix=%s) -> timesync\n",
                       (unsigned long)f.epochUtc, f.valid ? "ja" : "nein");
       }
       timesync::gpsSync(f.epochUtc);

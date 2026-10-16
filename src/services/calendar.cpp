@@ -266,7 +266,7 @@ bool fetchCaldav(const char* url, const char* user, const char* pass,
   *feedN = 0;
   if (!s_xml) {
     s_xml = (char*)heap_caps_malloc(kXmlCap, MALLOC_CAP_SPIRAM);
-    if (!s_xml) { Serial.println("[CAL] kein PSRAM fuer CalDAV"); return false; }
+    if (!s_xml) { Serial.println("[CAL] No PSRAM available for CalDAV"); return false; }
   }
   // Server-seitige Zeitfilterung hält die Antwort klein.
   char zs[18], ze[18];
@@ -358,9 +358,9 @@ bool syncCore(bool useBackoff, char* log, size_t logN) {
 
   static char urls[kMaxFeeds][192];
   int feeds = readFeeds(urls, kMaxFeeds);
-  if (feeds == 0) { setLog("keine Feeds"); return false; }
-  if (settings::wifiCount() == 0) { setLog("kein WLAN konfiguriert"); return false; }
-  if (webfm::state() != webfm::State::OFF) { setLog("WLAN belegt"); return false; }
+  if (feeds == 0) { setLog("No feeds"); return false; }
+  if (settings::wifiCount() == 0) { setLog("Wi-Fi is not configured"); return false; }
+  if (webfm::state() != webfm::State::OFF) { setLog("Wi-Fi is busy"); return false; }
 
   if (useBackoff) {
     uint32_t cur = timesync::now();
@@ -368,7 +368,7 @@ bool syncCore(bool useBackoff, char* log, size_t logN) {
       uint8_t shift = s_failCount > kBackoffMaxShift ? kBackoffMaxShift : s_failCount;
       uint32_t wait = kBackoffBaseSecs << shift;
       if (wait > kBackoffMaxSecs) wait = kBackoffMaxSecs;
-      if (cur - s_lastAttemptEpoch < wait) { setLog("Back-off aktiv"); return false; }
+      if (cur - s_lastAttemptEpoch < wait) { setLog("Backoff active"); return false; }
     }
     s_lastAttemptEpoch = cur;
   }
@@ -417,8 +417,8 @@ bool syncCore(bool useBackoff, char* log, size_t logN) {
   }
 
   char m[48];
-  if (!connected) snprintf(m, sizeof(m), "WLAN-Fehler");
-  else            snprintf(m, sizeof(m), "%d Feeds, %d Termine", feeds, s_eventN);
+  if (!connected) snprintf(m, sizeof(m), "Wi-Fi error");
+  else            snprintf(m, sizeof(m), "%d feeds, %d events", feeds, s_eventN);
   setLog(m);
   Serial.printf("[CAL] %s\n", m);
   return connected;
@@ -432,7 +432,7 @@ void begin() {
   s_events = (CalEvent*)heap_caps_malloc(sizeof(CalEvent) * kMaxEvents, MALLOC_CAP_SPIRAM);
   if (!s_events) s_events = (CalEvent*)malloc(sizeof(CalEvent) * kMaxEvents);
   s_eventN = 0;
-  if (!s_events) { Serial.println("[CAL] PSRAM-Allokation fehlgeschlagen"); return; }
+  if (!s_events) { Serial.println("[CAL] PSRAM allocation failed"); return; }
   // Per-Feed-Caches mischen (Boot ohne WLAN).
   static char urls[kMaxFeeds][192];
   int feeds = readFeeds(urls, kMaxFeeds);

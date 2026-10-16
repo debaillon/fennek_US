@@ -2,16 +2,16 @@
 // Copyright (C) 2026 Dr. Daniel Dumke
 
 // =============================================================================
-// ota.h — OTA-Firmware-Update (Pull von URL).
+// ota.h — OTA firmware update (download from URL).
 //
-// Quelle = GitHub-Releases-API von danst0/fennek (dient direkt als Manifest)
-// oder ein selbst gehostetes JSON-Manifest. Geschrieben wird in den inaktiven
-// OTA-Slot (app0/app1) im internen QSPI-Flash — der geteilte HSPI-Bus (SD/
-// E-Ink/LoRa) ist NICHT betroffen. Beim WLAN-Betrieb ist Audio ohnehin
-// gestoppt und die Mesh-Pumpe suspendiert (webfm-Regel).
+// Source: the GitHub Releases API for danst0/fennek (used directly as the
+// manifest) or a self-hosted JSON manifest. The update is written to the
+// inactive OTA slot (app0/app1) in internal QSPI flash; the shared HSPI bus
+// (SD/E-Ink/LoRa) is NOT affected. Audio is stopped and the Mesh pump is
+// suspended during Wi-Fi operation (WebFM rule).
 //
-// check()/apply() setzen verbundenes WLAN voraus (z. B. webfm RUNNING). Die
-// console*-Helfer bringen WLAN selbst hoch (headless, ohne Display).
+// check()/apply() require a Wi-Fi connection (e.g. webfm RUNNING). The
+// console* helpers bring up Wi-Fi themselves (headless, without a display).
 // =============================================================================
 #pragma once
 
@@ -21,48 +21,49 @@
 namespace ota {
 
 struct CheckResult {
-  bool ok          = false;   // Manifest geladen + geparst
+  bool ok          = false;   // Manifest downloaded and parsed
   bool updateAvail = false;   // latest != current
   char current[16] = "";      // FENNEK_VERSION
-  char latest[16]  = "";      // tag_name aus dem Release
-  char url[200]    = "";      // browser_download_url der firmware.bin
-  char err[80]     = "";      // Fehlertext (gültig wenn !ok)
+  char latest[16]  = "";      // tag_name from the release
+  char url[200]    = "";      // browser_download_url for firmware.bin
+  char err[80]     = "";      // Error text (valid when !ok)
 };
 
-// Liest das Manifest unter manifestUrl (GitHub-API: tag_name + erste .bin-Asset;
-// Fallback: "version"/"url"). WLAN muss verbunden sein.
+// Read the manifest at manifestUrl (GitHub API: tag_name + first .bin asset;
+// fallback: "version"/"url"). Wi-Fi must be connected.
 CheckResult check(const char* manifestUrl);
 
-// Lädt die Firmware von downloadUrl (302 wird selbst aufgelöst) und flasht sie
-// in den inaktiven OTA-Slot. true = Erfolg — der Aufrufer rebootet danach
-// selbst (apply rebootet bewusst NICHT). WLAN muss verbunden sein.
+// Download firmware from downloadUrl (resolve HTTP 302 redirects) and flash it
+// to the inactive OTA slot. true = success; the caller reboots afterward
+// (apply intentionally does NOT reboot). Wi-Fi must be connected.
 bool apply(const char* downloadUrl, char* errOut, size_t errCap);
 
-// Headless für die Konsole: WLAN hoch (Audio stop + Mesh suspend), prüfen,
-// Status nach Serial, WLAN wieder runter. Kein Flashen.
+// Headless console check: bring up Wi-Fi (stop audio and suspend Mesh), check
+// status, print it to Serial, then turn Wi-Fi off. Does not flash firmware.
 void consoleCheck();
 
-// Headless für die Konsole: prüfen und ggf. flashen + Reboot. force = ohne
-// Versionsvergleich flashen (Re-Flash/Downgrade).
+// Headless console update: check and, if needed, flash and reboot. force = flash
+// without comparing versions (reflash/downgrade).
 void consoleUpdate(bool force);
 
-// --- On-Device-Pfad (Settings-App, blockierend mit UI-Fortschritt) -----------
-// UI-Fortschritts-Callback: phase = Kurztext ("Verbinde WLAN" …), pct = 0..100
-// oder <0 für „unbestimmt" (keine Prozentzahl). Wird synchron/blockierend aus
-// deviceCheck()/deviceApply() heraus aufgerufen — der Handler darf das E-Ink
-// aktualisieren (während des WLAN-Betriebs ruhen Audio + Mesh, der SPI-Bus ist
-// frei). Beide Funktionen sind blockierend und laufen nur aus loop()-Kontext
-// (Core 1), nie aus dem Audio-Task — wie der Konsolen-Pfad.
+// --- On-device path (Settings app, blocking with UI progress) ----------------
+// UI progress callback: phase = short text (e.g. "Connecting to Wi-Fi"),
+// pct = 0..100 or <0 for indeterminate (no percentage). Called synchronously
+// from deviceCheck()/deviceApply(); the handler may update E-Ink (audio and
+// Mesh are idle during Wi-Fi operation, leaving the SPI bus free). Both
+// functions block and run only from loop() context (Core 1), never the audio
+// task, just like the console path.
 typedef void (*ProgressFn)(const char* phase, int pct);
 
-// Bringt WLAN hoch, prüft das Manifest und schaltet WLAN wieder ab. Setzt
-// WLAN-Zugangsdaten (NVS) voraus und scheitert, wenn webfm bereits läuft.
-// progress (optional) bekommt die Phasen ("Verbinde WLAN"/"Pruefe Version").
+// Bring up Wi-Fi, check the manifest, then turn Wi-Fi off. Requires Wi-Fi
+// credentials in NVS and fails if WebFM is already running. The optional
+// progress callback receives phases such as "Connecting to Wi-Fi" and
+// "Checking version".
 CheckResult deviceCheck(ProgressFn progress);
 
-// Bringt WLAN hoch und flasht die Firmware unter downloadUrl (Fortschritt via
-// progress, 0..100 %). Bei Erfolg Reboot (kehrt NICHT zurück); bei Fehler WLAN
-// runter, false und errOut trägt den Grund.
+// Bring up Wi-Fi and flash firmware from downloadUrl (progress is reported via
+// progress, 0..100%). On success, reboot (does NOT return); on failure, turn
+// Wi-Fi off and return false with the reason in errOut.
 bool deviceApply(const char* downloadUrl, ProgressFn progress, char* errOut, size_t errCap);
 
 }  // namespace ota

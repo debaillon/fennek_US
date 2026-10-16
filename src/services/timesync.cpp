@@ -25,7 +25,7 @@ constexpr uint32_t kSaneEpoch       = 1781000000UL;
 // dieses Gerät implausibel. Solche Werte werden verworfen, nie übernommen oder
 // ins NVS gesichert (sonst verewigt sich ein Müllwert über den NVS-Fallback).
 constexpr uint32_t kMaxSaneEpoch    = 2145916800UL;  // 2038-01-01 UTC
-constexpr uint32_t kStaleSeconds    = 300;        // ~5 min ⇒ "schlecht"
+constexpr uint32_t kStaleSeconds    = 300;        // ~5 min ⇒ "poor"
 constexpr uint16_t kDefaultPpm      = 2000;       // konservativ, bis gemessen
 constexpr uint16_t kMinPpm          = 5;
 constexpr uint16_t kMaxPpm          = 60000;      // 6 %
@@ -118,7 +118,7 @@ void handleNtpSynced() {
   s_ntpFresh       = false;
   settings::setLastTime(trueNow);
   s_lastNvsMs     = millis();
-  Serial.printf("[TIME] NTP-Sync: %lu (Fehler war ~%ld s)\n",
+  Serial.printf("[TIME] NTP sync: %lu (previous error ~%ld s)\n",
                 (unsigned long)trueNow, (long)errSecs);
   // beginNtpAttempt() rief configTime(0,0,…) und hat damit die libc-TZ auf UTC
   // gesetzt — Zeitzone erneut anwenden, sonst zeigen alle localtime_r-Ausgaben
@@ -130,8 +130,8 @@ void handleNtpSynced() {
 // (Pre-Standby: Gerät idle + Audio gestoppt; oder Konsole auf Nutzerwunsch).
 // Schaltet WLAN danach immer wieder aus. true = Uhr frisch gesetzt.
 bool blockingNtp() {
-  if (settings::wifiCount() == 0) { Serial.println("[TIME] Kein WLAN konfiguriert"); return false; }
-  if (!wifi::connect(kConnectTimeoutMs)) { Serial.println("[TIME] WLAN-Connect-Timeout"); return false; }
+  if (settings::wifiCount() == 0) { Serial.println("[TIME] No Wi-Fi configured"); return false; }
+  if (!wifi::connect(kConnectTimeoutMs)) { Serial.println("[TIME] Wi-Fi connection timed out"); return false; }
 
   bool ok = false;
   beginNtpAttempt();
@@ -173,15 +173,15 @@ void begin() {
     if (plausibleEpoch(saved)) {
       mesh_client::setRtcTime(saved, false);   // nicht autoritativ — darf korrigiert werden
       s_source = "NVS";
-      Serial.printf("[TIME] Uhr aus NVS wiederhergestellt: %lu\n", (unsigned long)saved);
+      Serial.printf("[TIME] Restored clock from NVS: %lu\n", (unsigned long)saved);
     } else {
-      Serial.println("[TIME] Kaltstart ohne plausible gespeicherte Zeit — warte auf Mesh/NTP");
+      Serial.println("[TIME] Cold boot without a plausible saved time — waiting for Mesh/NTP");
     }
   } else {
     // Systemzeit hat (Deep Sleep) überlebt — übernehmen, aber als unbestätigt
-    // führen (Drift über die Schlafdauer unbekannt ⇒ Qualität "schlecht").
+    // because drift during sleep is unknown (quality is "poor").
     s_source = "NVS";
-    Serial.printf("[TIME] Systemzeit nach Wake: %lu (unbestätigt)\n", (unsigned long)sys);
+    Serial.printf("[TIME] System time after wake: %lu (unconfirmed)\n", (unsigned long)sys);
   }
 }
 
@@ -234,13 +234,13 @@ void syncBeforeStandby() {
     uint32_t wait  = kBackoffBaseSecs << shift;
     if (wait > kBackoffMaxSecs) wait = kBackoffMaxSecs;
     if (cur - s_lastAttemptEpoch < wait) {
-      Serial.printf("[TIME] Pre-Standby-Sync übersprungen (Back-off: %u Fehlschläge, "
+      Serial.printf("[TIME] Pre-standby sync skipped (backoff: %u failures, "
                     "warte %lus)\n", (unsigned)s_failCount, (unsigned long)wait);
       return;
     }
   }
 
-  Serial.println("[TIME] Pre-Standby: Uhr veraltet — kurzer NTP-Sync ...");
+  Serial.println("[TIME] Pre-standby: clock is stale — quick NTP sync ...");
   s_lastAttemptEpoch = cur;
   if (blockingNtp())            s_failCount = 0;
   else if (s_failCount < 0xFF)  s_failCount++;
@@ -259,14 +259,14 @@ bool gpsSyncBeforeStandby() {
     uint32_t wait  = kBackoffBaseSecs << shift;
     if (wait > kBackoffMaxSecs) wait = kBackoffMaxSecs;
     if (cur - s_gpsLastAttempt < wait) {
-      Serial.printf("[TIME] Pre-Standby-GPS übersprungen (Back-off: %u Fehlschläge)\n",
+      Serial.printf("[TIME] Pre-standby GPS sync skipped (backoff: %u failures)\n",
                     (unsigned)s_gpsFailCount);
       return false;
     }
   }
   s_gpsLastAttempt = cur;
 
-  Serial.println("[TIME] Pre-Standby: GPS-Zeit holen ...");
+  Serial.println("[TIME] Pre-standby: getting GPS time ...");
   gps::begin();                          // Power on + UBX-Aiding (Systemzeit/Pos)
   bool got = false;
   uint32_t t0 = millis();
@@ -286,10 +286,10 @@ bool gpsSyncBeforeStandby() {
 
   if (got) {
     s_gpsFailCount = 0;
-    Serial.println("[TIME] Pre-Standby: GPS-Zeit übernommen");
+    Serial.println("[TIME] Pre-standby: GPS time acquired");
   } else if (s_gpsFailCount < 0xFF) {
     s_gpsFailCount++;
-    Serial.println("[TIME] Pre-Standby: kein GPS-Fix (Timeout)");
+    Serial.println("[TIME] Pre-standby: no GPS fix (timeout)");
   }
   return got;
 }
@@ -322,7 +322,7 @@ void gpsSync(uint32_t utc) {
     s_lastGpsMs = millis();
     mesh_client::setRtcTime(utc, true);
     settings::setLastTime(utc);
-    Serial.printf("[TIME] GPS-Sync: %lu UTC (Korrektur %lus)\n",
+    Serial.printf("[TIME] GPS sync: %lu UTC (correction %lus)\n",
                   (unsigned long)utc, (unsigned long)diff);
   }
 }
@@ -342,12 +342,12 @@ void setManualTime(uint32_t utc) {
   s_source         = "manuell";
   s_failCount      = 0;
   settings::setLastTime(utc);
-  Serial.printf("[TIME] Uhr manuell gesetzt: %lu UTC\n", (unsigned long)utc);
+  Serial.printf("[TIME] Clock set manually: %lu UTC\n", (unsigned long)utc);
 }
 
 bool forceSyncNow() {
   if (webfm::state() != webfm::State::OFF) {
-    Serial.println("[TIME] WLAN läuft bereits (webfm) — Sync erfolgt opportunistisch");
+    Serial.println("[TIME] Wi-Fi is already running (webfm) — syncing opportunistically");
     return false;
   }
   bool ok = blockingNtp();
@@ -372,8 +372,8 @@ const char* source() { return s_source; }
 const char* qualityStr() {
   uint32_t e = estErrSeconds();
   if (e < 60)           return "gut";
-  if (e <= kStaleSeconds) return "mäßig";
-  return "schlecht";
+  if (e <= kStaleSeconds) return "fair";
+  return "poor";
 }
 
 uint16_t driftPpm() { return s_driftPpm; }

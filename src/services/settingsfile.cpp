@@ -71,7 +71,7 @@ bool importFromSd() {
   int applied = settings::importIni(buf);
   free(buf);
   if (applied < 0) {
-    Serial.println("[FENNEK] settings.ini: Parse-Fehler");
+    Serial.println("[FENNEK] settings.ini: parse error");
     return false;
   }
   Serial.printf("[FENNEK] settings.ini gelesen: %d Werte uebernommen\n", applied);

@@ -499,11 +499,11 @@ void doneDraw(Adafruit_GFX& g) {
   if (s_cardCount == 0) {
     gui::printAt(g, 14, 80, "Deck ist leer", 2);
   } else if (s_seen == 0) {
-    gui::printAt(g, 14, 80, "Nichts faellig.", 2);
+    gui::printAt(g, 14, 80, "Nothing due.", 2);
     gui::printAt(g, 14, 110, "Review later", 1);
     gui::printAt(g, 14, 124, "to review later.", 1);
   } else {
-    gui::printAt(g, 14, 80, "Fertig!", 3);
+    gui::printAt(g, 14, 80, "Done!", 3);
     char s[48];
     snprintf(s, sizeof(s), "Gewusst: %d / %d", s_correct, s_seen);
     gui::printAt(g, 14, 130, s, 2);

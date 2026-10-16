@@ -201,7 +201,7 @@ void drawAdd(Adafruit_GFX& g) {
   g.setTextColor(GxEPD_BLACK);
   gui::printAt(g, 8, TOP + 4, "New task", 2);
   g.drawLine(0, HEADER_H, W, HEADER_H, GxEPD_BLACK);
-  gui::printAt(g, 8, LIST_Y + 8, "Titel (+Thema moeglich):", 1);
+  gui::printAt(g, 8, LIST_Y + 8, "Title (+topic optional):", 1);
   // Eingabefeld mit Rahmen + Cursor.
   g.drawRect(8, LIST_Y + 24, W - 16, 60, GxEPD_BLACK);
   char shown[160];

@@ -66,7 +66,7 @@ bool initPanel(bool initial) {
     Serial.printf("[EINK] BUSY bleibt aktiv nach %u-ms-Reset — neuer Versuch\n",
                   (unsigned)ms);
   }
-  Serial.println("[EINK] Panel antwortet nicht (BUSY aktiv) — fahre trotzdem fort");
+  Serial.println("[EINK] Panel not responding (BUSY active) — continuing anyway");
   s_panelStuck = true;
   return false;
 }
@@ -167,7 +167,7 @@ void hibernate() {
   // Reset auf dieser Hardware wirkungslos — dann das Flag dauerhaft löschen.
   if (s_panelStuck && settings::einkHibernate()) {
     settings::setEinkHibernate(false);
-    Serial.println("[EINK] Panel kam nicht aus dem Deep-Sleep — hibernate dauerhaft aus");
+    Serial.println("[EINK] Panel did not wake from deep sleep — hibernation disabled");
   }
   const bool deepSleep = settings::einkHibernate() && !s_panelStuck;
 

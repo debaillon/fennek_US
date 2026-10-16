@@ -211,10 +211,10 @@ void poll() {
     bool prevExt = s_cExt;
     s_cChg = chg;
     s_cExt = ext;
-    if (s_haveCharge && chg != prevChg) append("Laden", chg ? "gestartet" : "beendet");
+    if (s_haveCharge && chg != prevChg) append("Charging", chg ? "started" : "stopped");
     // Das Kabel getrennt/gesteckt ist die Grenze zwischen echter Akku-Messung
     // und Phantom-Phase — als eigenes Ereignis markieren, nicht nur als Spalte.
-    if (s_haveCharge && ext != prevExt) append("Kabel", ext ? "gesteckt" : "getrennt");
+    if (s_haveCharge && ext != prevExt) append("External power", ext ? "connected" : "disconnected");
     s_haveCharge = true;
     append("Akku", "Probe");
   }

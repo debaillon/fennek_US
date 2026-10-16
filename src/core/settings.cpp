@@ -15,19 +15,19 @@ namespace {
 Preferences s_prefs;
 bool        s_open = false;
 
-// Gecachte Werte: Vergleich vor jedem Write (NVS nur bei echter Änderung).
-uint8_t  s_volume = 255;        // 255 = noch nicht geladen
-uint8_t  s_standby = 5;         // Auto-Standby-Minuten (0 = aus)
-uint8_t  s_fontScale = 1;       // Schriftgröße Lesen/Notizen (1 = klein, 2 = groß)
+// Cached values: compare before each write; update NVS only when changed.
+uint8_t  s_volume = 255;        // 255 = not loaded
+uint8_t  s_standby = 5;         // Automatic standby minutes (0 = off)
+uint8_t  s_fontScale = 1;       // Font size for reading/notes (1 = small, 2 = large)
 char     s_lastApp[24] = "";
 char     s_lastTrack[TRACK_PATH_LEN] = "";
 uint32_t s_lastPos = 0;
 
-// Einmalige Migration vom alten NVS-Namespace "meck" (Firmware hieß früher
-// Meck). Kopiert alle bekannten Keys nach "fennek" und leert das alte
-// Namespace, damit Lautstärke/Resume/Funkparameter den Umstieg überleben.
+// One-time migration from the old NVS namespace "meck" (the firmware was
+// formerly named Meck). Copies known keys to "fennek" and clears the old
+// namespace so volume, resume, and radio settings survive the upgrade.
 void migrateFromMeck() {
-  if (s_prefs.isKey("vol")) return;   // "fennek" schon befüllt -> nichts zu tun
+  if (s_prefs.isKey("vol")) return;   // "fennek" already populated; nothing to do
   Preferences old;
   if (!old.begin("meck", true)) return;
   if (old.isKey("vol")) {
@@ -54,7 +54,7 @@ void migrateFromMeck() {
       old.getString("mname", b, sizeof(b));
       s_prefs.putString("mname", b);
     }
-    Serial.println("[FENNEK] NVS-Migration meck -> fennek abgeschlossen");
+    Serial.println("[FENNEK] NVS migration meck -> fennek complete");
   }
   old.end();
   Preferences wipe;
@@ -66,8 +66,8 @@ void migrateFromMeck() {
 namespace settings {
 
 void begin() {
-  // Idempotent: ein zweiter Preferences::begin() gäbe false zurück und würde
-  // s_open kippen (Pfad: Timer-Wake-Minimal-Boot fällt in den Voll-Boot durch).
+  // Idempotent: a second Preferences::begin() would return false and clear
+  // s_open (the timer-wake minimal boot can fall through to a full boot).
   if (s_open) return;
   s_open = s_prefs.begin("fennek", false);
   if (!s_open) return;
@@ -141,8 +141,8 @@ void lastTrack(char* pathOut, size_t n, uint32_t* posSec) {
 
 void setLastTrack(const char* path, uint32_t posSec) {
   if (!s_open) return;
-  // Pfad nur schreiben, wenn er sich ändert; Position nur bei >=20 s Abstand
-  // (NVS-Schonung, vgl. Plan: Write-on-Change + Delta).
+  // Write the path only when it changes; write the position only when it
+  // differs by at least 20 seconds to reduce NVS wear.
   if (strcmp(path, s_lastTrack) != 0) {
     strncpy(s_lastTrack, path, sizeof(s_lastTrack) - 1);
     s_lastTrack[sizeof(s_lastTrack) - 1] = '\0';
@@ -166,7 +166,7 @@ void clearLastTrack() {
   s_prefs.remove("trkpos");
 }
 
-// --- Hörbuch-Bookmarks --------------------------------------------------------
+// --- Audiobook bookmarks ------------------------------------------------------
 namespace {
 
 Preferences s_abook;
@@ -179,7 +179,7 @@ bool abookEnsure() {
 
 void bmKey(uint32_t key, char* out) { snprintf(out, 12, "b%08x", (unsigned)key); }
 
-// Gepackt: fileIdx (16 Bit) | posSec (im oberen Bereich)
+// Packed: fileIdx (16 bits) | posSec (in the upper bits)
 uint64_t packBm(uint16_t fileIdx, uint32_t posSec) {
   return ((uint64_t)posSec << 16) | fileIdx;
 }
@@ -199,7 +199,7 @@ bool bookBookmark(uint32_t key, uint16_t* fileIdx, uint32_t* posSec) {
 void setBookBookmark(uint32_t key, uint16_t fileIdx, uint32_t posSec) {
   if (!abookEnsure()) return;
   char k[12]; bmKey(key, k);
-  // Schreibdisziplin: nur bei Datei-Wechsel oder >=20 s Positions-Delta.
+  // Write only when the file changes or the position differs by >=20 seconds.
   if (s_abook.isKey(k)) {
     uint64_t old = s_abook.getULong64(k, 0);
     uint16_t oF = (uint16_t)(old & 0xFFFF);
@@ -216,7 +216,7 @@ void clearBookBookmark(uint32_t key) {
   if (s_abook.isKey(k)) s_abook.remove(k);
 }
 
-// --- eBook-Lesepositionen -------------------------------------------------------
+// --- eBook reading positions ---------------------------------------------------
 namespace {
 
 Preferences s_ebook;
@@ -245,7 +245,7 @@ void setReadPos(uint32_t key, uint32_t page) {
 }
 
 namespace {
-char s_lastBook[256] = "";        // Calibre-Pfade sind lang
+char s_lastBook[256] = "";        // Calibre paths can be long
 bool s_lastBookLoaded = false;
 }
 
@@ -266,10 +266,10 @@ void setLastBook(const char* path) {
   s_ebook.putString("bookpath", s_lastBook);
 }
 
-// --- Mesh-Funkparameter ----------------------------------------------------------
+// --- Mesh radio parameters -----------------------------------------------------
 namespace {
 
-// Defaults: "EU/UK Narrow" (Deutschland/NRW-Standard, wie Daniels Repeater).
+// Defaults: "EU/UK Narrow" (common in Germany's North Rhine-Westphalia region).
 constexpr MeshParams kMeshDefaults = {869.618f, 62.5f, 8, 5, 22};
 
 bool       s_meshLoaded = false;
@@ -344,11 +344,11 @@ void setMeshPos(double lat, double lon) {
   if (lon != s_meshLon) { s_meshLon = lon; s_prefs.putDouble("mlon", lon); }
 }
 
-// --- WLAN-Profile ---------------------------------------------------------------
-// Bis zu kMaxWifiProfiles bekannte Netze. Persistenz als kompakter NVS-Blob
-// "wifis" (längenpräfigierte Strings), damit nur echte Daten Platz kosten (das
-// NVS-Budget ist knapp). Slot 0 wird bei Bedarf aus dem Alt-Schlüssel wssid/wpass
-// migriert und bleibt das "einfache" WLAN (ini-Export/webfm/Konsole).
+// --- Wi-Fi profiles ------------------------------------------------------------
+// Up to kMaxWifiProfiles known networks are stored in a compact NVS blob called
+// "wifis" (length-prefixed strings), so only actual data uses space. Slot 0 is
+// migrated from the legacy wssid/wpass keys when needed and remains the simple
+// Wi-Fi profile used by INI export, webfm, and the console.
 namespace {
 
 struct WifiProfile { char ssid[33]; char pass[65]; };
@@ -357,7 +357,7 @@ bool        s_wifiLoaded = false;
 int         s_wifiCount  = 0;
 WifiProfile s_wifi[kMaxWifiProfiles];
 
-// Blob-Format: [u8 count] dann je Eintrag [u8 ssidLen][ssid][u8 passLen][pass].
+// Blob format: [u8 count], then [u8 ssidLen][ssid][u8 passLen][pass] per entry.
 void wifiSave() {
   if (!s_open) return;
   uint8_t buf[1 + kMaxWifiProfiles * (1 + 32 + 1 + 64)];
@@ -396,7 +396,7 @@ void wifiEnsure() {
     return;
   }
 
-  // Migration: Alt-Schlüssel wssid/wpass → Slot 0.
+  // Migration: legacy wssid/wpass keys to slot 0.
   if (s_prefs.isKey("wssid")) {
     s_prefs.getString("wssid", s_wifi[0].ssid, sizeof(s_wifi[0].ssid));
     if (s_prefs.isKey("wpass")) s_prefs.getString("wpass", s_wifi[0].pass, sizeof(s_wifi[0].pass));
@@ -433,7 +433,7 @@ void wifiRemove(int i) {
 bool wifiSet(int i, const char* ssid, const char* pass) {
   wifiEnsure();
   if (!s_open || i < 0 || i > s_wifiCount || i >= kMaxWifiProfiles) return false;
-  // Leere SSID = Löschen (nur bei bestehendem Eintrag sinnvoll).
+  // An empty SSID deletes the profile (only meaningful for an existing entry).
   if (!ssid || !ssid[0]) { if (i < s_wifiCount) { wifiRemove(i); return true; } return false; }
   if (i == s_wifiCount) s_wifiCount++;           // anhängen
   strncpy(s_wifi[i].ssid, ssid, sizeof(s_wifi[i].ssid) - 1);
@@ -446,7 +446,7 @@ bool wifiSet(int i, const char* ssid, const char* pass) {
   return true;
 }
 
-// --- Legacy-/Einfach-Zugriff = Slot 0 -------------------------------------------
+// --- Legacy/simple access = slot 0 ---------------------------------------------
 void wifiSsid(char* out, size_t n) { wifiSsidAt(0, out, n); }
 
 void setWifiSsid(const char* ssid) {
@@ -470,7 +470,7 @@ void setWifiPass(const char* pass) {
   wifiSet(0, ssid, pass);
 }
 
-// --- Navidrome/Subsonic-Zugangsdaten -------------------------------------------
+// --- Navidrome/Subsonic credentials --------------------------------------------
 namespace {
 
 bool s_navLoaded = false;
@@ -541,7 +541,7 @@ void setNavPass(const char* pass) {
   s_prefs.putString("npass", s_navPass);
 }
 
-// --- Ollama-KI für Notizen (services/notes_ai) --------------------------------
+// --- Ollama AI for notes (services/notes_ai) -----------------------------------
 namespace {
 
 bool s_aiLoaded = false;
@@ -596,11 +596,11 @@ void setAiModel(const char* model) {
   s_prefs.putString("omod", s_aiModel);
 }
 
-// --- OTA-Firmware-Update (services/ota) ---------------------------------------
+// --- OTA firmware update (services/ota) ----------------------------------------
 namespace {
 
 bool s_otaLoaded = false;
-// Default: neuestes Release von danst0/fennek (die GitHub-API dient als Manifest).
+// Default: latest release from danst0/fennek (the GitHub API provides the manifest).
 char s_otaUrl[160] = "https://api.github.com/repos/danst0/fennek/releases/latest";
 
 void otaEnsure() {
@@ -625,7 +625,7 @@ void setOtaUrl(const char* url) {
   s_prefs.putString("otau", s_otaUrl);
 }
 
-// --- Podcast-Auto-Sync (services/podcast) -------------------------------------
+// --- Podcast auto-sync (services/podcast) --------------------------------------
 bool podcastAutoSync() {
   if (!s_open) return false;
   return s_prefs.getBool("pcas", false);
@@ -636,7 +636,7 @@ void setPodcastAutoSync(bool on) {
   s_prefs.putBool("pcas", on);
 }
 
-// --- Todo/Reinschrift (services/reinschrift) ----------------------------------
+// --- Todo/Reinschrift (services/reinschrift) -----------------------------------
 namespace {
 
 bool s_todoLoaded = false;
@@ -701,7 +701,7 @@ void setTodoPath(const char* path) {
   s_prefs.putString("todopath", s_todoPath);
 }
 
-// --- Kalender (services/calendar) ---------------------------------------------
+// --- Calendar (services/calendar) ----------------------------------------------
 namespace {
 bool s_calLoaded = false;
 char s_calUser[64] = "";
@@ -737,7 +737,7 @@ void setCalDavPass(const char* pass) {
   s_prefs.putString("caldavpw", s_calPass);
 }
 
-// --- Calibre-Buch-Sync (services/calibre_books) --------------------------------
+// --- Calibre book sync (services/calibre_books) ---------------------------------
 namespace {
 
 bool s_cbLoaded  = false;
@@ -795,9 +795,9 @@ void setCalibreAutoSync(bool on) {
   s_cbAuto = on; s_prefs.putBool("cbauto", on);
 }
 
-// --- Uhrzeit-Persistenz + Zeitzone (services/timesync) -------------------------
-// Nur Kaltstart-Fallback (Stromausfall/Reset); im Normalbetrieb überlebt die
-// ESP32-Systemzeit den Deep Sleep selbst. Schreibdrosselung liegt im Aufrufer.
+// --- Time persistence and time zone (services/timesync) -------------------------
+// Cold-boot fallback only (power loss/reset); during normal operation the ESP32
+// system clock survives deep sleep. The caller handles write throttling.
 uint32_t lastTime() {
   if (!s_open || !s_prefs.isKey("ltime")) return 0;
   return s_prefs.getUInt("ltime", 0);
@@ -820,8 +820,8 @@ void setClockPpm(uint16_t ppm) {
   s_prefs.putUShort("cppm", ppm);
 }
 
-// Zeitzone als POSIX-TZ-String (z. B. "CET-1CEST,M3.5.0,M10.5.0/3" = Europe/Berlin
-// inkl. automatischer Sommerzeit). Default Berlin. NTP/Mesh liefern nur UTC.
+// Time zone as a POSIX TZ string (e.g. "CET-1CEST,M3.5.0,M10.5.0/3" = Europe/Berlin,
+// including automatic daylight saving time). Default: Berlin. NTP/Mesh provide UTC only.
 void tzString(char* out, size_t n) {
   const char* def = "CET-1CEST,M3.5.0,M10.5.0/3";
   if (!s_open || !s_prefs.isKey("tz")) { strncpy(out, def, n - 1); out[n - 1] = '\0'; return; }
@@ -837,7 +837,7 @@ void setTzString(const char* tz) {
   s_prefs.putString("tz", tz);
 }
 
-// --- Spiele: Beststände + Schach-Spielstand ------------------------------------
+// --- Game high scores and chess state ------------------------------------------
 namespace {
 
 bool     s_gamesLoaded = false;
@@ -847,8 +847,8 @@ uint16_t s_chessWins = 0;
 uint16_t s_tttWins = 0, s_tttDraws = 0;
 uint16_t s_sudSolved = 0, s_sudBest = 0;
 uint16_t s_mathBest = 0;
-// Kopfrechnen: adaptive Stufe je Modus, 2 Bit pro Modus (bis 8 Modi gepackt).
-// Default = alle Modi auf Stufe 1 (Mittel) -> 0b01 je Feld = 0x5555.
+// Mental math: adaptive level per mode, with 2 bits per mode (up to 8 packed).
+// Default: all modes at level 1 (medium), 0b01 per field = 0x5555.
 uint16_t s_mathLevels = 0x5555;
 
 void gamesEnsure() {
@@ -882,7 +882,7 @@ uint16_t minesBestSec() { gamesEnsure(); return s_minesBest; }
 
 void setMinesResult(bool won, uint16_t sec) {
   gamesEnsure();
-  if (!s_open || !won) return;   // Niederlagen werden nicht gezählt
+  if (!s_open || !won) return;   // Losses are not counted
   s_minesWins++;
   s_prefs.putUShort("mswins", s_minesWins);
   if (s_minesBest == 0 || sec < s_minesBest) {
@@ -961,7 +961,7 @@ void setMathLevel(uint8_t mode, uint8_t level) {
   if (level > 2) level = 2;
   uint16_t v = (uint16_t)(s_mathLevels & ~(0x3u << (mode * 2)));
   v |= (uint16_t)level << (mode * 2);
-  if (v == s_mathLevels) return;   // nur bei echtem Stufenwechsel schreiben
+  if (v == s_mathLevels) return;   // Write only when the level actually changes
   s_mathLevels = v;
   s_prefs.putUShort("mqlvl", v);
 }
@@ -976,9 +976,9 @@ uint32_t crc32(const char* s) {
   return ~crc;
 }
 
-// --- INI-Export/Import ---------------------------------------------------------
-// Serialisierung in einen RAM-Puffer (kein SD-/SPI-Zugriff hier — den macht
-// services/settingsfile unter spiLock). Format: [sektion] + key = value.
+// --- INI export/import ----------------------------------------------------------
+// Serialize to a RAM buffer (no SD/SPI access here; services/settingsfile does
+// that while holding spiLock). Format: [section] followed by key = value.
 size_t exportIni(char* out, size_t cap) {
   if (!out || cap == 0) return 0;
   MeshParams m = meshParams();
@@ -991,9 +991,9 @@ size_t exportIni(char* out, size_t cap) {
   aiUrl(ourl, sizeof(ourl));
   aiModel(omod, sizeof(omod));
   otaUrl(oturl, sizeof(oturl));
-  // WLAN-Passwort wird BEWUSST NICHT exportiert (Klartext auf entnehmbarer SD).
-  // Das Feld bleibt leer; ein leeres Feld lässt beim Import das NVS-Passwort
-  // unangetastet — nur ein manuell eingetragenes Passwort wird übernommen.
+  // Wi-Fi passwords are intentionally not exported in plaintext to removable
+  // SD storage. The field stays empty; import preserves the NVS password
+  // unless a value is entered manually.
   tzString(tz, sizeof(tz));
   lastApp(lapp, sizeof(lapp));
   uint32_t lpos = 0;
@@ -1001,15 +1001,15 @@ size_t exportIni(char* out, size_t cap) {
   lastBook(lbook, sizeof(lbook));
 
   int len = snprintf(out, cap,
-    "# Fennek-Einstellungen — bearbeitbar, beim Boot eingelesen.\n"
-    "# Pro-Buch-Lesepositionen/Hoerbuch-Bookmarks sind hier NICHT enthalten\n"
-    "# (intern CRC32-verschluesselt). [state] wird beim Import ignoriert.\n"
+    "# Fennek settings — editable; loaded at boot.\n"
+    "# Per-book reading positions and audiobook bookmarks are not included\n"
+    "# (internally CRC32-keyed). The [state] section is ignored during import.\n"
     "\n[general]\n"
     "volume = %u\n"             // 0..21
-    "standby_minutes = %u\n"    // 0 = aus
+    "standby_minutes = %u\n"    // 0 = off
     "language = %u\n"           // Legacy setting; the UI is English-only.
     "timezone = %s\n"
-    "font_scale = %u\n"         // 1 = klein, 2 = groß (Lesen/Notizen)
+    "font_scale = %u\n"         // 1 = small, 2 = large (reader/notes)
     "\n[mesh]\n"
     "freq_mhz = %.3f\n"
     "bw_khz = %.1f\n"
@@ -1020,12 +1020,12 @@ size_t exportIni(char* out, size_t cap) {
     "eco = %u\n"                // RX-Duty-Cycle (Radio-Sparmodus)
     "\n[wifi]\n"
     "ssid = %s\n"
-    "password =\n"             // leer = nicht exportiert; manuell eintragbar
+    "password =\n"             // Empty = not exported; can be entered manually
     "\n[navidrome]\n"
     "enabled = %u\n"
     "url = %s\n"
     "user = %s\n"
-    "password =\n"             // leer = nicht exportiert; manuell eintragbar
+    "password =\n"             // Empty = not exported; can be entered manually
     "\n[ollama]\n"
     "enabled = %u\n"
     "url = %s\n"
@@ -1041,7 +1041,7 @@ size_t exportIni(char* out, size_t cap) {
     "ttt_draws = %u\n"
     "sudoku_solved = %u\n"
     "sudoku_best_sec = %u\n"
-    "\n[state]\n"               // nur Backup — Import ueberspringt diese Sektion
+    "\n[state]\n"               // Backup only — import skips this section
     "last_app = %s\n"
     "last_track = %s\n"
     "last_pos = %lu\n"
@@ -1068,7 +1068,7 @@ size_t exportIni(char* out, size_t cap) {
 
 namespace {
 
-// Beidseitig trimmen (in-place): führende/abschließende Whitespaces entfernen.
+// Trim leading and trailing whitespace in place.
 char* trim(char* s) {
   while (*s == ' ' || *s == '\t' || *s == '\r' || *s == '\n') s++;
   char* e = s + strlen(s);
@@ -1076,9 +1076,9 @@ char* trim(char* s) {
   return s;
 }
 
-// Direkter NVS-Write für Spiele-Bestände beim Restore: die öffentlichen Setter
-// sind monoton/inkrementell (setBest2048 nur Rekorde, addChessWin zählt hoch),
-// ungeeignet zum Wiederherstellen eines exakten Werts.
+// Write game records directly to NVS during restore: public setters are
+// monotonic/incremental (setBest2048 only raises records; addChessWin increments)
+// and cannot restore an exact value.
 void restoreGameU32(const char* nvsKey, uint32_t v, uint32_t& cache) {
   if (!s_open) return;
   gamesEnsure();
@@ -1096,7 +1096,7 @@ void restoreGameU16(const char* nvsKey, uint16_t v, uint16_t& cache) {
 
 int importIni(const char* text) {
   if (!text) return -1;
-  // Auf einer modifizierbaren Kopie arbeiten (zeilenweises In-place-Trimmen).
+  // Work on a modifiable copy (trim each line in place).
   size_t n = strlen(text);
   char* buf = (char*)malloc(n + 1);
   if (!buf) return -1;
@@ -1140,14 +1140,14 @@ int importIni(const char* text) {
       else if (strcmp(key, "eco") == 0)       { setMeshEco(atoi(val) != 0); applied++; }
     } else if (strcmp(section, "wifi") == 0) {
       if      (strcmp(key, "ssid") == 0)     { setWifiSsid(val); applied++; }
-      // Leeres Passwort-Feld überspringen: bewahrt das im NVS gespeicherte
-      // Passwort (Export schreibt es nie). Nur manuell Eingetragenes wird gesetzt.
+      // Skip empty password fields to preserve the NVS password (export never
+      // writes it); only a manually entered value is stored.
       else if (strcmp(key, "password") == 0 && val[0]) { setWifiPass(val); applied++; }
     } else if (strcmp(section, "navidrome") == 0) {
       if      (strcmp(key, "enabled") == 0) { setNavEnabled(atoi(val) != 0); applied++; }
       else if (strcmp(key, "url") == 0)     { setNavUrl(val); applied++; }
       else if (strcmp(key, "user") == 0)    { setNavUser(val); applied++; }
-      // Leeres Passwort-Feld überspringen (wie WLAN) — bewahrt NVS-Passwort.
+      // Skip empty password fields, as for Wi-Fi, to preserve the NVS password.
       else if (strcmp(key, "password") == 0 && val[0]) { setNavPass(val); applied++; }
     } else if (strcmp(section, "ollama") == 0) {
       if      (strcmp(key, "enabled") == 0) { setAiEnabled(atoi(val) != 0); applied++; }
@@ -1165,7 +1165,7 @@ int importIni(const char* text) {
       else if (strcmp(key, "sudoku_solved") == 0)  { restoreGameU16("sudwon", (uint16_t)atoi(val), s_sudSolved); applied++; }
       else if (strcmp(key, "sudoku_best_sec") == 0){ restoreGameU16("sudbest", (uint16_t)atoi(val), s_sudBest); applied++; }
     }
-    // [state] und unbekannte Sektionen: bewusst ignoriert.
+    // The [state] section and unknown sections are intentionally ignored.
   }
   free(buf);
   return applied;
