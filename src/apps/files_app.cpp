@@ -40,7 +40,7 @@ void centered(Adafruit_GFX& g, int y, const char* text, uint8_t size) {
 void drawNoCreds(Adafruit_GFX& g) {
   centered(g, 90, i18n::tr(i18n::Str::FilesNoCreds1), 1);
   centered(g, 112, i18n::tr(i18n::Str::FilesNoCreds2), 1);
-  gui::printAt(g, 40, 128, "WLAN-SSID / WLAN-Passwort", 1);
+  gui::printAt(g, 40, 128, "Wi-Fi SSID / password", 1);
   centered(g, 152, i18n::tr(i18n::Str::FilesNoCreds3), 1);
   // Konsolen-Befehle wörtlich (nicht übersetzt, vgl. core/console.cpp).
   gui::printAt(g, 40, 168, "wifi ssid <Name>", 1);

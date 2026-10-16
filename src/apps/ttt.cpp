@@ -49,7 +49,7 @@ void noteResult() {
   s_counted = true;
   if (s_mode == 0) {
     settings::addTttResult(w == 1, w == 3);
-    Serial.printf("[GAME] TTT: Ende (%s)\n", w == 1 ? "Sieg" : w == 2 ? "Niederlage" : "Remis");
+    Serial.printf("[GAME] TTT: finished (%s)\n", w == 1 ? "win" : w == 2 ? "loss" : "draw");
   }
 }
 

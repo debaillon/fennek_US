@@ -67,7 +67,7 @@ void noteResult() {
   s_counted = true;
   s_elapsedSec = s_startMs ? (millis() - s_startMs) / 1000 : 0;
   settings::setSudokuResult(true, (uint16_t)s_elapsedSec);
-  Serial.printf("[GAME] Sudoku: gelöst in %lu s\n", (unsigned long)s_elapsedSec);
+  Serial.printf("[GAME] Sudoku: solved in %lu s\n", (unsigned long)s_elapsedSec);
 }
 
 // Ziffer v (0 = leeren) in die Cursor-Zelle setzen.
@@ -122,12 +122,12 @@ void drawOverlay(Adafruit_GFX& g) {
   g.drawRect(x, y, w, h, GxEPD_BLACK);
   g.drawRect(x + 1, y + 1, w - 2, h - 2, GxEPD_BLACK);
   char l2[40];
-  snprintf(l2, sizeof(l2), "Zeit %02lu:%02lu  ·  N = neu",
+  snprintf(l2, sizeof(l2), "Time %02lu:%02lu  ·  N = new",
            (unsigned long)(s_elapsedSec / 60), (unsigned long)(s_elapsedSec % 60));
   uint16_t tw, th;
   g.setTextSize(2);
-  gui::textBounds(g, "Gelöst!", &tw, &th);
-  gui::printAt(g, x + (w - tw) / 2, y + 12, "Gelöst!", 2);
+  gui::textBounds(g, "Solved!", &tw, &th);
+  gui::printAt(g, x + (w - tw) / 2, y + 12, "Solved!", 2);
   g.setTextSize(1);
   gui::textBounds(g, l2, &tw, &th);
   gui::printAt(g, x + (w - tw) / 2, y + 44, l2, 1);
@@ -211,9 +211,9 @@ void draw(Adafruit_GFX& g) {
   g.setTextColor(GxEPD_BLACK);
   g.setTextSize(1);
   g.setCursor(6, kFooterY);
-  gui::print(g, "IJKL bewegen · 1-9 setzen (ohne Alt)");
+  gui::print(g, "IJKL move · 1-9 enter (no Alt)");
   g.setCursor(6, kFooterY + 11);
-  gui::print(g, "0 leeren · N neu · Q Menü");
+  gui::print(g, "0 clear · N new · Q menu");
 
   if (s_counted) drawOverlay(g);
 }
@@ -222,10 +222,10 @@ void menuLine(char* out, size_t n) {
   uint16_t solved = settings::sudokuSolved();
   if (solved) {
     uint16_t best = settings::sudokuBestSec();
-    snprintf(out, n, "Gelöst: %u  ·  Best: %02u:%02u",
+    snprintf(out, n, "Solved: %u  ·  Best: %02u:%02u",
              (unsigned)solved, (unsigned)(best / 60), (unsigned)(best % 60));
   } else {
-    snprintf(out, n, "Noch nicht gelöst");
+    snprintf(out, n, "Not solved yet");
   }
 }
 

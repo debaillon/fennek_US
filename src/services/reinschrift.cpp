@@ -218,7 +218,7 @@ void loadOps() {
     s_opN++;
   }
   spiLock(); f.close(); spiUnlock();
-  if (s_opN) Serial.printf("[TODO] %d offene Aenderung(en) geladen\n", s_opN);
+  if (s_opN) Serial.printf("[TODO] Loaded %d pending change(s)\n", s_opN);
 }
 
 void persistCache() {
@@ -306,9 +306,9 @@ bool syncCore(bool useBackoff, char* log, size_t logN) {
   settings::todoUrl(base, sizeof(base));
   settings::todoUser(user, sizeof(user));
   settings::todoPass(pass, sizeof(pass));
-  if (!base[0] || !user[0]) { setLog("WebDAV nicht konfiguriert"); return false; }
-  if (settings::wifiCount() == 0) { setLog("kein WLAN konfiguriert"); return false; }
-  if (webfm::state() != webfm::State::OFF) { setLog("WLAN belegt"); return false; }
+  if (!base[0] || !user[0]) { setLog("WebDAV is not configured"); return false; }
+  if (settings::wifiCount() == 0) { setLog("Wi-Fi is not configured"); return false; }
+  if (webfm::state() != webfm::State::OFF) { setLog("Wi-Fi is busy"); return false; }
 
   if (useBackoff) {
     uint32_t cur = timesync::now();
@@ -366,10 +366,10 @@ bool syncCore(bool useBackoff, char* log, size_t logN) {
   }
 
   char m[48];
-  if (!connected)   snprintf(m, sizeof(m), "WLAN-Fehler");
-  else if (ok && pushed) snprintf(m, sizeof(m), "%d Aenderung(en) gesendet", pushed);
-  else if (ok)      snprintf(m, sizeof(m), "Aktuell, %d Aufgaben", s_taskN);
-  else              snprintf(m, sizeof(m), "Sync fehlgeschlagen");
+  if (!connected)   snprintf(m, sizeof(m), "Wi-Fi error");
+  else if (ok && pushed) snprintf(m, sizeof(m), "%d change(s) sent", pushed);
+  else if (ok)      snprintf(m, sizeof(m), "Up to date, %d tasks", s_taskN);
+  else              snprintf(m, sizeof(m), "Sync failed");
   setLog(m);
   Serial.printf("[TODO] %s\n", m);
   return ok;
@@ -394,7 +394,7 @@ void begin() {
   if (!s_tasks) s_tasks = (Task*)malloc(sizeof(Task) * kMaxTasks);
   s_ops   = (Op*)heap_caps_malloc(sizeof(Op) * kMaxOps, MALLOC_CAP_SPIRAM);
   if (!s_ops) s_ops = (Op*)malloc(sizeof(Op) * kMaxOps);
-  if (!s_raw || !s_tasks || !s_ops) { Serial.println("[TODO] PSRAM-Allokation fehlgeschlagen"); return; }
+  if (!s_raw || !s_tasks || !s_ops) { Serial.println("[TODO] PSRAM allocation failed"); return; }
   s_raw[0] = '\0';
   loadCache();
   loadOps();

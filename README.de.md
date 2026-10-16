@@ -2,11 +2,11 @@
 
 # 🦊 Fennek
 
-**Eine alternative Open-Source-Firmware für das LilyGO T-Deck Pro**
+**An alternative open-source firmware for the LilyGO T-Deck Pro**
 
-Musik, Hörbücher, eBooks und LoRa-Mesh-Chat — in einem Handheld.
+Music, audiobooks, eBooks and LoRa mesh chat — in one handheld.
 
-[🇬🇧 English](README.md) · 🇩🇪 Deutsch · [🇸🇪 Svenska](README.sv.md)
+🌐 **[fennek.dumke.me](https://fennek.dumke.me)**
 
 [![License: GPL v3+](https://img.shields.io/badge/License-GPLv3+-blue.svg)](LICENSE)
 [![Latest release](https://img.shields.io/github/v/release/danst0/fennek?sort=semver&color=success)](https://github.com/danst0/fennek/releases/latest)
@@ -20,138 +20,133 @@ Musik, Hörbücher, eBooks und LoRa-Mesh-Chat — in einem Handheld.
 
 ---
 
-**Fennek** macht aus dem LilyGO T-Deck Pro (ESP32-S3, E-Ink, LoRa) ein echtes
-Handheld: Musik hören, Hörbücher fortsetzen, eBooks lesen und über **MeshCore**
-im LoRa-Mesh chatten — mit Homescreen-Launcher, Touch + physischer Tastatur und
-Hintergrund-Audio über App-Grenzen hinweg. Wie der Wüstenfuchs: klein,
-genügsam, große Ohren.
+**Fennek** turns the LilyGO T-Deck Pro (ESP32-S3, E-Ink, LoRa) into a real
+handheld: listen to music, resume audiobooks, read eBooks and chat over the LoRa
+mesh via **MeshCore** — with a homescreen launcher, touch + physical keyboard,
+and background audio that keeps playing across app switches. Like the desert
+fox: small, frugal, big ears.
 
-Es ist eine **eigenständige Alternative** zur ab Werk gelieferten Firmware —
-gebaut um die zentrale Eigenheit der Hardware herum, dass E-Ink, SD-Karte und
-LoRa sich **einen** SPI-Bus teilen, und trotzdem stotterfreie Audio-Wiedergabe
-liefert.
+It is a **standalone alternative** to the factory firmware — built around the
+hardware's defining quirk, that E-Ink, the SD card and LoRa all share **one**
+SPI bus, while still delivering stutter-free audio playback.
 
 ## 📸 Screenshots
 
 <table>
   <tr>
-    <td align="center"><img src="docs/screenshots/de/launcher.png" width="240" alt="Launcher"><br><sub>Launcher (App-Auswahl)</sub></td>
-    <td align="center"><img src="docs/screenshots/de/music.png" width="240" alt="Musik-Player"><br><sub>Musik – Wiedergabe</sub></td>
+    <td align="center"><img src="docs/screenshots/en/launcher.png" width="240" alt="Launcher"><br><sub>Launcher (app picker)</sub></td>
+    <td align="center"><img src="docs/screenshots/en/music.png" width="240" alt="Music player"><br><sub>Music – playback</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/screenshots/de/games-ttt.png" width="240" alt="Tic-Tac-Toe"><br><sub>Spiele – Tic-Tac-Toe</sub></td>
-    <td align="center"><img src="docs/screenshots/de/settings.png" width="240" alt="Einstellungen"><br><sub>Einstellungen (Funk &amp; System)</sub></td>
+    <td align="center"><img src="docs/screenshots/en/games-ttt.png" width="240" alt="Tic-Tac-Toe"><br><sub>Games – Tic-Tac-Toe</sub></td>
+    <td align="center"><img src="docs/screenshots/en/settings.png" width="240" alt="Settings"><br><sub>Settings (radio &amp; system)</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/screenshots/de/sleep.png" width="240" alt="Standby"><br><sub>Standby (schlafender Fennek)</sub></td>
-    <td align="center"><img src="docs/screenshots/de/maps.png" width="240" alt="Karten"><br><sub>Karten – Offline-SD-Kacheln + GPS</sub></td>
+    <td align="center"><img src="docs/screenshots/en/sleep.png" width="240" alt="Standby"><br><sub>Standby (sleeping fennec)</sub></td>
+    <td align="center"><img src="docs/screenshots/en/maps.png" width="240" alt="Maps"><br><sub>Maps – offline SD tiles + GPS</sub></td>
   </tr>
 </table>
 
-<sub>Pixelgenau aus dem echten Zeichencode gerendert (240×320 E-Ink) via
-<code>tools/screenshots.sh</code> — siehe <a href="tools/README.md">tools/</a>.</sub>
+<sub>Rendered pixel-accurately from the real drawing code (240×320 E-Ink) via
+<code>tools/screenshots.sh</code> — see <a href="tools/README.md">tools/</a>.</sub>
 
 ## ✨ Apps
 
-| App | Funktionen |
+| App | Features |
 |---|---|
-| **🎵 Musik** | MP3/AAC/FLAC/WAV von SD (`/music`), Künstler/Album/Playlist-Browser, ID3-Tags (mit SD-Cache), Shuffle/Repeat, Sleep-Timer, Resume nach Reboot |
-| **🎧 Hörbuch** | Bücher als Ordner unter `/audiobooks`, Kapitel natural-sortiert, Bookmark pro Buch (NVS), ±30 s-Sprünge, Sleep-Timer |
-| **📖 Lesen** | `.txt` und `.epub` aus `/books`, EPUB-Konvertierung on-device (ROM-tinfl), Seiten-Index-Cache, Leseposition pro Buch |
-| **📡 Mesh** | Schlanker MeshCore-Client: Public- und Hashtag-Kanäle (`#test` …), DMs mit Zustellstatus, Kontakte aus Adverts, Nachrichten-Log auf SD inkl. Verlauf-Reload |
-| **🎮 Spiele** | 2048, Minensucher, Schach (Negamax-KI) und Tic-Tac-Toe — Logik host-getestet |
-| **📝 Notizen** | Eine Notiz pro Tag unter `/notes` (`YYYY-MM-DD.md`); „+ Heute" öffnet/erweitert die heutige Notiz, Liste aller Tage (neueste oben) mit Vorschau der ersten Zeile, Anhänge-Editor mit Lösch-Bestätigung |
-| **🎙️ Podcast** | RSS-Abos in `/podcasts/feeds.txt` (Freakshow-Default), holt per WLAN die neueste Folge und behält nur diese — auf SD geladen, über die Audio-Queue mit Resume abgespielt |
-| **⚙️ Optionen** | Funk-Presets (EU Narrow = DE/NRW-Standard 869,618 MHz/62,5 kHz/SF8), Einzelparameter, Node-Name, Akku-Info, Firmware-Version |
+| **🎵 Music** | MP3/AAC/FLAC/WAV from SD (`/music`), artist/album/playlist browser, ID3 tags (with SD cache), shuffle/repeat, sleep timer, resume after reboot |
+| **🎧 Audiobook** | Books as folders under `/audiobooks`, chapters natural-sorted, per-book bookmark (NVS), ±30 s jumps, sleep timer |
+| **📖 Reading** | `.txt` and `.epub` from `/books`, on-device EPUB conversion (ROM-tinfl), page-index cache, per-book reading position |
+| **📡 Mesh** | Lean MeshCore client: public and hashtag channels (`#test` …), DMs with delivery status, contacts from adverts, message log on SD incl. history reload |
+| **🎮 Games** | 2048, Minesweeper, Chess (Negamax AI) and Tic-Tac-Toe — logic host-tested |
+| **📝 Notes** | One note per day under `/notes` (`YYYY-MM-DD.md`); "+ Today" opens or appends to today's note, the list shows every day newest-first with a first-line preview, append-style editor with delete confirmation |
+| **⚙️ Options** | Radio presets (EU Narrow = DE/NRW standard 869.618 MHz / 62.5 kHz / SF8), individual parameters, node name, battery info, firmware version |
 
-Dazu: Statuszeile (Akku, Wiedergabe), Standby/Tastensperre per Knopf, und eine
-Serial-Debug-Konsole über USB (`help` eingeben — `status`, `chan test Hallo`,
+Plus: a status line (battery, playback), standby/key-lock via the button, and a
+serial debug console over USB (type `help` — `status`, `chan test hello`,
 `meshlog`, `ls /books` …).
 
 ## 🔧 Hardware
 
-LilyGO **T-Deck Pro V1.1**: ESP32-S3 (16 MB Flash, 8 MB PSRAM), E-Ink
-GDEQ031T10 240×320, CST328-Touch (I2C), TCA8418-Tastatur, PCM5102A-DAC
-(I2S, 3,5-mm-Klinke), SX1262-LoRa, BQ27220-Fuel-Gauge, microSD.
+LilyGO **T-Deck Pro V1.1**: ESP32-S3 (16 MB flash, 8 MB PSRAM), E-Ink
+GDEQ031T10 240×320, CST328 touch (I2C), TCA8418 keyboard, PCM5102A DAC
+(I2S, 3.5 mm jack), SX1262 LoRa, BQ27220 fuel gauge, microSD.
 
-> **Zentrale Eigenheit:** E-Ink, SD-Karte und LoRa teilen sich **einen**
-> SPI-Bus. Die ganze Architektur dreht sich darum, dass Audio trotzdem nie
-> stottert und Eingaben sofort reagieren — Details in [`CLAUDE.md`](CLAUDE.md)
-> (Anti-Stotter-Invarianten).
+> **Defining quirk:** E-Ink, the SD card and LoRa share **one** SPI bus. The
+> entire architecture revolves around audio never stuttering despite that, and
+> inputs responding instantly — details in [`CLAUDE.md`](CLAUDE.md)
+> (anti-stutter invariants).
 
-## 🧭 Konstruieren um die Hardware herum
+## 🧭 Engineering around the hardware
 
-Das T-Deck Pro hat vier unbequeme Einschränkungen; Fennek arbeitet bewusst *mit*
-ihnen statt dagegen. (Volle Design-Notizen und Anti-Stotter-Invarianten in
-[`CLAUDE.md`](CLAUDE.md).)
+The T-Deck Pro has four awkward constraints; Fennek is the story of working *with*
+them. (Full design notes and anti-stutter invariants in [`CLAUDE.md`](CLAUDE.md).)
 
-- **🕐 Keine Echtzeituhr.** Es gibt keinen batteriegepufferten RTC. Maßgeblich ist
-  die ESP32-Systemzeit (sie übersteht den Deep Sleep, anders als eine
-  `millis()`-Uhr), gesetzt in der Reihenfolge **GPS → NTP → Mesh-Adverts**; die
-  Drift wird gelernt, und ein Paket mit Zukunfts-Uhr kann die Zeit nicht
-  ungebremst vorwärtsreißen.
-- **🔋 Nicht dauerhaft online.** Always-on ist mit diesem Energiebudget nicht
-  möglich — und WLAN und Audio können nicht gleichzeitig laufen (der WLAN-Task auf
-  Core 0 verdrängt den Audio-Task). Fennek hält daher nie eine Verbindung:
-  Scrobbles, Notiz-Politur und **Podcast-Downloads** werden in ein kurzes
-  WLAN-Fenster vor dem Standby gebündelt; ungenutzte Peripherie (GPS, Vibration)
-  wird beim Boot abgeschaltet.
-- **🧩 Nur zwei Kerne.** Zwei Kerne bedeuten kaum echtes Multitasking. Audio-Dekodierung
-  liegt fest auf Core 0, UI + Mesh-Pumpe auf Core 1; SD-Bibliotheks-Scans pausieren
-  während der Wiedergabe, und die Schach-KI läuft mit niedriger Priorität — so bleibt
-  die Wiedergabe flüssig und die Tastatur reaktionsschnell.
-- **🖋️ E-Ink-Display.** E-Ink ist schön, aber träge, und Voll-Refreshes lassen das
-  Panel blitzen. Fennek zeichnet nur bei echter Änderung neu, malt Fortschritt/Status
-  als schmale *Region-Streifen* statt Voll-Refresh und streckt den
-  Anti-Ghosting-Voll-Refresh, damit das Bild ruhig bleibt.
+- **🕐 No real-time clock.** There is no battery-backed RTC. The canonical clock is
+  the ESP32 system time (it survives deep sleep, unlike a `millis()` clock), set in
+  priority order from **GPS → NTP → mesh adverts**; drift is learned and a
+  future-dated packet can't drag the clock forward unchecked.
+- **🔋 Can't stay online.** Always-on networking isn't possible on this power budget —
+  and Wi-Fi and audio can't run at once (the Wi-Fi task on core 0 evicts the audio
+  task). So Fennek never holds a connection: scrobbles and note polishing are
+  batched into a short Wi-Fi window before standby, and
+  unused peripherals (GPS, haptics) are powered down at boot.
+- **🧩 Only two cores.** Two cores mean barely any true multitasking. Audio decoding
+  is pinned to core 0, the UI + mesh pump to core 1; SD library scans pause during
+  playback and the chess AI runs at low priority — so playback stays smooth and the
+  keyboard responsive.
+- **🖋️ E-Ink screen.** E-Ink is beautiful but slow, and full refreshes flash the
+  panel. Fennek redraws only on a real change, paints progress/status as narrow
+  *region strips* instead of full repaints, and stretches the anti-ghosting full
+  refresh out to keep the screen calm.
 
-## 🚀 Bauen & Flashen
+## 🚀 Build & Flash
 
-Voraussetzung: [PlatformIO](https://platformio.org/). T-Deck Pro per USB-C
-anschließen, dann:
+Prerequisite: [PlatformIO](https://platformio.org/). Connect the T-Deck Pro via
+USB-C, then:
 
 ```bash
-pio run -e fennek              # bauen
-pio run -e fennek -t upload    # flashen (USB-C)
-pio device monitor -b 115200   # Log + Debug-Konsole
+pio run -e fennek              # build
+pio run -e fennek -t upload    # flash (USB-C)
+pio device monitor -b 115200   # log + debug console
 ```
 
-Die Firmware läuft auch **ohne SD-Karte** (Apps zeigen dann einen Hinweis).
-Funkparameter sind zur Laufzeit in der Optionen-App einstellbar; Default ist
-das in Deutschland übliche **EU/UK-Narrow**-Preset.
+The firmware also runs **without an SD card** (apps then show a hint). Radio
+parameters are configurable at runtime in the Options app; the default is the
+**EU/UK Narrow** preset commonly used in Germany.
 
-> ⚠️ Eigene Firmware ersetzt die Werks-Software. Du flashst auf eigene
-> Verantwortung — ein Rückweg zur Original-Firmware ist über die
-> [LilyGO-Ressourcen](https://github.com/Xinyuan-LilyGO) möglich.
+> ⚠️ Custom firmware replaces the factory software. You flash at your own risk —
+> a way back to the original firmware is available via the
+> [LilyGO resources](https://github.com/Xinyuan-LilyGO).
 
-## 📁 Projekt-Layout
+## 📁 Project layout
 
-- `src/` — aktive Firmware (`core/` Treiber & Framework, `services/` Audio/
-  Bibliothek/Text, `apps/` die Apps)
-- `lib/meshcore/`, `lib/ed25519/` — vendored MeshCore-Stack (Subset)
-- `boards/t-deck_pro.json` — Board-Definition (Partition `default_16MB.csv`)
-- `CHANGELOG.md` — Release-Notes
-- `CLAUDE.md` — Architektur, Invarianten, Verifikationsstand
+- `src/` — active firmware (`core/` drivers & framework, `services/` audio/
+  library/text, `apps/` the apps)
+- `lib/meshcore/`, `lib/ed25519/` — vendored MeshCore stack (subset)
+- `boards/t-deck_pro.json` — board definition (partition `default_16MB.csv`)
+- `CHANGELOG.md` — release notes
+- `CLAUDE.md` — architecture, invariants, verification status
 - `LICENSE` — GPL-3.0-or-later
 
-## 📜 Lizenz
+## 📜 License
 
-Fennek steht unter der **GNU General Public License v3.0 oder später
-(GPL-3.0-or-later)** — siehe [`LICENSE`](LICENSE).
+Fennek is licensed under the **GNU General Public License v3.0 or later
+(GPL-3.0-or-later)** — see [`LICENSE`](LICENSE).
 
-Mitgelieferte Komponenten behalten ihre eigene, GPL-kompatible Lizenz:
+Bundled components keep their own GPL-compatible licenses:
 
 - **MeshCore** (`lib/meshcore/`) — MIT License, © Scott Powell / rippleradios.com
-  ([Original](https://github.com/ripplebiz/MeshCore), [`lib/meshcore/LICENSE`](lib/meshcore/LICENSE))
+  ([original](https://github.com/ripplebiz/MeshCore), [`lib/meshcore/LICENSE`](lib/meshcore/LICENSE))
 - **ed25519** (`lib/ed25519/`) — zlib License, © Orson Peters
   ([`lib/ed25519/license.txt`](lib/ed25519/license.txt))
 
 ## 🙏 Credits
 
-Fennek entstand in Anlehnung an den **Meck**-Fork
-([pelgraine/Meck](https://github.com/pelgraine/Meck), MeshCore-Companion für das
-T-Deck), wurde aber ab v1.0.0 als eigenständige Multi-App-Firmware neu aufgebaut
-und ist seither ein eigenes Projekt. Der Mesh-Stack basiert auf
-[MeshCore](https://github.com/ripplebiz/MeshCore) von Scott Powell. Der frühere
-Meck-Code (vormals unter `archive_legacy/`) liegt in der Git-Historie und ist
-von dort jederzeit wiederherstellbar.
+Fennek started out inspired by the **Meck** fork
+([pelgraine/Meck](https://github.com/pelgraine/Meck), a MeshCore companion for
+the T-Deck), but was rebuilt from v1.0.0 as a standalone multi-app firmware and
+has been its own project ever since. The mesh stack is based on
+[MeshCore](https://github.com/ripplebiz/MeshCore) by Scott Powell. The earlier
+Meck code (formerly under `archive_legacy/`) lives in the Git history and can be
+restored from there at any time.

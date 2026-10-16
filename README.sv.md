@@ -2,155 +2,151 @@
 
 # 🦊 Fennek
 
-**En alternativ öppen källkods-firmware för LilyGO T-Deck Pro**
+**An alternative open-source firmware for the LilyGO T-Deck Pro**
 
-Musik, ljudböcker, e-böcker och LoRa-mesh-chatt — i en handenhet.
+Music, audiobooks, eBooks and LoRa mesh chat — in one handheld.
 
-[🇬🇧 English](README.md) · [🇩🇪 Deutsch](README.de.md) · 🇸🇪 Svenska
+🌐 **[fennek.dumke.me](https://fennek.dumke.me)**
 
-[![Licens: GPL v3+](https://img.shields.io/badge/License-GPLv3+-blue.svg)](LICENSE)
-[![Senaste version](https://img.shields.io/github/v/release/danst0/fennek?sort=semver&color=success)](https://github.com/danst0/fennek/releases/latest)
-[![Utgivningsdatum](https://img.shields.io/github/release-date/danst0/fennek)](https://github.com/danst0/fennek/releases)
-[![Ändringslogg](https://img.shields.io/badge/changelog-md-informational)](CHANGELOG.md)
-[![Plattform: ESP32-S3](https://img.shields.io/badge/Platform-ESP32--S3-orange.svg)](https://www.espressif.com/en/products/socs/esp32-s3)
-[![Kort: T-Deck Pro](https://img.shields.io/badge/Board-LilyGO%20T--Deck%20Pro-green.svg)](https://www.lilygo.cc/products/t-deck-pro)
-[![Bygge: PlatformIO](https://img.shields.io/badge/Build-PlatformIO-blueviolet.svg)](https://platformio.org/)
+[![License: GPL v3+](https://img.shields.io/badge/License-GPLv3+-blue.svg)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/danst0/fennek?sort=semver&color=success)](https://github.com/danst0/fennek/releases/latest)
+[![Release date](https://img.shields.io/github/release-date/danst0/fennek)](https://github.com/danst0/fennek/releases)
+[![Changelog](https://img.shields.io/badge/changelog-md-informational)](CHANGELOG.md)
+[![Platform: ESP32-S3](https://img.shields.io/badge/Platform-ESP32--S3-orange.svg)](https://www.espressif.com/en/products/socs/esp32-s3)
+[![Board: T-Deck Pro](https://img.shields.io/badge/Board-LilyGO%20T--Deck%20Pro-green.svg)](https://www.lilygo.cc/products/t-deck-pro)
+[![Build: PlatformIO](https://img.shields.io/badge/Build-PlatformIO-blueviolet.svg)](https://platformio.org/)
 
 </div>
 
 ---
 
-**Fennek** förvandlar LilyGO T-Deck Pro (ESP32-S3, E-Ink, LoRa) till en riktig
-handenhet: lyssna på musik, återuppta ljudböcker, läsa e-böcker och chatta över
-LoRa-meshet via **MeshCore** — med en hemskärms-launcher, pekskärm + fysiskt
-tangentbord och bakgrundsljud som fortsätter spela när du byter app. Som
-ökenräven: liten, sparsam, stora öron.
+**Fennek** turns the LilyGO T-Deck Pro (ESP32-S3, E-Ink, LoRa) into a real
+handheld: listen to music, resume audiobooks, read eBooks and chat over the LoRa
+mesh via **MeshCore** — with a homescreen launcher, touch + physical keyboard,
+and background audio that keeps playing across app switches. Like the desert
+fox: small, frugal, big ears.
 
-Det är ett **fristående alternativ** till fabriks-firmwaren — byggt kring
-hårdvarans definierande egenhet, att E-Ink, SD-kortet och LoRa delar på **en**
-SPI-buss, och ändå levererar hackfri ljuduppspelning.
+It is a **standalone alternative** to the factory firmware — built around the
+hardware's defining quirk, that E-Ink, the SD card and LoRa all share **one**
+SPI bus, while still delivering stutter-free audio playback.
 
-## 📸 Skärmbilder
+## 📸 Screenshots
 
 <table>
   <tr>
-    <td align="center"><img src="docs/screenshots/sv/launcher.png" width="240" alt="Launcher"><br><sub>Launcher (appväljare)</sub></td>
-    <td align="center"><img src="docs/screenshots/sv/music.png" width="240" alt="Musikspelare"><br><sub>Musik – uppspelning</sub></td>
+    <td align="center"><img src="docs/screenshots/en/launcher.png" width="240" alt="Launcher"><br><sub>Launcher (app picker)</sub></td>
+    <td align="center"><img src="docs/screenshots/en/music.png" width="240" alt="Music player"><br><sub>Music – playback</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/screenshots/sv/games-ttt.png" width="240" alt="Tre i rad"><br><sub>Spel – Tre i rad</sub></td>
-    <td align="center"><img src="docs/screenshots/sv/settings.png" width="240" alt="Inställningar"><br><sub>Inställningar (radio &amp; system)</sub></td>
+    <td align="center"><img src="docs/screenshots/en/games-ttt.png" width="240" alt="Tic-Tac-Toe"><br><sub>Games – Tic-Tac-Toe</sub></td>
+    <td align="center"><img src="docs/screenshots/en/settings.png" width="240" alt="Settings"><br><sub>Settings (radio &amp; system)</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/screenshots/sv/sleep.png" width="240" alt="Vänteläge"><br><sub>Vänteläge (sovande ökenräv)</sub></td>
-    <td align="center"><img src="docs/screenshots/sv/maps.png" width="240" alt="Kartor"><br><sub>Kartor – offline SD-rutor + GPS</sub></td>
+    <td align="center"><img src="docs/screenshots/en/sleep.png" width="240" alt="Standby"><br><sub>Standby (sleeping fennec)</sub></td>
+    <td align="center"><img src="docs/screenshots/en/maps.png" width="240" alt="Maps"><br><sub>Maps – offline SD tiles + GPS</sub></td>
   </tr>
 </table>
 
-<sub>Renderat pixelexakt från den riktiga ritkoden (240×320 E-Ink) via
-<code>tools/screenshots.sh</code> — se <a href="tools/README.md">tools/</a>.</sub>
+<sub>Rendered pixel-accurately from the real drawing code (240×320 E-Ink) via
+<code>tools/screenshots.sh</code> — see <a href="tools/README.md">tools/</a>.</sub>
 
-## ✨ Appar
+## ✨ Apps
 
-| App | Funktioner |
+| App | Features |
 |---|---|
-| **🎵 Musik** | MP3/AAC/FLAC/WAV från SD (`/music`), bläddra efter artist/album/spellista, ID3-taggar (med SD-cache), blanda/upprepa, insomningstimer, återuppta efter omstart |
-| **🎧 Ljudbok** | Böcker som mappar under `/audiobooks`, kapitel naturligt sorterade, bokmärke per bok (NVS), ±30 s-hopp, insomningstimer |
-| **📖 Läsa** | `.txt` och `.epub` från `/books`, EPUB-konvertering på enheten (ROM-tinfl), sidindex-cache, läsposition per bok |
-| **📡 Mesh** | Slimmad MeshCore-klient: publika kanaler och hashtagg-kanaler (`#test` …), DM med leveransstatus, kontakter från adverts, meddelandelogg på SD inkl. historik-omladdning |
-| **🎮 Spel** | 2048, Minröj, Schack (Negamax-AI) och Tre i rad — logiken testad på värd |
-| **📝 Anteckningar** | En anteckning per dag under `/notes` (`YYYY-MM-DD.md`); "+ Idag" öppnar eller utökar dagens anteckning, listan visar alla dagar (nyaste först) med förhandsvisning av första raden, tilläggsredigerare med raderingsbekräftelse |
-| **🎙️ Podd** | RSS-prenumerationer i `/podcasts/feeds.txt` (Freakshow som standard), hämtar senaste avsnittet via Wi-Fi och behåller bara det — laddas till SD och spelas via ljudkön med återupptagning |
-| **⚙️ Alternativ** | Radioförinställningar (EU Narrow = DE/NRW-standard 869,618 MHz / 62,5 kHz / SF8), enskilda parametrar, nodnamn, batteriinfo, firmware-version |
+| **🎵 Music** | MP3/AAC/FLAC/WAV from SD (`/music`), artist/album/playlist browser, ID3 tags (with SD cache), shuffle/repeat, sleep timer, resume after reboot |
+| **🎧 Audiobook** | Books as folders under `/audiobooks`, chapters natural-sorted, per-book bookmark (NVS), ±30 s jumps, sleep timer |
+| **📖 Reading** | `.txt` and `.epub` from `/books`, on-device EPUB conversion (ROM-tinfl), page-index cache, per-book reading position |
+| **📡 Mesh** | Lean MeshCore client: public and hashtag channels (`#test` …), DMs with delivery status, contacts from adverts, message log on SD incl. history reload |
+| **🎮 Games** | 2048, Minesweeper, Chess (Negamax AI) and Tic-Tac-Toe — logic host-tested |
+| **📝 Notes** | One note per day under `/notes` (`YYYY-MM-DD.md`); "+ Today" opens or appends to today's note, the list shows every day newest-first with a first-line preview, append-style editor with delete confirmation |
+| **⚙️ Options** | Radio presets (EU Narrow = DE/NRW standard 869.618 MHz / 62.5 kHz / SF8), individual parameters, node name, battery info, firmware version |
 
-Dessutom: en statusrad (batteri, uppspelning), vänteläge/knapplås via knappen,
-och en seriell felsökningskonsol över USB (skriv `help` — `status`,
-`chan test hej`, `meshlog`, `ls /books` …).
+Plus: a status line (battery, playback), standby/key-lock via the button, and a
+serial debug console over USB (type `help` — `status`, `chan test hello`,
+`meshlog`, `ls /books` …).
 
-## 🔧 Hårdvara
+## 🔧 Hardware
 
 LilyGO **T-Deck Pro V1.1**: ESP32-S3 (16 MB flash, 8 MB PSRAM), E-Ink
-GDEQ031T10 240×320, CST328-pekskärm (I2C), TCA8418-tangentbord, PCM5102A-DAC
-(I2S, 3,5 mm-uttag), SX1262-LoRa, BQ27220-bränslemätare, microSD.
+GDEQ031T10 240×320, CST328 touch (I2C), TCA8418 keyboard, PCM5102A DAC
+(I2S, 3.5 mm jack), SX1262 LoRa, BQ27220 fuel gauge, microSD.
 
-> **Definierande egenhet:** E-Ink, SD-kortet och LoRa delar på **en** SPI-buss.
-> Hela arkitekturen kretsar kring att ljudet aldrig hackar trots detta, och att
-> inmatning svarar omedelbart — detaljer i [`CLAUDE.md`](CLAUDE.md)
-> (invarianter mot hackande).
+> **Defining quirk:** E-Ink, the SD card and LoRa share **one** SPI bus. The
+> entire architecture revolves around audio never stuttering despite that, and
+> inputs responding instantly — details in [`CLAUDE.md`](CLAUDE.md)
+> (anti-stutter invariants).
 
-## 🧭 Konstruktion runt hårdvaran
+## 🧭 Engineering around the hardware
 
-T-Deck Pro har fyra besvärliga begränsningar; Fennek handlar om att arbeta *med*
-dem i stället för emot. (Fullständiga designanteckningar och invarianter mot
-hackande i [`CLAUDE.md`](CLAUDE.md).)
+The T-Deck Pro has four awkward constraints; Fennek is the story of working *with*
+them. (Full design notes and anti-stutter invariants in [`CLAUDE.md`](CLAUDE.md).)
 
-- **🕐 Ingen realtidsklocka.** Det finns ingen batteribackad RTC. Den kanoniska
-  klockan är ESP32:ns systemtid (den överlever djupsömn, till skillnad från en
-  `millis()`-klocka), satt i prioritetsordning från **GPS → NTP → mesh-annonser**;
-  driften lärs in och ett paket med framtida tid kan inte dra klockan framåt
-  okontrollerat.
-- **🔋 Kan inte vara ständigt uppkopplad.** Alltid-på är inte möjligt med den här
-  strömbudgeten — och Wi-Fi och ljud kan inte köra samtidigt (Wi-Fi-tasken på
-  kärna 0 tränger undan ljudtasken). Fennek håller därför aldrig en anslutning:
-  scrobblingar, anteckningspolering och **poddnedladdningar** buntas till ett kort
-  Wi-Fi-fönster före vänteläge, och oanvänd kringutrustning (GPS, vibration) stängs
-  av vid uppstart.
-- **🧩 Bara två kärnor.** Två kärnor ger knappt någon riktig multitasking.
-  Ljudavkodning är fäst vid kärna 0, gränssnittet + mesh-pumpen vid kärna 1;
-  SD-biblioteksskanningar pausas under uppspelning och schack-AI:n kör med låg
-  prioritet — så uppspelningen förblir mjuk och tangentbordet svarar snabbt.
-- **🖋️ E-Ink-skärm.** E-Ink är vacker men långsam, och fulla uppdateringar gör att
-  hela panelen blinkar. Fennek ritar bara om vid en verklig förändring, målar
-  förlopp/status som smala *regionremsor* i stället för full omritning, och drar ut
-  den spökförhindrande fulla uppdateringen för att hålla skärmen lugn.
+- **🕐 No real-time clock.** There is no battery-backed RTC. The canonical clock is
+  the ESP32 system time (it survives deep sleep, unlike a `millis()` clock), set in
+  priority order from **GPS → NTP → mesh adverts**; drift is learned and a
+  future-dated packet can't drag the clock forward unchecked.
+- **🔋 Can't stay online.** Always-on networking isn't possible on this power budget —
+  and Wi-Fi and audio can't run at once (the Wi-Fi task on core 0 evicts the audio
+  task). So Fennek never holds a connection: scrobbles and note polishing are
+  batched into a short Wi-Fi window before standby, and
+  unused peripherals (GPS, haptics) are powered down at boot.
+- **🧩 Only two cores.** Two cores mean barely any true multitasking. Audio decoding
+  is pinned to core 0, the UI + mesh pump to core 1; SD library scans pause during
+  playback and the chess AI runs at low priority — so playback stays smooth and the
+  keyboard responsive.
+- **🖋️ E-Ink screen.** E-Ink is beautiful but slow, and full refreshes flash the
+  panel. Fennek redraws only on a real change, paints progress/status as narrow
+  *region strips* instead of full repaints, and stretches the anti-ghosting full
+  refresh out to keep the screen calm.
 
-## 🚀 Bygga & flasha
+## 🚀 Build & Flash
 
-Förutsättning: [PlatformIO](https://platformio.org/). Anslut T-Deck Pro via
-USB-C, sedan:
+Prerequisite: [PlatformIO](https://platformio.org/). Connect the T-Deck Pro via
+USB-C, then:
 
 ```bash
-pio run -e fennek              # bygg
-pio run -e fennek -t upload    # flasha (USB-C)
-pio device monitor -b 115200   # logg + felsökningskonsol
+pio run -e fennek              # build
+pio run -e fennek -t upload    # flash (USB-C)
+pio device monitor -b 115200   # log + debug console
 ```
 
-Firmwaren körs även **utan SD-kort** (apparna visar då en notis). Radioparametrar
-kan ställas in under körning i Alternativ-appen; standard är **EU/UK Narrow**-
-förinställningen som är vanlig i Tyskland.
+The firmware also runs **without an SD card** (apps then show a hint). Radio
+parameters are configurable at runtime in the Options app; the default is the
+**EU/UK Narrow** preset commonly used in Germany.
 
-> ⚠️ Egen firmware ersätter fabriksmjukvaran. Du flashar på egen risk — en väg
-> tillbaka till originalfirmwaren finns via
-> [LilyGO:s resurser](https://github.com/Xinyuan-LilyGO).
+> ⚠️ Custom firmware replaces the factory software. You flash at your own risk —
+> a way back to the original firmware is available via the
+> [LilyGO resources](https://github.com/Xinyuan-LilyGO).
 
-## 📁 Projektstruktur
+## 📁 Project layout
 
-- `src/` — aktiv firmware (`core/` drivrutiner & ramverk, `services/` ljud/
-  bibliotek/text, `apps/` apparna)
-- `lib/meshcore/`, `lib/ed25519/` — medlevererad MeshCore-stack (delmängd)
-- `boards/t-deck_pro.json` — kortdefinition (partition `default_16MB.csv`)
-- `CHANGELOG.md` — versionsanteckningar
-- `CLAUDE.md` — arkitektur, invarianter, verifieringsstatus
+- `src/` — active firmware (`core/` drivers & framework, `services/` audio/
+  library/text, `apps/` the apps)
+- `lib/meshcore/`, `lib/ed25519/` — vendored MeshCore stack (subset)
+- `boards/t-deck_pro.json` — board definition (partition `default_16MB.csv`)
+- `CHANGELOG.md` — release notes
+- `CLAUDE.md` — architecture, invariants, verification status
 - `LICENSE` — GPL-3.0-or-later
 
-## 📜 Licens
+## 📜 License
 
-Fennek licensieras under **GNU General Public License v3.0 eller senare
-(GPL-3.0-or-later)** — se [`LICENSE`](LICENSE).
+Fennek is licensed under the **GNU General Public License v3.0 or later
+(GPL-3.0-or-later)** — see [`LICENSE`](LICENSE).
 
-Medlevererade komponenter behåller sina egna GPL-kompatibla licenser:
+Bundled components keep their own GPL-compatible licenses:
 
 - **MeshCore** (`lib/meshcore/`) — MIT License, © Scott Powell / rippleradios.com
   ([original](https://github.com/ripplebiz/MeshCore), [`lib/meshcore/LICENSE`](lib/meshcore/LICENSE))
 - **ed25519** (`lib/ed25519/`) — zlib License, © Orson Peters
   ([`lib/ed25519/license.txt`](lib/ed25519/license.txt))
 
-## 🙏 Tack
+## 🙏 Credits
 
-Fennek började som inspirerat av **Meck**-forken
-([pelgraine/Meck](https://github.com/pelgraine/Meck), en MeshCore-följeslagare
-för T-Deck), men byggdes om från v1.0.0 till en fristående firmware med flera
-appar och har varit ett eget projekt sedan dess. Mesh-stacken bygger på
-[MeshCore](https://github.com/ripplebiz/MeshCore) av Scott Powell. Den tidigare
-Meck-koden (förut under `archive_legacy/`) finns kvar i Git-historiken och kan
-återställas därifrån när som helst.
+Fennek started out inspired by the **Meck** fork
+([pelgraine/Meck](https://github.com/pelgraine/Meck), a MeshCore companion for
+the T-Deck), but was rebuilt from v1.0.0 as a standalone multi-app firmware and
+has been its own project ever since. The mesh stack is based on
+[MeshCore](https://github.com/ripplebiz/MeshCore) by Scott Powell. The earlier
+Meck code (formerly under `archive_legacy/`) lives in the Git history and can be
+restored from there at any time.

@@ -2,12 +2,10 @@
 // Copyright (C) 2026 Dr. Daniel Dumke
 
 // =============================================================================
-// gui.h — gemeinsame Zeichen-Helfer für alle Apps.
+// gui.h — shared drawing helpers for all apps.
 //
-// Alle Textausgaben laufen über gui::print()/drawButton()/drawRowText(), die
-// UTF-8 nach CP437 konvertieren — der Adafruit-GFX-Classic-Font enthält dort
-// die deutschen Umlaute (ä=0x84, ö=0x94, ü=0x81, Ä=0x8E, Ö=0x99, Ü=0x9A,
-// ß=0xE1). Voraussetzung: display::begin() hat cp437(true) gesetzt.
+// All text output uses gui::print()/drawButton()/drawRowText(), which convert
+// UTF-8 to CP437. This requires display::begin() to enable cp437(true).
 // =============================================================================
 #pragma once
 
@@ -22,26 +20,26 @@ struct Rect {
   bool hit(int px, int py) const { return px >= x && px < x + w && py >= y && py < y + h; }
 };
 
-// UTF-8 -> CP437. Nicht darstellbare Zeichen werden zu '?'; typografische
-// Zeichen (Gedankenstrich, Anführungszeichen, Ellipse) zu ASCII-Äquivalenten.
+// UTF-8 to CP437. Unsupported characters become '?'; typographic characters
+// (em dashes, quotation marks, ellipses) are converted to ASCII equivalents.
 void toCp437(const char* utf8, char* out, size_t outLen);
 
-// Unicode-Codepoint -> CP437-Byte (0 = im Font nicht darstellbar).
+// Unicode code point to CP437 byte (0 = not available in the font).
 uint8_t cp437For(uint32_t cp);
 
-// Text (UTF-8) an der aktuellen Cursor-Position ausgeben.
+// Print UTF-8 text at the current cursor position.
 void print(Adafruit_GFX& g, const char* utf8);
 
-// Text (UTF-8) an Position ausgeben (setzt Cursor + TextSize).
+// Print UTF-8 text at a position (sets the cursor and text size).
 void printAt(Adafruit_GFX& g, int x, int y, const char* utf8, uint8_t size = 2);
 
-// Pixelbreite/-höhe eines UTF-8-Texts bei aktueller TextSize.
+// Pixel width and height of UTF-8 text at the current text size.
 void textBounds(Adafruit_GFX& g, const char* utf8, uint16_t* w, uint16_t* h);
 
-// Beschrifteter Button mit runder Ecke; emphasize = doppelter Rand.
+// Labeled button with rounded corners; emphasize = double border.
 void drawButton(Adafruit_GFX& g, const Rect& r, const char* utf8, bool emphasize);
 
-// Listenzeile voller Breite mit Trennlinie; invert = schwarz hinterlegt.
+// Full-width list row with a divider; invert = black background.
 void drawRowText(Adafruit_GFX& g, int y, int rowH, const char* utf8, bool invert);
 
 }  // namespace gui

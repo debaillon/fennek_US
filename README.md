@@ -6,8 +6,6 @@
 
 Music, audiobooks, eBooks and LoRa mesh chat — in one handheld.
 
-🇬🇧 English · [🇩🇪 Deutsch](README.de.md) · [🇸🇪 Svenska](README.sv.md)
-
 🌐 **[fennek.dumke.me](https://fennek.dumke.me)**
 
 [![License: GPL v3+](https://img.shields.io/badge/License-GPLv3+-blue.svg)](LICENSE)
@@ -62,7 +60,6 @@ SPI bus, while still delivering stutter-free audio playback.
 | **📡 Mesh** | Lean MeshCore client: public and hashtag channels (`#test` …), DMs with delivery status, contacts from adverts, message log on SD incl. history reload |
 | **🎮 Games** | 2048, Minesweeper, Chess (Negamax AI) and Tic-Tac-Toe — logic host-tested |
 | **📝 Notes** | One note per day under `/notes` (`YYYY-MM-DD.md`); "+ Today" opens or appends to today's note, the list shows every day newest-first with a first-line preview, append-style editor with delete confirmation |
-| **🎙️ Podcast** | RSS subscriptions in `/podcasts/feeds.txt` (Freakshow preset), syncs the latest episode over Wi-Fi and keeps only that one — downloaded to SD, played via the audio queue with resume |
 | **⚙️ Options** | Radio presets (EU Narrow = DE/NRW standard 869.618 MHz / 62.5 kHz / SF8), individual parameters, node name, battery info, firmware version |
 
 Plus: a status line (battery, playback), standby/key-lock via the button, and a
@@ -91,9 +88,9 @@ them. (Full design notes and anti-stutter invariants in [`CLAUDE.md`](CLAUDE.md)
   future-dated packet can't drag the clock forward unchecked.
 - **🔋 Can't stay online.** Always-on networking isn't possible on this power budget —
   and Wi-Fi and audio can't run at once (the Wi-Fi task on core 0 evicts the audio
-  task). So Fennek never holds a connection: scrobbles, note polishing and **podcast
-  downloads** are batched into a short Wi-Fi window before standby, and unused
-  peripherals (GPS, haptics) are powered down at boot.
+  task). So Fennek never holds a connection: scrobbles and note polishing are
+  batched into a short Wi-Fi window before standby, and
+  unused peripherals (GPS, haptics) are powered down at boot.
 - **🧩 Only two cores.** Two cores mean barely any true multitasking. Audio decoding
   is pinned to core 0, the UI + mesh pump to core 1; SD library scans pause during
   playback and the chess AI runs at low priority — so playback stays smooth and the

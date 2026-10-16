@@ -31,9 +31,11 @@ void    setLastApp(const char* name);
 uint8_t standbyMinutes();
 void    setStandbyMinutes(uint8_t m);  // schreibt nur bei Änderung
 
-// UI-Sprache (Index in i18n::Lang; 0 = Deutsch). Wird in i18n::tr() gelesen.
+// Legacy language setting retained for source and file-format compatibility.
+// The runtime UI is English-only; language() always returns 0 and setLanguage
+// ignores its argument.
 uint8_t language();
-void    setLanguage(uint8_t lang);     // schreibt nur bei Änderung
+void    setLanguage(uint8_t lang);
 
 // Schriftgröße fürs Lesen (eBooks/TXT) und den Notizen-Editor: 1 = klein
 // (Default), 2 = groß. Klassischer 6x8-Font, ganzzahlige Skalierung.

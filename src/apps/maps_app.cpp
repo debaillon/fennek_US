@@ -17,7 +17,7 @@
 
 namespace {
 
-// Karten-Viewport: voller Content-Bereich, unten eine Statuszeile überlagert.
+// Map viewport fills the content area, with a status bar overlaid at the bottom.
 constexpr int OX  = 0;
 constexpr int OY  = appmgr::CONTENT_Y;          // 24
 constexpr int VW  = EINK_W;                      // 240
@@ -125,32 +125,32 @@ void drawFooter(Adafruit_GFX& g) {
   const gps::Fix& f = gps::current();
   char l1[40], l2[48];
   snprintf(l1, sizeof(l1), "Z%d  %s%s", s_zoom,
-           s_follow ? "Folgt GPS" : "frei",
-           f.valid ? "" : "  kein Fix");
+           s_follow ? "Following GPS" : "Free",
+           f.valid ? "" : "  no fix");
   g.setCursor(4, y + 5);
   gui::print(g, l1);
 
   if (f.valid)
     snprintf(l2, sizeof(l2), "%.5f, %.5f  Sat %u", f.lat, f.lon, (unsigned)f.sats);
   else
-    snprintf(l2, sizeof(l2), "Warte auf Satelliten... (Sat %u)", (unsigned)f.sats);
+    snprintf(l2, sizeof(l2), "Waiting for satellites... (Sat %u)", (unsigned)f.sats);
   g.setCursor(4, y + 16);
   gui::print(g, l2);
 }
 
 void drawNoTiles(Adafruit_GFX& g) {
   g.setTextColor(GxEPD_BLACK);
-  gui::printAt(g, 16, OY + 60, "Keine Karten", 2);
-  gui::printAt(g, 16, OY + 84, "auf der SD-Karte", 2);
+  gui::printAt(g, 16, OY + 60, "No maps", 2);
+  gui::printAt(g, 16, OY + 84, "on the SD card", 2);
   g.setTextSize(1);
   g.setCursor(16, OY + 120);
-  gui::print(g, "Kacheln am PC mit tools/maps_tiles.py");
+  gui::print(g, "Create tiles on a PC with tools/maps_tiles.py");
   g.setCursor(16, OY + 134);
-  gui::print(g, "erzeugen -> /maps/{z}/{x}/{y}.bin");
+  gui::print(g, "and save to /maps/{z}/{x}/{y}.bin");
 }
 
-// Halbtransparenter Hinweis, wenn an dieser Stelle/Zoomstufe keine Kacheln liegen
-// (die Zoom-Mechanik funktioniert — es fehlen nur die Detaildaten auf der SD).
+// Show a hint when no tiles exist at this location and zoom level. Zooming
+// still works; detailed map data is simply missing from the SD card.
 void drawNoDetail(Adafruit_GFX& g) {
   int bw = 200, bh = 34;
   int bx = OX + (VW - bw) / 2;
@@ -160,9 +160,9 @@ void drawNoDetail(Adafruit_GFX& g) {
   g.setTextColor(GxEPD_BLACK);
   g.setTextSize(1);
   g.setCursor(bx + 8, by + 7);
-  gui::print(g, "Keine Kacheln in dieser");
+  gui::print(g, "No tiles at this");
   g.setCursor(bx + 8, by + 19);
-  gui::print(g, "Detailstufe (- = rauszoomen)");
+  gui::print(g, "Zoom level (- = zoom out)");
 }
 
 class MapsApp : public App {

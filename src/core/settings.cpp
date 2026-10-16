@@ -18,7 +18,6 @@ bool        s_open = false;
 // Gecachte Werte: Vergleich vor jedem Write (NVS nur bei echter Änderung).
 uint8_t  s_volume = 255;        // 255 = noch nicht geladen
 uint8_t  s_standby = 5;         // Auto-Standby-Minuten (0 = aus)
-uint8_t  s_lang = 0;            // UI-Sprache (0 = Deutsch, s. i18n::Lang)
 uint8_t  s_fontScale = 1;       // Schriftgröße Lesen/Notizen (1 = klein, 2 = groß)
 char     s_lastApp[24] = "";
 char     s_lastTrack[TRACK_PATH_LEN] = "";
@@ -75,7 +74,6 @@ void begin() {
   migrateFromMeck();
   s_volume = s_prefs.getUChar("vol", 255);
   s_standby = s_prefs.getUChar("stdby", 5);
-  s_lang = s_prefs.getUChar("lang", 0);
   s_fontScale = s_prefs.getUChar("fscale", 1);
   if (s_fontScale < 1 || s_fontScale > 2) s_fontScale = 1;
   if (s_prefs.isKey("lastapp")) s_prefs.getString("lastapp", s_lastApp, sizeof(s_lastApp));
@@ -99,13 +97,10 @@ void setStandbyMinutes(uint8_t m) {
   s_prefs.putUChar("stdby", m);
 }
 
-uint8_t language() { return s_lang; }
-
-void setLanguage(uint8_t lang) {
-  if (!s_open || lang == s_lang) return;
-  s_lang = lang;
-  s_prefs.putUChar("lang", lang);
-}
+// Retained for source compatibility with older integrations. The UI is
+// English-only, so legacy language values are ignored.
+uint8_t language() { return 0; }
+void setLanguage(uint8_t) {}
 
 uint8_t fontScale() { return s_fontScale; }
 
@@ -1012,7 +1007,7 @@ size_t exportIni(char* out, size_t cap) {
     "\n[general]\n"
     "volume = %u\n"             // 0..21
     "standby_minutes = %u\n"    // 0 = aus
-    "language = %u\n"           // 0 = Deutsch
+    "language = %u\n"           // Legacy setting; the UI is English-only.
     "timezone = %s\n"
     "font_scale = %u\n"         // 1 = klein, 2 = groß (Lesen/Notizen)
     "\n[mesh]\n"
@@ -1131,7 +1126,7 @@ int importIni(const char* text) {
     if (strcmp(section, "general") == 0) {
       if      (strcmp(key, "volume") == 0)          { setVolume((uint8_t)atoi(val)); applied++; }
       else if (strcmp(key, "standby_minutes") == 0) { setStandbyMinutes((uint8_t)atoi(val)); applied++; }
-      else if (strcmp(key, "language") == 0)        { setLanguage((uint8_t)atoi(val)); applied++; }
+      else if (strcmp(key, "language") == 0)        { applied++; }  // Ignore the legacy key.
       else if (strcmp(key, "timezone") == 0)        { setTzString(val); applied++; }
       else if (strcmp(key, "font_scale") == 0)      { setFontScale((uint8_t)atoi(val)); applied++; }
     } else if (strcmp(section, "mesh") == 0) {

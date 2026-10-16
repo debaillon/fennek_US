@@ -40,7 +40,7 @@ File s_upFile;
 char s_upPath[kMaxPath] = "";
 bool s_upOk = false;
 int         s_upErrCode = 507;                     // HTTP-Code bei Fehlschlag
-const char* s_upErr = "Upload fehlgeschlagen";     // Grund für die Antwort
+const char* s_upErr = "Upload failed";     // Response reason
 
 void sendJsonErr(int code, const char* err) {
   char b[112];
@@ -95,7 +95,7 @@ void handleList() {
   s_requests++;
   char p[kMaxPath];
   if (!argPath(p, sizeof(p), false)) return;
-  if (!board::sdReady()) { sendJsonErr(503, "keine SD-Karte"); return; }
+  if (!board::sdReady()) { sendJsonErr(503, "No SD card"); return; }
 
   String json;
   json.reserve(4096);
@@ -108,7 +108,7 @@ void handleList() {
   if (!d || !d.isDirectory()) {
     if (d) d.close();
     spiUnlock();
-    sendJsonErr(404, "kein Verzeichnis");
+    sendJsonErr(404, "Directory not found");
     return;
   }
   bool first = true;
@@ -136,7 +136,7 @@ void handleDownload() {
   s_requests++;
   char p[kMaxPath];
   if (!argPath(p, sizeof(p), false)) return;
-  if (!board::sdReady()) { sendJsonErr(503, "keine SD-Karte"); return; }
+  if (!board::sdReady()) { sendJsonErr(503, "No SD card"); return; }
 
   spiLock();
   File f = SD.open(p);
@@ -144,7 +144,7 @@ void handleDownload() {
   uint32_t size = ok ? f.size() : 0;
   if (f && !ok) f.close();
   spiUnlock();
-  if (!ok) { sendJsonErr(404, "Datei nicht gefunden"); return; }
+  if (!ok) { sendJsonErr(404, "File not found"); return; }
 
   const char* base = strrchr(p, '/');
   base = base ? base + 1 : p;
@@ -186,7 +186,7 @@ void handleUploadData() {
     s_upOk = false;
     s_upPath[0] = '\0';
     s_upErrCode = 507;
-    s_upErr = "Upload fehlgeschlagen";
+    s_upErr = "Upload failed";
     char dir[kMaxPath];
     if (!argPath(dir, sizeof(dir), true, false)) {
       s_upErrCode = 403;
@@ -195,14 +195,14 @@ void handleUploadData() {
     }
     if (!board::sdReady()) {
       s_upErrCode = 503;
-      s_upErr = "keine SD-Karte";
+      s_upErr = "No SD card";
       return;
     }
     // Dateiname auf den Basename reduzieren (Browser können Pfade mitsenden).
     const char* name = up.filename.c_str();
     const char* slash = strrchr(name, '/');
     if (slash) name = slash + 1;
-    if (!name[0]) { s_upErrCode = 400; s_upErr = "Dateiname fehlt"; return; }
+    if (!name[0]) { s_upErrCode = 400; s_upErr = "File name is missing"; return; }
     int n = snprintf(s_upPath, sizeof(s_upPath), "%s/%s",
                      (strcmp(dir, "/") == 0) ? "" : dir, name);
     if (n <= 0 || n >= (int)sizeof(s_upPath)) {
@@ -216,9 +216,9 @@ void handleUploadData() {
     spiUnlock();
     if (s_upFile) {
       s_upOk = true;
-      Serial.printf("[WEBFM] Upload startet: %s\n", s_upPath);
+      Serial.printf("[WEBFM] Upload started: %s\n", s_upPath);
     } else {
-      s_upErr = "Datei nicht anlegbar (Zielordner vorhanden?)";
+      s_upErr = "Could not create file (does the target folder exist?)";
     }
   } else if (up.status == UPLOAD_FILE_WRITE) {
     if (!s_upOk || !s_upFile) return;
@@ -232,14 +232,14 @@ void handleUploadData() {
       spiUnlock();
       s_upOk = false;
       s_upErr = "Schreibfehler (SD voll?)";
-      Serial.printf("[WEBFM] Upload-Schreibfehler: %s\n", s_upPath);
+      Serial.printf("[WEBFM] Upload write error: %s\n", s_upPath);
     }
   } else if (up.status == UPLOAD_FILE_END) {
     if (s_upFile) {
       spiLock();
       s_upFile.close();
       spiUnlock();
-      Serial.printf("[WEBFM] Upload fertig: %s (%u Bytes)\n",
+      Serial.printf("[WEBFM] Upload complete: %s (%u bytes)\n",
                     s_upPath, (unsigned)up.totalSize);
     }
   } else if (up.status == UPLOAD_FILE_ABORTED) {
@@ -250,7 +250,7 @@ void handleUploadData() {
       spiUnlock();
     }
     s_upOk = false;
-    Serial.println("[WEBFM] Upload abgebrochen");
+    Serial.println("[WEBFM] Upload canceled");
   }
 }
 
@@ -306,14 +306,14 @@ void handleDelete() {
   s_requests++;
   char p[kMaxPath];
   if (!argPath(p, sizeof(p), true)) return;
-  if (!board::sdReady()) { sendJsonErr(503, "keine SD-Karte"); return; }
+  if (!board::sdReady()) { sendJsonErr(503, "No SD card"); return; }
   bool force = s_server->arg("force") == "1";
 
   spiLock();
   File f = SD.open(p);
   if (!f) {
     spiUnlock();
-    sendJsonErr(404, "nicht gefunden");
+    sendJsonErr(404, "Not found");
     return;
   }
   bool isDir = f.isDirectory();
@@ -338,7 +338,7 @@ void handleMkdir() {
   s_requests++;
   char p[kMaxPath];
   if (!argPath(p, sizeof(p), true)) return;
-  if (!board::sdReady()) { sendJsonErr(503, "keine SD-Karte"); return; }
+  if (!board::sdReady()) { sendJsonErr(503, "No SD card"); return; }
 
   spiLock();
   bool exists = SD.exists(p);
@@ -346,7 +346,7 @@ void handleMkdir() {
   spiUnlock();
 
   if (ok) sendJsonOk();
-  else if (exists) sendJsonErr(409, "existiert bereits");
+  else if (exists) sendJsonErr(409, "Already exists");
   else             sendJsonErr(500, "mkdir fehlgeschlagen");
 }
 
@@ -360,7 +360,7 @@ void drawOtaScreen(Adafruit_GFX& g) {
   g.fillScreen(GxEPD_WHITE);
   gui::printAt(g, 16, 120, "Firmware-Update", 3);
   gui::printAt(g, 16, 160, "laeuft - bitte das Geraet", 2);
-  gui::printAt(g, 16, 184, "NICHT ausschalten.", 2);
+  gui::printAt(g, 16, 184, "Do NOT turn off.", 2);
   gui::printAt(g, 16, 230, "Neustart erfolgt automatisch.", 2);
 }
 
@@ -397,7 +397,7 @@ void handleOtaUpdate() {
   settings::otaUrl(url, sizeof(url));
   ota::CheckResult r = ota::check(url);
   if (!r.ok)                       { sendJsonErr(502, r.err); return; }
-  if (!r.updateAvail && !force)    { sendJsonErr(409, "kein Update verfuegbar"); return; }
+  if (!r.updateAvail && !force)    { sendJsonErr(409, "No update available"); return; }
 
   // Einmaliger Vollbild-Hinweis, dann blockierend flashen.
   display::render(drawOtaScreen, true);
@@ -435,7 +435,7 @@ bool start() {
   if (s_state == State::CONNECTING || s_state == State::RUNNING) return true;
 
   if (settings::wifiCount() == 0) {
-    Serial.println("[WEBFM] Keine SSID konfiguriert ('wifi ssid <name>')");
+    Serial.println("[WEBFM] No SSID configured ('wifi ssid <name>')");
     return false;
   }
 
@@ -484,7 +484,7 @@ void poll() {
       s_state = State::RUNNING;
       Serial.printf("[WEBFM] Verbunden: http://%s/ (http://fennek.local/)\n", s_ip);
     } else if (millis() - s_connectT0 > kConnectTimeoutMs) {
-      Serial.println("[WEBFM] Verbindung fehlgeschlagen (Timeout) — WiFi aus");
+      Serial.println("[WEBFM] Connection failed (timeout) — Wi-Fi off");
       WiFi.disconnect(true);
       WiFi.mode(WIFI_OFF);
       mesh_client::setSuspended(false);

@@ -179,7 +179,7 @@ bool loadBookCache() {
   s_fileCount = (int)count;
   s_sel = 0; s_off = 0;
   selectLastBook();
-  Serial.printf("[READER] Bücher-Cache geladen: %d Einträge\n", s_fileCount);
+  Serial.printf("[READER] Loaded %d entries from book cache\n", s_fileCount);
   return true;
 }
 
@@ -215,8 +215,8 @@ void writeBookCache() {
     SD.remove(kBookCacheTmp);
   }
   spiUnlock();
-  Serial.printf("[READER] Bücher-Cache %s (%d Einträge)\n",
-                ok ? "geschrieben" : "FEHLER", s_fileCount);
+  Serial.printf("[READER] Book cache %s (%d entries)\n",
+                ok ? "written" : "ERROR", s_fileCount);
 }
 
 void scanStart() {
@@ -680,7 +680,7 @@ class ReaderApp : public App {
     switch (s_screen) {
       case LIST:       drawList(g); break;
       case CONVERTING: drawProgress(g, "Konvertiere EPUB ...", epubproc::convertPercent()); break;
-      case INDEXING:   drawProgress(g, "Indexiere Buch ...", textdoc::indexPercent()); break;
+      case INDEXING:   drawProgress(g, "Indexing book ...", textdoc::indexPercent()); break;
       case READ:       drawRead(g); break;
     }
   }
@@ -716,7 +716,7 @@ void debugScan() {
   uint32_t t0 = millis();
   scanStart();
   while (s_scanning) scanStep();   // schreibt am Ende auch den SD-Cache neu
-  Serial.printf("[READER] %d Buch/Bücher unter %s (%lu ms):\n",
+  Serial.printf("[READER] %d book(s) in %s (%lu ms):\n",
                 s_fileCount, kBookDir, (unsigned long)(millis() - t0));
   for (int i = 0; i < s_fileCount; i++)
     Serial.printf("[READER]   %s\n", s_files[i].path);

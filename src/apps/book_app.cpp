@@ -302,7 +302,7 @@ void drawPlayer(Adafruit_GFX& g) {
 
   // Kapitel x/y + Dateiname.
   bool mine = (st.owner == audio::Owner::Book && st.pos >= 0);
-  char ch[80] = "(gestoppt)";
+  char ch[80] = "(stopped)";
   if (mine && st.pos < s_chapCount) {
     const char* base = strrchr(s_chap[st.pos], '/');
     snprintf(ch, sizeof(ch), i18n::tr(i18n::Str::FmtChapter), st.pos + 1, s_chapCount,

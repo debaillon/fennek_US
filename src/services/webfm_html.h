@@ -2,22 +2,22 @@
 // Copyright (C) 2026 Dr. Daniel Dumke
 
 // =============================================================================
-// webfm_html.h — die eingebettete Web-Oberfläche der SD-Dateiverwaltung.
+// webfm_html.h — embedded web interface for SD card file management.
 //
-// Eine einzelne Seite (PROGMEM), die per fetch() gegen die JSON-API aus
-// webfm.cpp arbeitet (/api/list, /api/download, /api/upload, /api/delete,
-// /api/mkdir). Bewusst ohne externe Abhängigkeiten — funktioniert offline.
+// A single PROGMEM page that uses fetch() with the JSON API in webfm.cpp
+// (/api/list, /api/download, /api/upload, /api/delete, /api/mkdir). It has no
+// external dependencies and works offline.
 // =============================================================================
 #pragma once
 
 #include <pgmspace.h>
 
 const char kWebFmHtml[] PROGMEM = R"HTML(<!doctype html>
-<html lang="de">
+<html lang="en-US">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Fennek &mdash; SD-Karte</title>
+<title>Fennek &mdash; SD card</title>
 <style>
  body{font-family:system-ui,sans-serif;margin:0;background:#f4f1ea;color:#222}
  header{background:#2b2620;color:#f4f1ea;padding:10px 16px}
@@ -47,26 +47,26 @@ const char kWebFmHtml[] PROGMEM = R"HTML(<!doctype html>
 </style>
 </head>
 <body>
-<header><h1>Fennek <small>&mdash; SD-Dateiverwaltung</small></h1></header>
+<header><h1>Fennek <small>&mdash; SD file manager</small></h1></header>
 <main>
 <div id="crumbs"></div>
 <div class="bar">
  <input type="file" id="up" multiple>
- <button onclick="upload()">Hochladen</button>
- <button onclick="mkdir()">Neuer Ordner</button>
+ <button onclick="upload()">Upload</button>
+ <button onclick="mkdir()">New folder</button>
  <progress id="prog" value="0" max="100" hidden></progress>
 </div>
 <div id="msg"></div>
 <table>
- <thead><tr><th>Name</th><th style="text-align:right">Gr&ouml;&szlig;e</th><th></th></tr></thead>
+ <thead><tr><th>Name</th><th style="text-align:right">Size</th><th></th></tr></thead>
  <tbody id="tbl"></tbody>
 </table>
 <section class="ota">
- <h2>Firmware-Update</h2>
- <div id="otamsg">Aktuelle Version: &hellip;</div>
+ <h2>Firmware update</h2>
+ <div id="otamsg">Current version: &hellip;</div>
  <div class="bar">
-  <button onclick="otaCheck()">Auf Updates pr&uuml;fen</button>
-  <button id="otabtn" onclick="otaUpdate()" hidden>Jetzt aktualisieren</button>
+  <button onclick="otaCheck()">Check for updates</button>
+  <button id="otabtn" onclick="otaUpdate()" hidden>Update now</button>
  </div>
 </section>
 </main>
@@ -93,7 +93,7 @@ function crumbs(){
 }
 
 async function load(){
-  $('msg').textContent = 'Lade ...';
+  $('msg').textContent = 'Loading ...';
   try {
     const r = await fetch('/api/list?path=' + enc(cur));
     const j = await r.json();
@@ -106,17 +106,17 @@ async function load(){
       if (e.d){
         rows += '<tr><td><a class="dir" href="#" onclick="go(\'' + fq + '\');return false">&#128193; '
               + e.n + '</a></td><td class="sz"></td><td class="act">'
-              + '<button class="warn" onclick="del(\'' + fq + '\')">L&ouml;schen</button></td></tr>';
+              + '<button class="warn" onclick="del(\'' + fq + '\')">Delete</button></td></tr>';
       } else {
         rows += '<tr><td><a class="file" href="/api/download?path=' + enc(full) + '">' + e.n
               + '</a></td><td class="sz">' + fmtSize(e.s) + '</td><td class="act">'
-              + '<button class="warn" onclick="del(\'' + fq + '\')">L&ouml;schen</button></td></tr>';
+              + '<button class="warn" onclick="del(\'' + fq + '\')">Delete</button></td></tr>';
       }
     }
-    $('tbl').innerHTML = rows || '<tr><td colspan="3">(leer)</td></tr>';
-    $('msg').textContent = j.entries.length + ' Eintrag/Einträge';
+    $('tbl').innerHTML = rows || '<tr><td colspan="3">(empty)</td></tr>';
+    $('msg').textContent = j.entries.length + ' item(s)';
   } catch (e){
-    $('msg').textContent = 'Fehler: ' + e.message;
+    $('msg').textContent = 'Error: ' + e.message;
   }
   crumbs();
 }
@@ -131,36 +131,36 @@ async function post(url){
 
 async function del(p){
   try {
-    // Erst ohne Rückfrage versuchen — Dateien und flache Ordner sind sofort weg.
+    // Try without prompting first; files and empty folders can be deleted immediately.
     const r = await fetch('/api/delete?path=' + enc(p), {method:'POST'});
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.err || r.status);
-    // Server verlangt Bestätigung nur bei Ordnern mit Unterordnern (rekursiv).
+    // The server asks for confirmation only when recursively deleting folders.
     if (j.confirm){
-      if (!confirm('Ordner mit Unterordnern rekursiv löschen?\n' + p)) return;
+      if (!confirm('Recursively delete this folder and its contents?\n' + p)) return;
       await post('/api/delete?path=' + enc(p) + '&force=1');
     }
-  } catch (e){ alert('Fehler: ' + e.message); }
+  } catch (e){ alert('Error: ' + e.message); }
   load();
 }
 
 async function mkdir(){
-  const name = prompt('Name des neuen Ordners:');
+  const name = prompt('Name for the new folder:');
   if (!name) return;
   const full = (cur === '/' ? '' : cur) + '/' + name;
-  try { await post('/api/mkdir?path=' + enc(full)); } catch (e){ alert('Fehler: ' + e.message); }
+  try { await post('/api/mkdir?path=' + enc(full)); } catch (e){ alert('Error: ' + e.message); }
   load();
 }
 
 async function upload(){
   const files = $('up').files;
-  if (!files.length){ alert('Erst Datei(en) auswählen.'); return; }
+  if (!files.length){ alert('Select one or more files first.'); return; }
   const prog = $('prog');
   prog.hidden = false;
   for (let i = 0; i < files.length; i++){
-    $('msg').textContent = 'Lade hoch (' + (i+1) + '/' + files.length + '): ' + files[i].name;
+    $('msg').textContent = 'Uploading (' + (i+1) + '/' + files.length + '): ' + files[i].name;
     prog.value = 0;
-    // XHR statt fetch: liefert Upload-Fortschritt.
+    // Use XHR instead of fetch to report upload progress.
     await new Promise((res, rej) => {
       const fd = new FormData();
       fd.append('file', files[i]);
@@ -173,51 +173,51 @@ async function upload(){
         try { why = JSON.parse(x.responseText).err || why; } catch (_) {}
         rej(new Error(why));
       };
-      x.onerror = () => rej(new Error('Netzwerkfehler'));
+      x.onerror = () => rej(new Error('Network error'));
       x.send(fd);
-    }).catch(e => alert('Upload-Fehler bei ' + files[i].name + ': ' + e.message));
+    }).catch(e => alert('Upload failed for ' + files[i].name + ': ' + e.message));
   }
   prog.hidden = true;
   $('up').value = '';
   load();
 }
 
-let otaUrl = '';   // firmware.bin-URL aus dem letzten Check (für force nicht nötig)
+let otaUrl = '';   // firmware.bin URL from the last check (not needed for force)
 
 async function otaCheck(){
-  $('otamsg').textContent = 'Prüfe …';
+  $('otamsg').textContent = 'Checking ...';
   $('otabtn').hidden = true;
   try {
     const r = await fetch('/api/ota/check');
     const j = await r.json();
-    if (!j.ok) throw new Error(j.err || 'Prüfung fehlgeschlagen');
+    if (!j.ok) throw new Error(j.err || 'Update check failed');
     if (j.update){
-      $('otamsg').textContent = 'Update verfügbar: ' + j.current + ' → ' + j.latest;
+      $('otamsg').textContent = 'Update available: ' + j.current + ' → ' + j.latest;
       $('otabtn').hidden = false;
     } else {
-      $('otamsg').textContent = 'Aktuell (' + j.current + ') — kein Update.';
+      $('otamsg').textContent = 'Up to date (' + j.current + ') — no update available.';
     }
-  } catch (e){ $('otamsg').textContent = 'Fehler: ' + e.message; }
+  } catch (e){ $('otamsg').textContent = 'Error: ' + e.message; }
 }
 
 async function otaUpdate(){
-  if (!confirm('Firmware jetzt aktualisieren? Das Gerät startet danach neu und ist ~1 min nicht erreichbar.')) return;
+  if (!confirm('Update firmware now? The device will restart and be unavailable for about one minute.')) return;
   $('otabtn').hidden = true;
-  $('otamsg').textContent = 'Update läuft — Firmware wird geladen und geschrieben. Gerät NICHT ausschalten …';
+  $('otamsg').textContent = 'Update in progress — downloading and writing firmware. Do NOT turn off the device ...';
   try {
     const r = await fetch('/api/ota/update', {method:'POST'});
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.err || ('HTTP ' + r.status));
-    $('otamsg').textContent = 'Update geschrieben — Gerät startet neu. Bitte in ~1 min die Seite neu laden.';
+    $('otamsg').textContent = 'Update installed — device is restarting. Reload this page in about one minute.';
   } catch (e){
-    // Bei Erfolg bricht die Verbindung durch den Reboot ab — das ist KEIN Fehler.
-    $('otamsg').textContent = 'Verbindung beendet (vermutlich Reboot). Bitte in ~1 min neu laden. (' + e.message + ')';
+    // A successful reboot closes the connection; this is expected, not an error.
+    $('otamsg').textContent = 'Connection closed (the device may be restarting). Reload in about one minute. (' + e.message + ')';
   }
 }
 
-// Aktuelle Version beim Laden anzeigen (netzfrei — kein GitHub-Aufruf, schnell).
+// Show the current version on load without a network request.
 fetch('/api/ota/version').then(r => r.json()).then(j => {
-  if (j && j.current) $('otamsg').textContent = 'Aktuelle Version: ' + j.current;
+  if (j && j.current) $('otamsg').textContent = 'Current version: ' + j.current;
 }).catch(() => {});
 
 load();

@@ -63,7 +63,7 @@ bool s_syncDrawn = false;
 char s_syncLog[48] = "";
 
 const char* filterLabel() {
-  switch (s_filter) { case FILT_ALL: return "alle"; case FILT_TODAY: return "heute"; default: return "offen"; }
+  switch (s_filter) { case FILT_ALL: return "All"; case FILT_TODAY: return "Today"; default: return "Open"; }
 }
 
 int cmpRow(const void* a, const void* b) {
@@ -139,7 +139,7 @@ void dueLabel(const Task& t, uint32_t now, char* out, size_t n) {
   uint32_t d = t.dueEpoch / 86400u, today = now / 86400u;
   if (d < today)       snprintf(out, n, "!ueberf.");
   else if (d == today) snprintf(out, n, "heute");
-  else if (d == today + 1) snprintf(out, n, "morgen");
+  else if (d == today + 1) snprintf(out, n, "Tomorrow");
   else {
     time_t tt = (time_t)t.dueEpoch; struct tm lt; localtime_r(&tt, &lt);
     snprintf(out, n, "%02d.%02d.", lt.tm_mday, lt.tm_mon + 1);
@@ -152,7 +152,7 @@ void drawSyncing(Adafruit_GFX& g) {
   gui::printAt(g, 8, TOP + 4, i18n::tr(i18n::Str::AppTodo), 2);
   g.drawLine(0, HEADER_H, W, HEADER_H, GxEPD_BLACK);
   gui::printAt(g, 10, 120, "Synchronisiere ...", 2);
-  gui::printAt(g, 10, 150, "WLAN aktiv (Audio aus)", 1);
+  gui::printAt(g, 10, 150, "Wi-Fi active (audio off)", 1);
 }
 
 void drawList(Adafruit_GFX& g) {
@@ -166,9 +166,9 @@ void drawList(Adafruit_GFX& g) {
 
   uint32_t now = timesync::now();
   if (s_rowN == 0) {
-    gui::printAt(g, 14, 80, "Keine Aufgaben", 2);
-    gui::printAt(g, 14, 110, "Sync druecken oder", 1);
-    gui::printAt(g, 14, 124, "Neu (+) anlegen.", 1);
+    gui::printAt(g, 14, 80, "No tasks", 2);
+    gui::printAt(g, 14, 110, "Sync to refresh or", 1);
+    gui::printAt(g, 14, 124, "add a new task (+).", 1);
   } else {
     for (int i = 0; i < VISIBLE && s_off + i < s_rowN; i++) {
       int r = s_off + i;
@@ -199,7 +199,7 @@ void drawList(Adafruit_GFX& g) {
 
 void drawAdd(Adafruit_GFX& g) {
   g.setTextColor(GxEPD_BLACK);
-  gui::printAt(g, 8, TOP + 4, "Neue Aufgabe", 2);
+  gui::printAt(g, 8, TOP + 4, "New task", 2);
   g.drawLine(0, HEADER_H, W, HEADER_H, GxEPD_BLACK);
   gui::printAt(g, 8, LIST_Y + 8, "Titel (+Thema moeglich):", 1);
   // Eingabefeld mit Rahmen + Cursor.
@@ -208,10 +208,10 @@ void drawAdd(Adafruit_GFX& g) {
   strncpy(shown, s_add, sizeof(shown) - 2); shown[sizeof(shown) - 2] = '\0';
   size_t l = strlen(shown); shown[l] = '_'; shown[l + 1] = '\0';
   gui::printAt(g, 12, LIST_Y + 32, shown, 2);
-  gui::printAt(g, 8, LIST_Y + 100, "Enter = anlegen, Esc/Q = ab", 1);
+  gui::printAt(g, 8, LIST_Y + 100, "Enter = add, Esc/Q = back", 1);
   gui::printAt(g, 8, LIST_Y + 116, "Thema sonst: Inbox", 1);
   gui::drawButton(g, Rect{20, 256, 90, 48}, "Abbruch", false);
-  gui::drawButton(g, Rect{130, 256, 90, 48}, "Anlegen", true);
+  gui::drawButton(g, Rect{130, 256, 90, 48}, "Add", true);
 }
 
 void commitAdd() {

@@ -17,16 +17,16 @@ compile_commands.json
 .venv/
 venv/
 
-# Python-Artefakte (z. B. tools/)
+# Python artifacts (e.g., tools/)
 __pycache__/
 *.pyc
 
-# Promo-/Werbe-Aktivitäten (nicht im öffentlichen Repo)
+# Promotional content (not part of the public repository)
 docs/announcement-en.md
 docs/promo-channels.md
 
-# Lokal generierte Kartenkacheln + PNG-Cache + Upload-Skripte/Logs (gross, nicht ins Repo)
+# Locally generated map tiles, PNG cache, and upload scripts/logs (large; do not commit)
 fennek_tiles/
-# Falls maps_tiles.py/run.sh mal ins Repo-Root schreibt (Default-Out ./sdcard):
+# If maps_tiles.py/run.sh writes to the repository root (default output: ./sdcard):
 /sdcard/
 /tile_cache/

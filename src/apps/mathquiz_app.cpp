@@ -142,7 +142,7 @@ void startQuiz() {
   s_problem = generate(pickOp(s_mask, rnd), s_level, rnd);
   s_qStartMs = millis();
   s_screen = QUIZ;
-  Serial.printf("[MATH] Start: %s, Stufe %s\n", kModes[s_sel].label, kLevels[s_level]);
+  Serial.printf("[MATH] Start: %s, level %s\n", kModes[s_sel].label, kLevels[s_level]);
   appmgr::markDirty();
 }
 
@@ -247,7 +247,7 @@ void quizMid(Adafruit_GFX& g) {
     if (s_lastVerdict == EXACT)
       snprintf(base, sizeof(base), "Richtig! (%lus)", (unsigned long)s_lastSecs);
     else if (s_lastVerdict == CLOSE)   // gute Schätzung: exakten Wert mit zeigen
-      snprintf(base, sizeof(base), "Gut geschätzt! %ld (%lus)",
+      snprintf(base, sizeof(base), "Good estimate! %ld (%lus)",
                (long)s_problem.answer, (unsigned long)s_lastSecs);
     else
       snprintf(base, sizeof(base), "Falsch: %ld (%lus)",
@@ -288,7 +288,7 @@ void quizDraw(Adafruit_GFX& g) {
   gui::printAt(g, 10, 286, stat, 1);
   // Schätz-Aufgaben (tol>0) erlauben gute Näherungen; Ziel-Zeit nennen.
   if (s_problem.tol > 0)
-    gui::printAt(g, 10, 304, "Schaetzen zaehlt  Ziel <20s  Q=zurueck", 1);
+    gui::printAt(g, 10, 304, "Estimate it  Target <20s  Q=back", 1);
   else
     gui::printAt(g, 10, 304, "Ziffern + Enter  Ziel <20s  Q=zurueck", 1);
 }
@@ -316,7 +316,7 @@ void adaptDifficulty() {
     s_skill = nl * kBand + kBand / 2;     // Hysterese: Bandmitte der neuen Stufe
     settings::setMathLevel((uint8_t)s_sel, s_level);
     s_levelChanged = true;
-    Serial.printf("[MATH] Stufe angepasst: %s\n", kLevels[s_level]);
+    Serial.printf("[MATH] Level changed: %s\n", kLevels[s_level]);
   }
 }
 

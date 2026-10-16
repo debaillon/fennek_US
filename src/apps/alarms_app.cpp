@@ -28,13 +28,13 @@ const Rect kSnooze  {12, 232, 100, 56};       // Klingel-Bildschirm
 const Rect kStop    {128, 232, 100, 56};
 
 // Wiederholungs-Presets; eigene (per Konsole gesetzte) Masken zeigen "eigen".
-// "Einmalig" feuert am nächsten hh:mm und schaltet sich danach selbst aus.
+// "Once" fires at the next hh:mm and then disables itself.
 struct DayPreset { const char* name; uint8_t mask; bool once; };
 const DayPreset kDays[] = {
-  {"Einmalig",   0x00, true},
+  {"Once",       0x00, true},
   {"Taeglich",   0x00, false},
   {"Werktags",   0x1F, false},   // Mo-Fr
-  {"Wochenende", 0x60, false},   // Sa+So
+  {"Weekend",    0x60, false},   // Saturday + Sunday
 };
 constexpr int kNumDays = (int)(sizeof(kDays) / sizeof(kDays[0]));
 
@@ -195,7 +195,7 @@ void fieldValue(int f, char* v, size_t n) {
     case F_MIN:     snprintf(v, n, "%02u", (unsigned)s_buf.minute); break;
     case F_DAYS:    daysLabel(s_buf.dowMask, s_buf.once, v, n); break;
     case F_SIGNAL:  snprintf(v, n, "%s", signalLabel(s_buf.signal)); break;
-    case F_ENABLED: snprintf(v, n, "%s", s_buf.enabled ? "An" : "Aus"); break;
+    case F_ENABLED: snprintf(v, n, "%s", s_buf.enabled ? "On" : "Off"); break;
   }
 }
 const char* fieldName(int f) {
@@ -345,9 +345,9 @@ class AlarmsApp : public App {
       gui::drawButton(g, kBack, i18n::tr(i18n::Str::BtnBack), false);
       g.setTextSize(1);
       g.setCursor(120, 286);
-      gui::print(g, "A/D o. Ziffern tippen");
+      gui::print(g, "Press A/D or a digit");
       g.setCursor(120, 300);
-      gui::print(g, "Zurueck speichert");
+      gui::print(g, "Back saves");
       return;
     }
 
@@ -357,7 +357,7 @@ class AlarmsApp : public App {
     gui::drawButton(g, kBack, i18n::tr(i18n::Str::BtnBack), false);
     g.setTextSize(1);
     g.setCursor(120, 286);
-    gui::print(g, "Enter: bearbeiten");
+    gui::print(g, "Enter: edit");
     g.setCursor(120, 300);
     gui::print(g, "Fennek " FENNEK_VERSION);
   }

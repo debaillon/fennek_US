@@ -9,11 +9,11 @@
 
 namespace gui {
 
-// Unicode-Codepoint -> CP437-Byte (0 = nicht darstellbar).
+// Unicode code point to CP437 byte (0 = not representable).
 uint8_t cp437For(uint32_t cp) {
   if (cp < 0x80) return (uint8_t)cp;
   switch (cp) {
-    // Deutsch
+    // German
     case 0xE4: return 0x84;  // ä
     case 0xF6: return 0x94;  // ö
     case 0xFC: return 0x81;  // ü
@@ -21,7 +21,7 @@ uint8_t cp437For(uint32_t cp) {
     case 0xD6: return 0x99;  // Ö
     case 0xDC: return 0x9A;  // Ü
     case 0xDF: return 0xE1;  // ß
-    // Westeuropäisch (häufig in Tags/eBooks)
+    // Western European characters (common in tags and eBooks)
     case 0xE0: return 0x85;  case 0xE1: return 0xA0;  case 0xE2: return 0x83;  // à á â
     case 0xE8: return 0x8A;  case 0xE9: return 0x82;  case 0xEA: return 0x88;  // è é ê
     case 0xEB: return 0x89;  case 0xEC: return 0x8D;  case 0xED: return 0xA1;  // ë ì í
@@ -33,7 +33,7 @@ uint8_t cp437For(uint32_t cp) {
     case 0xE5: return 0x86;  case 0xC5: return 0x8F;                            // å Å
     case 0xE6: return 0x91;  case 0xC6: return 0x92;                            // æ Æ
     case 0xC9: return 0x90;                                                     // É
-    // Satz-/Sonderzeichen
+    // Punctuation and special characters
     case 0xA0: return ' ';   // NBSP
     case 0xB0: return 0xF8;  // °
     case 0xA7: return 0x15;  // §
@@ -69,7 +69,7 @@ void toCp437(const char* utf8, char* out, size_t outLen) {
       cp = 0;  // außerhalb BMP -> '?'
       s += 4;
     } else {
-      // Ungültiges UTF-8: Byte als Latin-1 interpretieren (ID3v1 etc.).
+      // Invalid UTF-8: interpret the byte as Latin-1 (ID3v1, etc.).
       cp = *s++;
     }
     if (cp == 0x2026) {  // Ellipse -> "..."

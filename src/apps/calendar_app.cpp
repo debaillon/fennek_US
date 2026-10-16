@@ -76,7 +76,7 @@ void drawSyncing(Adafruit_GFX& g) {
   gui::printAt(g, 8, TOP + 4, i18n::tr(i18n::Str::AppCalendar), 2);
   g.drawLine(0, HEADER_H, W, HEADER_H, GxEPD_BLACK);
   gui::printAt(g, 10, 120, "Synchronisiere ...", 2);
-  gui::printAt(g, 10, 150, "WLAN aktiv (Audio aus)", 1);
+  gui::printAt(g, 10, 150, "Wi-Fi active (audio off)", 1);
 }
 
 void drawAgenda(Adafruit_GFX& g) {
@@ -86,10 +86,10 @@ void drawAgenda(Adafruit_GFX& g) {
 
   int n = calendar::count();
   if (n == 0) {
-    gui::printAt(g, 14, 76, "Keine Termine", 2);
-    gui::printAt(g, 14, 110, "Feed eintragen unter", 1);
+    gui::printAt(g, 14, 76, "No events", 2);
+    gui::printAt(g, 14, 110, "Add a feed to", 1);
     gui::printAt(g, 14, 124, "/calendar/feeds.txt", 1);
-    gui::printAt(g, 14, 142, "dann Sync druecken.", 1);
+    gui::printAt(g, 14, 142, "then press Sync.", 1);
     if (s_syncLog[0]) gui::printAt(g, 6, BAR_Y - 14, s_syncLog, 1);
     gui::drawButton(g, kBack, "Home", false);
     gui::drawButton(g, kSync, "Sync", true);

@@ -22,10 +22,9 @@ namespace {
 using gui::Rect;
 
 // --- Layout -------------------------------------------------------------------
-// Zwei-Ebenen-Navigation: die Wurzel zeigt Kategorien ("Ordner"), die Auswahl
-// öffnet die zugehörigen Zeilen. So bleibt jede Ebene kurz genug fürs E-Ink und
-// neue Bereiche (Navidrome …) überfüllen die Liste nicht. Kein Titel — die
-// Statuszeile zeigt bereits "Einstellungen".
+// Two-level navigation: the root lists categories, and selecting one opens
+// its rows. This keeps each list short enough for E-Ink and leaves room for new
+// sections such as Navidrome. The status bar already shows "Settings".
 constexpr int W = EINK_W;
 constexpr int TOP       = appmgr::CONTENT_Y;              // 24
 constexpr int SEC_H     = 15;                             // Kategorie-Kopfzeile
@@ -39,7 +38,7 @@ constexpr int FOOT_X = 120;                               // Textspalte rechts v
 // --- Zeilen ---------------------------------------------------------------------
 enum RowId {
   ROW_PRESET, ROW_FREQ, ROW_BW, ROW_SF, ROW_CR, ROW_TX, ROW_NAME,
-  ROW_LANG, ROW_STANDBY, ROW_FONT, ROW_TZ, ROW_TIME, ROW_WSSID, ROW_WPASS, ROW_WDEL,
+  ROW_STANDBY, ROW_FONT, ROW_TZ, ROW_TIME, ROW_WSSID, ROW_WPASS, ROW_WDEL,
   ROW_NAVON, ROW_NAVURL, ROW_NAVUSER, ROW_NAVPASS,
   ROW_AION, ROW_AIURL, ROW_AIMODEL,
   ROW_OTAURL, ROW_OTAVER, ROW_OTAGO,
@@ -48,15 +47,15 @@ enum RowId {
   ROW_COUNT
 };
 
-// --- Kategorien ("Ordner") ------------------------------------------------------
+// --- Categories (folders) ------------------------------------------------------
 enum { CAT_RADIO, CAT_SYSTEM, CAT_TIME, CAT_WIFI, CAT_NAV, CAT_AI, CAT_OTA,
        CAT_TODO, CAT_CAL, CAT_COUNT };
 
 const RowId kRadioRows[]  = {ROW_PRESET, ROW_FREQ, ROW_BW, ROW_SF, ROW_CR, ROW_TX, ROW_NAME};
-const RowId kSystemRows[] = {ROW_LANG, ROW_STANDBY, ROW_FONT};
+const RowId kSystemRows[] = {ROW_STANDBY, ROW_FONT};
 const RowId kTimeRows[]   = {ROW_TZ, ROW_TIME};
-// Detailzeilen eines einzelnen WLAN-Profils (die WLAN-Kategorie selbst ist eine
-// dynamische Liste, siehe s_wifiIdx / drawWifiList).
+// Detail rows for one Wi-Fi profile (the Wi-Fi category itself is a dynamic
+// list; see s_wifiIdx / drawWifiList).
 const RowId kWifiRows[]   = {ROW_WSSID, ROW_WPASS, ROW_WDEL};
 const RowId kNavRows[]    = {ROW_NAVON, ROW_NAVURL, ROW_NAVUSER, ROW_NAVPASS};
 const RowId kAiRows[]     = {ROW_AION, ROW_AIURL, ROW_AIMODEL};
@@ -81,13 +80,13 @@ const char* catName(int c) {
   switch (c) {
     case CAT_RADIO:  return i18n::tr(i18n::Str::SecRadio);
     case CAT_SYSTEM: return i18n::tr(i18n::Str::SecSystem);
-    case CAT_TIME:   return "Zeit";
-    case CAT_WIFI:   return "WLAN";
+    case CAT_TIME:   return "Time";
+    case CAT_WIFI:   return "Wi-Fi";
     case CAT_NAV:    return "Navidrome";
     case CAT_AI:     return "Ollama";
     case CAT_OTA:    return "Update";
     case CAT_TODO:   return "Todo";
-    case CAT_CAL:    return "Kalender";
+    case CAT_CAL:    return "Calendar";
   }
   return "";
 }
@@ -97,14 +96,14 @@ int  s_sel  = 0;           // Index in der aktuellen Ebene (Kategorie bzw. Zeile
 int  s_edit = -1;          // gerade editierte Zeile (RowId; -1 = keine)
 char s_editBuf[128] = "";  // groß genug für die Navidrome-URL (127)
 
-// WLAN-Kategorie: dynamische Liste bekannter Netze. s_wifiIdx == -1 → Listenansicht
-// (SSIDs + „Neu"-Zeile); s_wifiIdx >= 0 → Detailansicht des Profils (SSID/Pass/Löschen).
-// s_wifiAdding: gerade wird per Direkteingabe ein neues Profil angelegt.
+// Wi-Fi category: dynamic list of known networks. s_wifiIdx == -1 means the
+// list view (SSIDs plus a "New" row); s_wifiIdx >= 0 means profile details.
+// s_wifiAdding indicates that a profile is being created through direct input.
 int  s_wifiIdx    = -1;
 bool s_wifiAdding = false;
 
-// Zeilen der WLAN-Liste: ein Eintrag je Profil, zuletzt „+ Neues WLAN" (solange
-// Platz ist). Rückgabe = Zeilenzahl der Liste.
+// One row per profile in the Wi-Fi list, followed by "+ Add Wi-Fi" when there
+// is room. Returns the number of list rows.
 int wifiListRows() {
   int c = settings::wifiCount();
   return c < settings::kMaxWifiProfiles ? c + 1 : c;
@@ -115,8 +114,8 @@ bool wifiIsNewRow(int idx) {
 bool inWifiList()   { return s_cat == CAT_WIFI && s_wifiIdx < 0; }
 bool inWifiDetail() { return s_cat == CAT_WIFI && s_wifiIdx >= 0; }
 
-// --- OTA-Update (Aktions-Zeile in der Kategorie „Update") ----------------------
-// Zwei-Schritt-Bedienung wie das Web-UI: erst „Pruefen", bei Treffer „Installieren".
+// --- OTA update (action row in the Update category) ----------------------------
+// Two-step flow, like the web UI: check first, then install if an update exists.
 bool s_otaReady = false;             // true = Update gefunden, zum Flashen bereit
 char s_otaStatus[40]  = "";          // Kurzstatus für die Zeile (Ergebnis/Fehler)
 char s_otaUrl[200]    = "";          // firmware.bin-URL aus dem letzten Check
@@ -125,7 +124,7 @@ char s_otaPhase[40]      = "";       // aktueller Phasentext
 int  s_otaPct            = -1;       // 0..100, <0 = ohne Prozentzahl
 char s_otaLastPhase[40]  = "";       // letzte gezeichnete Phase (Voll- vs. Streifen-Refresh)
 
-// Per Tastatur editierbare Text-Zeilen (Enter startet, Enter speichert).
+// Text rows editable from the keyboard (Enter starts editing and saves).
 bool rowEditable(int row) {
   return row == ROW_NAME || row == ROW_WSSID || row == ROW_WPASS ||
          row == ROW_TIME || row == ROW_NAVURL || row == ROW_NAVUSER ||
@@ -135,33 +134,33 @@ bool rowEditable(int row) {
          row == ROW_CALUSER || row == ROW_CALPASS;
 }
 
-// Auto-Standby-Stufen (Minuten; 0 = Aus).
+// Auto-standby intervals in minutes (0 = off).
 const uint8_t kStandbySteps[] = {0, 2, 5, 10, 30};
 constexpr int kNumStandby = 5;
 
-// Zeitzonen-Presets (POSIX-TZ inkl. automatischer Sommerzeit). NTP/Mesh liefern
-// nur UTC; die Zone ist eine reine Anzeige-Einstellung.
+// Time-zone presets (POSIX TZ strings, including daylight saving time).
+// NTP and Mesh provide UTC only; the zone affects display only.
 struct TzPreset { const char* name; const char* tz; };
 const TzPreset kTz[] = {
   {"Berlin", "CET-1CEST,M3.5.0,M10.5.0/3"},
   {"London", "GMT0BST,M3.5.0/1,M10.5.0"},
   {"UTC",    "UTC0"},
-  {"Athen",  "EET-2EEST,M3.5.0/3,M10.5.0/4"},
+  {"Athens", "EET-2EEST,M3.5.0/3,M10.5.0/4"},
 };
 constexpr int kNumTz = (int)(sizeof(kTz) / sizeof(kTz[0]));
 
-// Presets (Quelle: MeshCore-Community; Narrow = Standard in DE/NRW,
-// identisch zu Daniels Repeater: 869,618 / 62,5 / SF8 / CR4-5).
+// Presets from the MeshCore community. Narrow matches the common
+// 869.618 / 62.5 / SF8 / CR4-5 configuration.
 struct Preset { const char* name; settings::MeshParams p; };
 const Preset kPresets[] = {
   {"EU Narrow",    {869.618f, 62.5f,  8, 5, 22}},
-  {"EU Klassisch", {869.525f, 250.0f, 11, 5, 22}},
+  {"EU Classic",  {869.525f, 250.0f, 11, 5, 22}},
 };
 constexpr int kNumPresets = 2;
 
 void markDirty() { appmgr::markDirty(); }
 
-// Passt der aktuelle Parametersatz zu einem Preset? (-1 = manuell)
+// Returns the matching preset, or -1 for a custom configuration.
 int matchPreset(const settings::MeshParams& p) {
   for (int i = 0; i < kNumPresets; i++) {
     const settings::MeshParams& q = kPresets[i].p;
@@ -171,14 +170,14 @@ int matchPreset(const settings::MeshParams& p) {
   return -1;
 }
 
-// Parameter speichern + live anwenden.
+// Save parameters and apply them immediately.
 void apply(const settings::MeshParams& p) {
   settings::setMeshParams(p);
   mesh_client::applyRadioParams();
   markDirty();
 }
 
-// Bandbreiten-Stufen (LoRa-üblich).
+// Common LoRa bandwidth values.
 float nextBw(float bw, int dir) {
   const float steps[] = {62.5f, 125.0f, 250.0f, 500.0f};
   int idx = 0;
@@ -189,15 +188,8 @@ float nextBw(float bw, int dir) {
   return steps[idx];
 }
 
-// Wert der Zeile ändern (dir = -1/+1).
+// Change the row value (dir = -1/+1).
 void changeRow(int row, int dir) {
-  if (row == ROW_LANG) {
-    int n = (int)i18n::Lang::COUNT;
-    int l = ((int)i18n::lang() + dir + n) % n;
-    i18n::setLang((i18n::Lang)l);
-    markDirty();
-    return;
-  }
   if (row == ROW_STANDBY) {
     uint8_t cur = settings::standbyMinutes();
     int idx = 0;
@@ -278,33 +270,32 @@ const char* rowName(int row) {
     case ROW_CR:       return i18n::tr(Str::LblCodingRate);
     case ROW_TX:       return i18n::tr(Str::LblTxPower);
     case ROW_NAME:     return i18n::tr(Str::LblName);
-    case ROW_LANG:     return i18n::tr(Str::SettingsLang);
     case ROW_STANDBY:  return i18n::tr(Str::LblStandby);
     case ROW_FONT:     return i18n::tr(Str::LblFontSize);
-    case ROW_TZ:       return "Zeitzone";
-    case ROW_TIME:     return "Zeit";
+    case ROW_TZ:       return "Time zone";
+    case ROW_TIME:     return "Time";
     case ROW_WSSID:    return i18n::tr(Str::LblWifiSsid);
     case ROW_WPASS:    return i18n::tr(Str::LblWifiPass);
-    case ROW_WDEL:     return "Loeschen";
-    case ROW_NAVON:    return "Scrobbeln";
+    case ROW_WDEL:     return "Delete";
+    case ROW_NAVON:    return "Scrobble";
     case ROW_NAVURL:   return "Server";
-    case ROW_NAVUSER:  return "Benutzer";
-    case ROW_NAVPASS:  return "Passwort";
-    case ROW_AION:     return "Schoenschreiben";
+    case ROW_NAVUSER:  return "Username";
+    case ROW_NAVPASS:  return "Password";
+    case ROW_AION:     return "Proofreading";
     case ROW_AIURL:    return "Server";
-    case ROW_AIMODEL:  return "Modell";
+    case ROW_AIMODEL:  return "Model";
     case ROW_OTAVER:   return "Version";
-    case ROW_OTAGO:    return "Aktualisieren";
-    case ROW_OTAURL:   return "Quelle";
+    case ROW_OTAGO:    return "Update";
+    case ROW_OTAURL:   return "Source";
     case ROW_TODOON:   return "Sync";
     case ROW_TODOURL:  return "Server";
-    case ROW_TODOUSER: return "Benutzer";
-    case ROW_TODOPASS: return "Passwort";
-    case ROW_TODOPATH: return "Pfad";
+    case ROW_TODOUSER: return "Username";
+    case ROW_TODOPASS: return "Password";
+    case ROW_TODOPATH: return "Path";
     case ROW_TODOAUTO: return "Auto-Sync";
     case ROW_CALAUTO:  return "Auto-Sync";
-    case ROW_CALUSER:  return "CalDAV-User";
-    case ROW_CALPASS:  return "CalDAV-Pass";
+    case ROW_CALUSER:  return "CalDAV user";
+    case ROW_CALPASS:  return "CalDAV password";
   }
   return "";
 }
@@ -328,9 +319,6 @@ void rowValue(int row, char* v, size_t n) {
       if (s_edit == ROW_NAME) snprintf(v, n, "%s_", s_editBuf);
       else                    settings::meshName(v, n);
       break;
-    case ROW_LANG:
-      snprintf(v, n, "%s", i18n::langName(i18n::lang()));
-      break;
     case ROW_STANDBY: {
       uint8_t m = settings::standbyMinutes();
       if (m == 0) snprintf(v, n, "%s", i18n::tr(i18n::Str::StandbyOff));
@@ -346,7 +334,7 @@ void rowValue(int row, char* v, size_t n) {
       settings::tzString(tz, sizeof(tz));
       int idx = -1;
       for (int i = 0; i < kNumTz; i++) if (strcmp(kTz[i].tz, tz) == 0) idx = i;
-      snprintf(v, n, "%s", idx >= 0 ? kTz[idx].name : "eigen");
+      snprintf(v, n, "%s", idx >= 0 ? kTz[idx].name : "Custom");
       break;
     }
     case ROW_TIME:
@@ -379,7 +367,7 @@ void rowValue(int row, char* v, size_t n) {
       snprintf(v, n, "%s", "");   // reine Aktionszeile
       break;
     case ROW_NAVON:
-      snprintf(v, n, "%s", settings::navEnabled() ? "An" : "Aus");
+      snprintf(v, n, "%s", settings::navEnabled() ? "On" : "Off");
       break;
     case ROW_NAVURL:
       if (s_edit == ROW_NAVURL) snprintf(v, n, "%s_", s_editBuf);
@@ -404,7 +392,7 @@ void rowValue(int row, char* v, size_t n) {
       }
       break;
     case ROW_AION:
-      snprintf(v, n, "%s", settings::aiEnabled() ? "An" : "Aus");
+      snprintf(v, n, "%s", settings::aiEnabled() ? "On" : "Off");
       break;
     case ROW_AIURL:
       if (s_edit == ROW_AIURL) snprintf(v, n, "%s_", s_editBuf);
@@ -421,9 +409,10 @@ void rowValue(int row, char* v, size_t n) {
       snprintf(v, n, "%s", FENNEK_VERSION);
       break;
     case ROW_OTAGO:
-      // Ready: "Neu: <ver>" (Footer sagt „Enter installiert"); sonst Status/„Pruefen".
+      // Ready: "New: <version>" (the footer says Enter installs it); otherwise
+      // show the status or "Check".
       if (s_otaStatus[0]) snprintf(v, n, "%s", s_otaStatus);
-      else                snprintf(v, n, "Pruefen");
+      else                snprintf(v, n, "Check");
       break;
     case ROW_OTAURL:
       if (s_edit == ROW_OTAURL) snprintf(v, n, "%s_", s_editBuf);
@@ -433,7 +422,7 @@ void rowValue(int row, char* v, size_t n) {
       }
       break;
     case ROW_TODOON:
-      snprintf(v, n, "%s", settings::todoEnabled() ? "An" : "Aus");
+      snprintf(v, n, "%s", settings::todoEnabled() ? "On" : "Off");
       break;
     case ROW_TODOURL:
       if (s_edit == ROW_TODOURL) snprintf(v, n, "%s_", s_editBuf);
@@ -452,10 +441,10 @@ void rowValue(int row, char* v, size_t n) {
       else { settings::todoPath(v, n); if (!v[0]) snprintf(v, n, "-"); }
       break;
     case ROW_TODOAUTO:
-      snprintf(v, n, "%s", settings::todoAutoSync() ? "An" : "Aus");
+      snprintf(v, n, "%s", settings::todoAutoSync() ? "On" : "Off");
       break;
     case ROW_CALAUTO:
-      snprintf(v, n, "%s", settings::calAutoSync() ? "An" : "Aus");
+      snprintf(v, n, "%s", settings::calAutoSync() ? "On" : "Off");
       break;
     case ROW_CALUSER:
       if (s_edit == ROW_CALUSER) snprintf(v, n, "%s_", s_editBuf);
@@ -497,7 +486,7 @@ void drawOtaFrame(Adafruit_GFX& g) {
   g.setTextColor(GxEPD_BLACK);
   g.setTextSize(2);
   g.setCursor(10, 50);
-  gui::print(g, "Firmware-Update");
+  gui::print(g, "Firmware update");
   g.drawFastHLine(0, 74, W, GxEPD_BLACK);
   g.setTextSize(1);
   g.setCursor(12, 112);
@@ -505,7 +494,7 @@ void drawOtaFrame(Adafruit_GFX& g) {
   if (s_otaPct >= 0) drawProgressBar(g);
   g.setTextSize(1);
   g.setCursor(12, 290);
-  gui::print(g, "Geraet NICHT ausschalten!");
+  gui::print(g, "Do NOT turn off the device!");
 }
 
 // Fortschritts-Callback (an ota::deviceCheck/deviceApply übergeben). Bei
@@ -536,10 +525,10 @@ void runOtaAction() {
       s_otaReady = false;
     } else if (r.updateAvail) {
       snprintf(s_otaUrl, sizeof(s_otaUrl), "%s", r.url);
-      snprintf(s_otaStatus, sizeof(s_otaStatus), "Neu: %s", r.latest);
+      snprintf(s_otaStatus, sizeof(s_otaStatus), "New: %s", r.latest);
       s_otaReady = true;
     } else {
-      snprintf(s_otaStatus, sizeof(s_otaStatus), "Aktuell");
+      snprintf(s_otaStatus, sizeof(s_otaStatus), "Up to date");
       s_otaReady = false;
     }
     markDirty();                     // Progress-Frame durch Settings-Screen ersetzen
@@ -549,7 +538,7 @@ void runOtaAction() {
   // Bereit → flashen. Erfolg rebootet (kehrt nicht zurück), Fehler fällt durch.
   char err[80] = "";
   ota::deviceApply(s_otaUrl, otaShow, err, sizeof(err));
-  snprintf(s_otaStatus, sizeof(s_otaStatus), "%s", err[0] ? err : "Fehlgeschlagen");
+  snprintf(s_otaStatus, sizeof(s_otaStatus), "%s", err[0] ? err : "Failed");
   s_otaReady = false;
   markDirty();
 }
@@ -595,7 +584,7 @@ void drawCatRow(Adafruit_GFX& g, int idx, int y) {
 void drawWifiListRow(Adafruit_GFX& g, int idx, int y) {
   char label[40];
   if (wifiIsNewRow(idx)) {
-    snprintf(label, sizeof(label), "+ Neues WLAN");
+    snprintf(label, sizeof(label), "+ Add Wi-Fi");
   } else {
     char ssid[33];
     settings::wifiSsidAt(idx, ssid, sizeof(ssid));
@@ -952,7 +941,7 @@ class SettingsApp : public App {
       // WLAN-Kategorie: dynamische Liste bekannter Netze + „Neu".
       g.setTextSize(1);
       g.setCursor(8, VP_TOP + 3);
-      gui::print(g, "\x11 WLAN (bekannte Netze)");           // 0x11 = ◄
+      gui::print(g, "\x11 Wi-Fi (known networks)");           // 0x11 = ◄
       g.drawFastHLine(0, VP_TOP + SEC_H - 1, W, GxEPD_BLACK);
       int y = VP_TOP + SEC_H;
       for (int i = 0; i < wifiListRows(); i++) { drawWifiListRow(g, i, y); y += ROW_H; }
@@ -963,7 +952,7 @@ class SettingsApp : public App {
       if (s_cat == CAT_WIFI) {
         char ssid[33];
         settings::wifiSsidAt(s_wifiIdx, ssid, sizeof(ssid));
-        snprintf(hdr, sizeof(hdr), "\x11 WLAN: %s", s_wifiAdding || !ssid[0] ? "neu" : ssid);
+        snprintf(hdr, sizeof(hdr), "\x11 Wi-Fi: %s", s_wifiAdding || !ssid[0] ? "new" : ssid);
       } else {
         snprintf(hdr, sizeof(hdr), "\x11 %s", catName(s_cat));
       }
@@ -981,10 +970,10 @@ class SettingsApp : public App {
     g.setTextSize(1);
     g.setCursor(FOOT_X, 278);
     if (s_edit >= 0)                gui::print(g, i18n::tr(Str::HintEnterSave));
-    else if (s_cat < 0)            gui::print(g, "Ordner oeffnen");
-    else if (inWifiList())         gui::print(g, wifiIsNewRow(s_sel) ? "Enter legt WLAN an" : "Enter oeffnet");
-    else if (curRow() == ROW_WDEL) gui::print(g, "Enter loescht");
-    else if (curRow() == ROW_OTAGO) gui::print(g, s_otaReady ? "Enter installiert" : "Enter prueft");
+    else if (s_cat < 0)            gui::print(g, "Enter opens category");
+    else if (inWifiList())         gui::print(g, wifiIsNewRow(s_sel) ? "Enter adds Wi-Fi" : "Enter opens");
+    else if (curRow() == ROW_WDEL) gui::print(g, "Enter deletes");
+    else if (curRow() == ROW_OTAGO) gui::print(g, s_otaReady ? "Enter installs" : "Enter checks");
     else if (curRow() == ROW_NAME) gui::print(g, i18n::tr(Str::HintNameEdit));
     else if (rowEditable(curRow())) gui::print(g, i18n::tr(Str::HintEdit));
     else                           gui::print(g, i18n::tr(Str::HintChange));

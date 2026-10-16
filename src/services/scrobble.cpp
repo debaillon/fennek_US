@@ -263,23 +263,23 @@ void loadFromSd() {
   spiLock();
   f.close();
   spiUnlock();
-  if (s_count) Serial.printf("[SCROBBLE] %d offene Eintraege geladen\n", s_count);
+  if (s_count) Serial.printf("[SCROBBLE] Loaded %d pending entries\n", s_count);
 }
 
 // Kern beider Flush-Wege. useBackoff nur für den Pre-Standby-Pfad.
 bool flushCore(bool useBackoff, char* logMsg, size_t logN) {
   auto setLog = [&](const char* m) { if (logMsg && logN) { strncpy(logMsg, m, logN - 1); logMsg[logN - 1] = '\0'; } };
 
-  if (!settings::navEnabled()) { setLog("Scrobbeln aus"); return true; }
-  if (pendingCount() == 0)     { setLog("nichts offen"); return true; }
+  if (!settings::navEnabled()) { setLog("Scrobbling is off"); return true; }
+  if (pendingCount() == 0)     { setLog("Nothing to process"); return true; }
 
   char base[128], user[64], pass[65];
   baseUrl(base, sizeof(base));
   settings::navUser(user, sizeof(user));
   settings::navPass(pass, sizeof(pass));
-  if (!base[0] || !user[0]) { setLog("Navidrome nicht konfiguriert"); return false; }
-  if (settings::wifiCount() == 0) { setLog("kein WLAN konfiguriert"); return false; }
-  if (webfm::state() != webfm::State::OFF) { setLog("WLAN belegt"); return false; }
+  if (!base[0] || !user[0]) { setLog("Navidrome is not configured"); return false; }
+  if (settings::wifiCount() == 0) { setLog("Wi-Fi is not configured"); return false; }
+  if (webfm::state() != webfm::State::OFF) { setLog("Wi-Fi is busy"); return false; }
 
   if (useBackoff) {
     uint32_t cur = timesync::now();
@@ -288,21 +288,21 @@ bool flushCore(bool useBackoff, char* logMsg, size_t logN) {
       uint32_t wait  = kBackoffBaseSecs << shift;
       if (wait > kBackoffMaxSecs) wait = kBackoffMaxSecs;
       if (cur - s_lastAttemptEpoch < wait) {
-        Serial.printf("[SCROBBLE] Pre-Standby-Upload uebersprungen (Back-off: %u "
-                      "Fehlschlaege, warte %lus)\n", (unsigned)s_failCount, (unsigned long)wait);
-        setLog("Back-off aktiv");
+        Serial.printf("[SCROBBLE] Pre-standby upload skipped (backoff: %u "
+                      "failures, wait %lus)\n", (unsigned)s_failCount, (unsigned long)wait);
+        setLog("Backoff active");
         return false;
       }
     }
     s_lastAttemptEpoch = cur;
   }
 
-  // WLAN-Regel (CLAUDE.md): Audio stoppen + Mesh-Pumpe pausieren (zentral in wifi).
+  // Wi-Fi policy (CLAUDE.md): stop audio and pause the Mesh pump in wifi.
   bool connected = wifi::connect(kConnectTimeoutMs);
 
   int uploaded = 0, failed = 0;
   if (connected) {
-    Serial.printf("[SCROBBLE] WLAN verbunden, lade %d Eintraege hoch ...\n", pendingCount());
+    Serial.printf("[SCROBBLE] Wi-Fi connected; uploading %d entries ...\n", pendingCount());
     // Snapshot (während WLAN an ist, ist Audio gestoppt → keine neuen enqueues).
     xSemaphoreTake(s_mutex, portMAX_DELAY);
     int n = s_count;
@@ -314,7 +314,7 @@ bool flushCore(bool useBackoff, char* logMsg, size_t logN) {
     for (int i = 0; i < n; i++) {
       ok[i] = uploadOne(snap[i], base, user, pass);
       if (ok[i]) uploaded++; else failed++;
-      Serial.printf("[SCROBBLE] %s: %s\n", snap[i].path, ok[i] ? "OK" : "Fehler");
+      Serial.printf("[SCROBBLE] %s: %s\n", snap[i].path, ok[i] ? "OK" : "Error");
     }
 
     // Ring neu aufbauen = gescheiterte Einträge + evtl. währenddessen neu
@@ -344,8 +344,8 @@ bool flushCore(bool useBackoff, char* logMsg, size_t logN) {
   }
 
   char m[48];
-  if (!connected) snprintf(m, sizeof(m), "WLAN-Fehler");
-  else            snprintf(m, sizeof(m), "%d hochgeladen, %d offen", uploaded, failed);
+  if (!connected) snprintf(m, sizeof(m), "Wi-Fi error");
+  else            snprintf(m, sizeof(m), "%d uploaded, %d pending", uploaded, failed);
   setLog(m);
   Serial.printf("[SCROBBLE] %s\n", m);
   return connected && uploaded > 0;
@@ -412,15 +412,15 @@ bool ping(char* msg, size_t msgN) {
   baseUrl(base, sizeof(base));
   settings::navUser(user, sizeof(user));
   settings::navPass(pass, sizeof(pass));
-  if (!base[0] || !user[0]) { setMsg("Navidrome nicht konfiguriert"); return false; }
-  if (settings::wifiCount() == 0) { setMsg("kein WLAN konfiguriert"); return false; }
-  if (webfm::state() != webfm::State::OFF) { setMsg("WLAN belegt"); return false; }
+  if (!base[0] || !user[0]) { setMsg("Navidrome is not configured"); return false; }
+  if (settings::wifiCount() == 0) { setMsg("Wi-Fi is not configured"); return false; }
+  if (webfm::state() != webfm::State::OFF) { setMsg("Wi-Fi is busy"); return false; }
 
-  if (!wifi::connect(kConnectTimeoutMs)) { setMsg("WLAN-Fehler"); return false; }
+  if (!wifi::connect(kConnectTimeoutMs)) { setMsg("Wi-Fi error"); return false; }
   String url = String(base) + "/rest/ping.view?" + authQuery(user, pass);
   String body;
   bool ok = httpGet(url, body) && bodyOk(body);
-  setMsg(ok ? "Verbindung OK" : "Server-Fehler (Auth/URL?)");
+  setMsg(ok ? "Connection OK" : "Server error (auth/URL?)");
   wifi::disconnect();
   return ok;
 }

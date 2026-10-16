@@ -72,7 +72,7 @@ class GyroApp : public App {
       drawCentered(g, TOP + 90, "BHI260 Firmware laedt", 2);
       drawCentered(g, TOP + 118, "(~10 s, einmalig)", 1);
     } else if (s_phase == FAILED) {
-      drawCentered(g, TOP + 100, "Sensor nicht verfuegbar", 2);
+      drawCentered(g, TOP + 100, "Sensor unavailable", 2);
     } else {
       const gyro::Data& d = gyro::current();
       char l[40];

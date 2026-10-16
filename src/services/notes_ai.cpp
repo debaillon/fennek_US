@@ -44,17 +44,15 @@ constexpr uint32_t kConnectTimeoutMs = 15000;
 constexpr uint16_t kGenTimeoutMs     = 65000;   // LLM-Generierung kann dauern
 constexpr uint32_t kReadTimeoutMs    = 30000;
 
-// System-Prompt: so WENIG wie moeglich aendern. Der Weg zu Ollama ist reines
-// UTF-8/HTTP (keine CP437-Wandlung wie beim Display) — daher echte Umlaute.
-// Ziel: nur Rechtschreibung/Umlaute/Zeichensetzung korrigieren, NICHT umdichten.
+// System prompt: change as little as possible. Requests use UTF-8 over HTTP,
+// unlike display text, which is converted to CP437.
 const char* kSystem =
-  "Du bist ein behutsamer Korrekturleser. Korrigiere in der folgenden Notiz nur "
-  "Rechtschreibung (besonders fehlende Umlaute wie ä/ö/ü/ß), Tippfehler und "
-  "Zeichensetzung. Behalte Wortwahl, Satzbau, Reihenfolge und den Stil der "
-  "Notiz so weit wie möglich bei — formuliere NICHT um und gliedere nicht neu. "
-  "Nur wenn ein Satz sonst unverständlich bliebe, ergänze minimal das Nötigste. "
-  "Erfinde keine Inhalte und lasse nichts weg. Antworte ausschließlich mit dem "
-  "korrigierten Notiztext, ohne Einleitung, Erklärungen oder Anführungszeichen.";
+  "You are a careful proofreader. Correct only spelling, typos, and "
+  "punctuation in the following note. Preserve its word choice, sentence "
+  "structure, order, and style as much as possible; do not rephrase or "
+  "reorganize it. Only add the minimum necessary wording if a sentence would "
+  "otherwise be unclear. Do not invent or omit content. Reply only with the "
+  "corrected note, without an introduction, explanation, or quotation marks.";
 
 // Back-off fuer den Pre-Standby-Lauf (RTC-RAM ueberlebt Deep Sleep), analog zu
 // services/scrobble.cpp.
@@ -465,27 +463,27 @@ int collectPending(Done* done, int doneN, char (*cand)[kFileLen], int* total) {
 bool flushCore(bool useBackoff, char* log, size_t logN) {
   auto setLog = [&](const char* m){ if (log && logN) { strncpy(log, m, logN-1); log[logN-1]='\0'; } };
 
-  if (!settings::aiEnabled()) { setLog("KI aus"); return true; }
+  if (!settings::aiEnabled()) { setLog("AI is off"); return true; }
 
   char base[128], model[48], ssid[33], wpass[65];
   baseUrl(base, sizeof(base));
   settings::aiModel(model, sizeof(model));
   settings::wifiSsid(ssid, sizeof(ssid));
   settings::wifiPass(wpass, sizeof(wpass));
-  if (!base[0])  { setLog("Ollama nicht konfiguriert"); return false; }
-  if (!ssid[0])  { setLog("kein WLAN konfiguriert"); return false; }
-  if (!board::sdReady()) { setLog("keine SD-Karte"); return false; }
-  if (webfm::state() != webfm::State::OFF) { setLog("WLAN belegt"); return false; }
+  if (!base[0])  { setLog("Ollama is not configured"); return false; }
+  if (!ssid[0])  { setLog("Wi-Fi is not configured"); return false; }
+  if (!board::sdReady()) { setLog("No SD card"); return false; }
+  if (webfm::state() != webfm::State::OFF) { setLog("Wi-Fi is busy"); return false; }
 
   Done* done = (Done*)heap_caps_malloc(sizeof(Done) * kMaxDone, MALLOC_CAP_SPIRAM);
   if (!done) done = (Done*)malloc(sizeof(Done) * kMaxDone);
-  if (!done) { setLog("kein Speicher"); return false; }
+  if (!done) { setLog("Out of memory"); return false; }
   int doneN = loadDone(done, kMaxDone);
 
   char cand[kMaxPerRun][kFileLen];
   int total = 0;
   int nc = collectPending(done, doneN, cand, &total);
-  if (total == 0) { free(done); setLog("nichts offen"); return true; }
+  if (total == 0) { free(done); setLog("Nothing to process"); return true; }
 
   // Back-off-Gate erst, wenn wirklich Arbeit ansteht.
   if (useBackoff) {
@@ -495,22 +493,22 @@ bool flushCore(bool useBackoff, char* log, size_t logN) {
       uint32_t wait  = kBackoffBaseSecs << shift;
       if (wait > kBackoffMaxSecs) wait = kBackoffMaxSecs;
       if (cur - s_lastAttemptEpoch < wait) {
-        Serial.printf("[NOTESAI] Pre-Standby uebersprungen (Back-off: %u Fehlschlaege, "
-                      "warte %lus)\n", (unsigned)s_failCount, (unsigned long)wait);
-        free(done); setLog("Back-off aktiv"); return false;
+        Serial.printf("[NOTESAI] Pre-standby run skipped (backoff: %u failures, "
+                      "wait %lus)\n", (unsigned)s_failCount, (unsigned long)wait);
+        free(done); setLog("Backoff active"); return false;
       }
     }
     s_lastAttemptEpoch = cur;
   }
 
   if (nc < total)
-    Serial.printf("[NOTESAI] %d von %d offenen Notizen in diesem Lauf (Rest folgt)\n", nc, total);
+    Serial.printf("[NOTESAI] Processing %d of %d open notes this run (remaining notes will follow)\n", nc, total);
 
   if (!wifiUp(ssid, wpass)) {
     wifiDown();
     free(done);
     if (useBackoff && s_failCount < 0xFF) s_failCount++;
-    setLog("WLAN-Fehler");
+    setLog("Wi-Fi error");
     return false;
   }
 
@@ -519,7 +517,7 @@ bool flushCore(bool useBackoff, char* log, size_t logN) {
   char* note = (char*)heap_caps_malloc(kNoteCap, MALLOC_CAP_SPIRAM);
   int polished = 0, failed = 0;
   if (body && resp && note) {
-    Serial.printf("[NOTESAI] WLAN verbunden, poliere %d Notiz(en) ...\n", nc);
+    Serial.printf("[NOTESAI] Wi-Fi connected; proofreading %d note(s) ...\n", nc);
     for (int i = 0; i < nc; i++) {
       int len = readNote(cand[i], note, kNoteCap);
       if (len == 0) continue;                       // leere/fehlende Notiz uebergehen
@@ -535,15 +533,15 @@ bool flushCore(bool useBackoff, char* log, size_t logN) {
           strncpy(done[di].file, cand[i], kFileLen - 1); done[di].file[kFileLen-1]='\0';
         }
         if (di >= 0) hashBuf(note, outLen, done[di].hash);
-        Serial.printf("[NOTESAI] %s: poliert (%d B)\n", cand[i], outLen);
+        Serial.printf("[NOTESAI] %s: proofread (%d B)\n", cand[i], outLen);
       } else {
         failed++;
-        Serial.printf("[NOTESAI] %s: Fehler\n", cand[i]);
+        Serial.printf("[NOTESAI] %s: error\n", cand[i]);
       }
     }
   } else {
     failed = nc;
-    Serial.println("[NOTESAI] kein PSRAM fuer Puffer");
+    Serial.println("[NOTESAI] No PSRAM for buffer");
   }
 
   wifiDown();
@@ -560,7 +558,7 @@ bool flushCore(bool useBackoff, char* log, size_t logN) {
   }
 
   char m[64];
-  snprintf(m, sizeof(m), "%d poliert, %d Fehler (%d offen)", polished, failed, total - polished);
+  snprintf(m, sizeof(m), "%d proofread, %d errors (%d remaining)", polished, failed, total - polished);
   setLog(m);
   Serial.printf("[NOTESAI] %s\n", m);
   return failed == 0;
@@ -598,11 +596,11 @@ bool ping(char* msg, size_t msgN) {
   baseUrl(base, sizeof(base));
   settings::wifiSsid(ssid, sizeof(ssid));
   settings::wifiPass(wpass, sizeof(wpass));
-  if (!base[0]) { setMsg("Ollama nicht konfiguriert"); return false; }
-  if (!ssid[0]) { setMsg("kein WLAN konfiguriert"); return false; }
-  if (webfm::state() != webfm::State::OFF) { setMsg("WLAN belegt"); return false; }
+  if (!base[0]) { setMsg("Ollama is not configured"); return false; }
+  if (!ssid[0]) { setMsg("Wi-Fi is not configured"); return false; }
+  if (webfm::state() != webfm::State::OFF) { setMsg("Wi-Fi is busy"); return false; }
 
-  if (!wifiUp(ssid, wpass)) { wifiDown(); setMsg("WLAN-Fehler"); return false; }
+  if (!wifiUp(ssid, wpass)) { wifiDown(); setMsg("Wi-Fi error"); return false; }
 
   String url = String(base) + "/api/tags";
   bool https = url.startsWith("https");
@@ -615,10 +613,10 @@ bool ping(char* msg, size_t msgN) {
     http.setTimeout(kConnectTimeoutMs);
     int code = http.GET();
     ok = (code == 200);
-    setMsg(ok ? "Verbindung OK" : "Server-Fehler (URL/Port?)");
+    setMsg(ok ? "Connection OK" : "Server error (URL/port?)");
     http.end();
   } else {
-    setMsg("Server-Fehler (URL/Port?)");
+    setMsg("Server error (URL/port?)");
   }
   wifiDown();
   return ok;

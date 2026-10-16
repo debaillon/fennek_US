@@ -165,7 +165,7 @@ void drawSyncing(Adafruit_GFX& g) {
   gui::printAt(g, 10, 110, "Synchronisiere ...", 2);
   if (s_syncFeedName[0]) gui::printAt(g, 10, 140, s_syncFeedName, 1);
   drawSyncProgressStrip(g);
-  gui::printAt(g, 10, SYNC_STRIP_Y + SYNC_STRIP_H + 4, "WLAN aktiv - bitte warten", 1);
+  gui::printAt(g, 10, SYNC_STRIP_Y + SYNC_STRIP_H + 4, "Wi-Fi active - please wait", 1);
 }
 
 void drawList(Adafruit_GFX& g) {
@@ -179,9 +179,9 @@ void drawList(Adafruit_GFX& g) {
     return;
   }
   if (s_n <= 0) {
-    gui::printAt(g, 10, 80, "Keine Feeds", 2);
+    gui::printAt(g, 10, 80, "No feeds", 2);
     gui::printAt(g, 10, 110, "/podcasts/feeds.txt", 1);
-    gui::printAt(g, 10, 124, "per WebFM bearbeiten", 1);
+    gui::printAt(g, 10, 124, "Edit via WebFM", 1);
     gui::drawButton(g, kRetrySD, i18n::tr(i18n::Str::BtnRetrySD), false);
     return;
   }
@@ -265,8 +265,8 @@ void drawDetail(Adafruit_GFX& g) {
   if (s_haveLocal && s_local.title[0]) {
     drawWrapped(g, 6, HEADER_H + 10, W - 12, s_local.title, 2, 3);
   } else {
-    gui::printAt(g, 6, HEADER_H + 10, "Keine Folge geladen", 2);
-    gui::printAt(g, 6, HEADER_H + 34, "\"Sync\" laedt die neueste.", 1);
+    gui::printAt(g, 6, HEADER_H + 10, "No episode loaded", 2);
+    gui::printAt(g, 6, HEADER_H + 34, "Use \"Sync\" to get the latest.", 1);
   }
 
   if (s_haveLocal) drawTimeAndBar(g, st);
@@ -275,7 +275,7 @@ void drawDetail(Adafruit_GFX& g) {
   gui::drawButton(g, kBtnPlay, (st.playing && !st.paused && mine) ? "||" : ">", s_haveLocal);
   gui::drawButton(g, kBtnFwd30, "30>", false);
   gui::drawButton(g, kBtnSync, "Sync", false);
-  gui::drawButton(g, kBtnList, "Liste", false);
+  gui::drawButton(g, kBtnList, "List", false);
 }
 
 // --- Interaktion --------------------------------------------------------------

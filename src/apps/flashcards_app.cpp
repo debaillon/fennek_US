@@ -2,10 +2,11 @@
 // Copyright (C) 2026 Dr. Daniel Dumke
 
 // =============================================================================
-// flashcards_app.cpp — "Karteikarten": Decks von der SD lernen (Leitner).
+// flashcards_app.cpp — study flashcard decks from the SD card (Leitner system).
 //
 // Decks liegen als Textdateien unter /flashcards/*.txt (oder .tsv), eine Karte
-// pro Zeile "Vorderseite<TAB>Rückseite" (oder "... | ..."), '#' = Kommentar.
+// One card per line: "front<TAB>back" (or "... | ..."); lines starting with
+// '#' are comments.
 // Lernfortschritt je Deck unter /flashcards/.progress/<deck>.bin (Karten über
 // flashcards::cardKey(front) referenziert -> übersteht Umsortieren des Decks).
 //
@@ -217,7 +218,7 @@ void saveProgress() {
   }
   spiLock(); f.close(); spiUnlock();
   if (ok) s_progDirty = false;
-  Serial.printf("[CARDS] Fortschritt %s (%s, %d Karten)\n",
+  Serial.printf("[CARDS] Progress %s (%s, %d cards)\n",
                 s_deckName, ok ? "ok" : "FEHLER", s_cardCount);
 }
 
@@ -263,7 +264,7 @@ void parseDeckFile() {
   }
   if (ll > 0 && s_cardCount < kMaxCards) commit();   // letzte Zeile ohne '\n'
   spiLock(); f.close(); spiUnlock();
-  Serial.printf("[CARDS] Deck %s: %d Karten\n", s_deckName, s_cardCount);
+  Serial.printf("[CARDS] Deck %s: %d cards\n", s_deckName, s_cardCount);
 }
 
 // Warteschlange für eine Übung bauen: fällige Karten sammeln (ohne gestellte
@@ -375,15 +376,15 @@ void deckListDraw(Adafruit_GFX& g) {
   g.drawLine(0, HEADER_H, W, HEADER_H, GxEPD_BLACK);
 
   if (s_deckCount < 0 || !board::sdReady()) {
-    gui::printAt(g, 20, 80, "Keine SD-Karte", 2);
-    gui::drawButton(g, kRetrySD, "Erneut suchen", true);
+    gui::printAt(g, 20, 80, "No SD card", 2);
+    gui::drawButton(g, kRetrySD, "Search again", true);
     return;
   }
   if (s_deckCount == 0) {
-    gui::printAt(g, 14, 70, "Keine Decks in", 2);
+    gui::printAt(g, 14, 70, "No decks in", 2);
     gui::printAt(g, 14, 96, "/flashcards", 2);
     gui::printAt(g, 14, 130, "Deck = Textdatei,", 1);
-    gui::printAt(g, 14, 144, "Zeile: vorn<TAB>hinten", 1);
+    gui::printAt(g, 14, 144, "Line format: front<TAB>back", 1);
     return;
   }
   for (int i = 0; i < VISIBLE && s_off + i < s_deckCount; i++) {
@@ -417,7 +418,7 @@ void statsDraw(Adafruit_GFX& g) {
 
   if (s_cardCount == 0) {
     gui::printAt(g, 14, 90, "Deck ist leer", 2);
-    gui::drawButton(g, kStatsBack, "Zurueck", true);
+    gui::drawButton(g, kStatsBack, "Back", true);
     return;
   }
 
@@ -436,7 +437,7 @@ void statsDraw(Adafruit_GFX& g) {
 
   char s[40];
   int y = LIST_Y + 4;
-  snprintf(s, sizeof(s), "Karten: %d", s_cardCount);
+  snprintf(s, sizeof(s), "Cards: %d", s_cardCount);
   gui::printAt(g, 12, y, s, 2); y += 24;
   snprintf(s, sizeof(s), "Bearbeitet: %d", seen);
   gui::printAt(g, 12, y, s, 2); y += 24;
@@ -445,7 +446,7 @@ void statsDraw(Adafruit_GFX& g) {
   gui::printAt(g, 12, y, s, 2); y += 30;
 
   // Balken je Leitner-Fach (Label = Wiedervorlage-Intervall in Tagen).
-  static const char* kBoxLabel[flashcards::kBoxCount] = {"neu", "1T", "3T", "7T", "16T"};
+  static const char* kBoxLabel[flashcards::kBoxCount] = {"new", "1d", "3d", "7d", "16d"};
   int maxCnt = 1;
   for (int b = 0; b < flashcards::kBoxCount; b++)
     if (boxCnt[b] > maxCnt) maxCnt = boxCnt[b];
@@ -463,8 +464,8 @@ void statsDraw(Adafruit_GFX& g) {
     g.setTextColor(GxEPD_BLACK);
   }
 
-  gui::drawButton(g, kStudyBtn,  "Lernen",  true);
-  gui::drawButton(g, kStatsBack, "Zurueck", false);
+  gui::drawButton(g, kStudyBtn,  "Study",  true);
+  gui::drawButton(g, kStatsBack, "Back", false);
 }
 
 void studyDraw(Adafruit_GFX& g) {
@@ -487,7 +488,7 @@ void studyDraw(Adafruit_GFX& g) {
     gui::drawButton(g, kWrong, "Falsch", false);
     gui::drawButton(g, kRight, "Gewusst", true);
   } else {
-    gui::drawButton(g, kReveal, "Antwort zeigen", true);
+    gui::drawButton(g, kReveal, "Show answer", true);
   }
 }
 
@@ -499,15 +500,15 @@ void doneDraw(Adafruit_GFX& g) {
     gui::printAt(g, 14, 80, "Deck ist leer", 2);
   } else if (s_seen == 0) {
     gui::printAt(g, 14, 80, "Nichts faellig.", 2);
-    gui::printAt(g, 14, 110, "Spaeter wieder", 1);
-    gui::printAt(g, 14, 124, "vorbeischauen.", 1);
+    gui::printAt(g, 14, 110, "Review later", 1);
+    gui::printAt(g, 14, 124, "to review later.", 1);
   } else {
     gui::printAt(g, 14, 80, "Fertig!", 3);
     char s[48];
     snprintf(s, sizeof(s), "Gewusst: %d / %d", s_correct, s_seen);
     gui::printAt(g, 14, 130, s, 2);
   }
-  gui::drawButton(g, Rect{20, 250, 200, 50}, "Zurueck", true);
+  gui::drawButton(g, Rect{20, 250, 200, 50}, "Back", true);
 }
 
 // =============================================================================

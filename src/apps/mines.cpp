@@ -65,9 +65,9 @@ void noteResult() {
   s_elapsedSec = s_startMs ? (millis() - s_startMs) / 1000 : 0;
   if (s_field.state == mines::WON) {
     settings::setMinesResult(true, (uint16_t)s_elapsedSec);
-    Serial.printf("[GAME] Minensucher: gewonnen in %lu s\n", (unsigned long)s_elapsedSec);
+    Serial.printf("[GAME] Minesweeper: won in %lu s\n", (unsigned long)s_elapsedSec);
   } else {
-    Serial.println("[GAME] Minensucher: Mine erwischt");
+    Serial.println("[GAME] Minesweeper: hit a mine");
   }
 }
 
@@ -79,7 +79,7 @@ void revealAt(int idx) {
   } else {
     mines::reveal(s_field, idx);
   }
-  Serial.printf("[GAME] Minensucher: Zelle %d, offen=%u\n", idx, s_field.revealed);
+  Serial.printf("[GAME] Minesweeper: cell %d, revealed=%u\n", idx, s_field.revealed);
   noteResult();
   appmgr::markDirty();
 }

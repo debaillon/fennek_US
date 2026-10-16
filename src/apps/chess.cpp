@@ -96,7 +96,7 @@ void aiTaskFn(void*) {
   int score = 0;
   uint32_t nodes = 0;
   bool ok = chess::search(s_aiPos, s_aiDepth, s_aiLimit, &mv, &score, &nodes);
-  Serial.printf("[GAME] Schach-KI: Tiefe %d, %lu Knoten, %lu ms, Score %d\n",
+  Serial.printf("[GAME] Chess AI: depth %d, %lu nodes, %lu ms, score %d\n",
                 s_aiDepth, (unsigned long)nodes, (unsigned long)(millis() - t0), score);
   if (gen == s_aiGen) {
     s_aiMove = mv;
@@ -117,7 +117,7 @@ void startThinking() {
   // 24 KB Stack: Negamax kopiert pro Ebene Stellung + Zugliste (~1 KB/Ebene).
   if (xTaskCreatePinnedToCore(aiTaskFn, "chess_ai", 24576, nullptr, 1, nullptr, 1) != pdPASS) {
     s_thinking = false;
-    Serial.println("[GAME] Schach-KI: Task-Start FEHLGESCHLAGEN");
+    Serial.println("[GAME] Chess AI: task start FAILED");
   }
   appmgr::markDirty();   // "Fennek denkt…" anzeigen
 }
@@ -189,7 +189,7 @@ void trainerTaskFn(void*) {
   chess::MoveEval ev{};
   uint32_t t0 = millis();
   bool ok = chess::analyzeMove(s_analyzeBefore, s_analyzePlayed, s_aiDepth, s_aiLimit, &ev);
-  Serial.printf("[GAME] Trainer-Analyse: %lu ms, Verlust %d cp, Klasse %d\n",
+  Serial.printf("[GAME] Coach analysis: %lu ms, loss %d cp, class %d\n",
                 (unsigned long)(millis() - t0), ok ? ev.lossCp : -1, ok ? ev.cls : -1);
   if (gen == s_aiGen) {
     s_eval = ev;
@@ -211,7 +211,7 @@ void startTrainerAnalysis() {
   if (xTaskCreatePinnedToCore(trainerTaskFn, "chess_tr", 24576, nullptr, 1, nullptr, 1) != pdPASS) {
     s_thinking = false;
     s_analyzing = false;
-    Serial.println("[GAME] Trainer-Analyse: Task-Start FEHLGESCHLAGEN");
+    Serial.println("[GAME] Coach analysis: task start FAILED");
   }
   appmgr::markDirty();
 }
@@ -252,7 +252,7 @@ void updateResult() {
     }
   }
   if (s_result) {
-    Serial.printf("[GAME] Schach: %s\n", s_resultText);
+    Serial.printf("[GAME] Chess: %s\n", s_resultText);
     if (s_mode == 0 &&
         ((s_result == 1 && s_human > 0) || (s_result == 2 && s_human < 0)))
       settings::addChessWin();
@@ -298,7 +298,7 @@ void newGame() {
   settings::setChessGame(nullptr, 0);
   s_dirtySave = true;
   s_sub = BOARD;
-  Serial.printf("[GAME] Schach: neue Partie (%s, Stufe %s)\n",
+  Serial.printf("[GAME] Chess: new game (%s, level %s)\n",
                 s_mode ? "2 Spieler" : "gegen Fennek", i18n::tr(kLevelName[s_level]));
   maybeStartAi();
   appmgr::markDirty();
@@ -321,7 +321,7 @@ bool loadGame() {
   s_haveEval = false;   // Feedback bezieht sich auf einen Zug dieser Sitzung
   refreshLegal();
   updateResult();
-  Serial.println("[GAME] Schach: Partie aus NVS geladen");
+  Serial.println("[GAME] Chess: game loaded from NVS");
   return true;
 }
 
@@ -652,7 +652,7 @@ void leave() {
   b.human = s_human;
   settings::setChessGame(&b, sizeof(b));
   s_dirtySave = false;
-  Serial.println("[GAME] Schach: Partie ins NVS gesichert");
+  Serial.println("[GAME] Chess: game saved to NVS");
 }
 
 void tick() {

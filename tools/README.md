@@ -1,43 +1,45 @@
 # tools/
 
-Hilfswerkzeuge außerhalb des Firmware-Builds (werden **nicht** mitgeflasht).
+Host-side tools outside the firmware build; these are **not** flashed to the device.
 
-## Screenshots (ohne Gerät)
+## Screenshots (without the device)
 
-E-Ink hat keinen „OS-Screenshot". Statt den Framebuffer vom Gerät zu dumpen,
-rendert `screenshot.cpp` die Bildschirme **host-seitig** mit demselben
-Adafruit-GFX-Zeichencode und denselben CP437-Fonts wie die Firmware in einen
-`GFXcanvas1` (240×320, 1 Bit) — das Ergebnis ist **pixelgenau** zur Anzeige,
-nur mit Beispiel-Daten.
+E-Ink has no operating-system screenshot facility. Instead of dumping the
+device framebuffer, `screenshot.cpp` renders the screens on the host using the
+same Adafruit-GFX drawing code and CP437 fonts as the firmware, into a
+`GFXcanvas1` (240×320, 1 bit). The result is **pixel-accurate** to the display,
+using sample data.
 
-Die Texte kommen aus derselben i18n-Tabelle wie die Firmware (`core/i18n.h`),
-die Sprache wählt das 2. Argument des Renderers — `screenshots.sh` erzeugt pro
-Sprache einen Unterordner `docs/screenshots/<sprache>/` (je eine README-Sprache).
+Text comes from the same i18n table as the firmware (`core/i18n.h`). The
+renderer’s second argument selects the language. `screenshots.sh` creates a
+subdirectory per language under `docs/screenshots/<language>/` (one README
+language per folder).
 
 ```bash
-pio run -e fennek        # einmalig, damit Adafruit-GFX unter .pio/libdeps/ liegt
+pio run -e fennek        # once, so Adafruit-GFX is available under .pio/libdeps/
 bash tools/screenshots.sh            # -> docs/screenshots/{en,de,sv}/*.png (2x)
-bash tools/screenshots.sh 3          # andere Skalierung
-bash tools/screenshots.sh 2 en es    # nur bestimmte Sprachen (de/it/sv/en/es)
+bash tools/screenshots.sh 3          # use a different scale
+bash tools/screenshots.sh 2 en es    # render selected languages (de/it/sv/en/es)
 ```
 
-Bestandteile:
+Components:
 
-- `screenshot.cpp` — rendert Launcher, Musik-Player, Tic-Tac-Toe, Einstellungen
-  und Standby. Die Zeichen-Bodies sind 1:1 aus den Quellen gespiegelt (Launcher
-  `apps/launcher.cpp`, TTT `apps/ttt.cpp`, Player `apps/music_app.cpp`,
-  Einstellungen `apps/settings_app.cpp`, Standby `core/power.cpp`), weil die
-  echten `draw()` in anonymen Namespaces bzw. hinter Geräte-Zustand liegen. Gemeinsame Helfer (`core/gui.cpp`, das Bitmap
-  `core/sleep_img.h`) und der Adafruit-GFX-Code werden direkt verlinkt.
-- `hostshim/` — minimaler Arduino-/Print-/pgmspace-Shim, damit Adafruit-GFX am
-  PC kompiliert (`GxEPD2_BW.h` liefert nur die Farbkonstanten).
-- `make_screenshots.py` — skaliert die PGMs und exportiert PNGs (braucht Pillow).
-- `screenshots.sh` — Orchestrator (kompilieren → rendern → PNG).
+- `screenshot.cpp` — renders the launcher, music player, Tic-Tac-Toe, settings,
+  and standby screens. The drawing bodies mirror the source code because the
+  real `draw()` functions are in anonymous namespaces or depend on device
+  state: launcher `apps/launcher.cpp`, TTT `apps/ttt.cpp`, player
+  `apps/music_app.cpp`, settings `apps/settings_app.cpp`, and standby
+  `core/power.cpp`. Shared helpers (`core/gui.cpp` and the bitmap
+  `core/sleep_img.h`) and Adafruit-GFX are linked directly.
+- `hostshim/` — minimal Arduino/Print/pgmspace shims so Adafruit-GFX can be
+  compiled on a PC (`GxEPD2_BW.h` provides only the color constants).
+- `make_screenshots.py` — scales the PGMs and exports PNGs (requires Pillow).
+- `screenshots.sh` — orchestrates compilation, rendering, and PNG export.
 
-> Hinweis: Ändert sich Layout/Text einer App, müssen die gespiegelten Bodies in
-> `screenshot.cpp` nachgezogen und die Screenshots neu erzeugt werden.
+> When an app’s layout or text changes, update the mirrored drawing bodies in
+> `screenshot.cpp` and regenerate the screenshots.
 
-## Host-Tests
+## Host tests
 
-- `host_test_games.cpp` — Unit-Tests der Arduino-freien Spiele-Cores
-  (2048/Minensucher/Schach/TTT). Aufruf siehe Dateikopf.
+- `host_test_games.cpp` — unit tests for the Arduino-free game cores
+  (2048/Minesweeper/Chess/Tic-Tac-Toe). See the file header for how to run them.

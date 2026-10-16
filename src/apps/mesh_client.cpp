@@ -269,7 +269,7 @@ void loadHistoryFromSd() {
     loaded++;
   }
   free(buf);
-  if (loaded) Serial.printf("[MESH] %d Nachricht(en) aus SD-Log geladen\n", loaded);
+  if (loaded) Serial.printf("[MESH] Loaded %d message(s) from SD log\n", loaded);
 }
 
 // Base64-Encoder (nur fürs Hashtag-Channel-PSK; base64.hpp ist nicht
@@ -323,7 +323,7 @@ public:
     // und den 2038-Signed-Overflow von time_t: implausible Zeiten (>=2038) nie
     // übernehmen — sonst verewigt sich der Müll über den NVS-Fallback.
     if (t >= 2145916800UL) {   // 2038-01-01 UTC
-      Serial.printf("[TIME] Verwerfe implausible Uhrzeit %lu (>=2038)\n", (unsigned long)t);
+      Serial.printf("[TIME] Rejecting implausible time %lu (>=2038)\n", (unsigned long)t);
       return;
     }
     struct timeval tv = { (time_t)t, 0 };
@@ -363,7 +363,7 @@ class MeshClient : public BaseChatMesh {
     File file;
     if (board::sdReady() && SD.exists(kContactsSdPath)) {
       file = SD.open(kContactsSdPath);
-      if (file) Serial.println("[MESH] Kontakte von SD geladen (/meshcore/contacts.bin)");
+      if (file) Serial.println("[MESH] Loaded contacts from SD (/meshcore/contacts.bin)");
     }
     if (!file) {
       if (!_fs->exists("/contacts")) return;
@@ -403,7 +403,7 @@ class MeshClient : public BaseChatMesh {
     // Bereinigten Stand zurückschreiben (SPIFFS sofort, SD deferred über loop()),
     // damit der Müll nicht beim nächsten Speichern wieder verstetigt wird.
     if (skipped > 0) {
-      Serial.printf("[MESH] %d korrupte Kontakte verworfen\n", skipped);
+      Serial.printf("[MESH] Discarded %d corrupt contacts\n", skipped);
       saveContacts();
     }
   }
@@ -461,7 +461,7 @@ protected:
 
   void onDiscoveredContact(ContactInfo& contact, bool is_new, uint8_t path_len,
                            const uint8_t* path) override {
-    Serial.printf("[MESH] Advert von '%s'%s\n", contact.name, is_new ? " (neu)" : "");
+    Serial.printf("[MESH] Received advertisement from '%s'%s\n", contact.name, is_new ? " (new)" : "");
     // Uhr opportunistisch aus (signierten) Adverts synchronisieren — das
     // Gerät hat keine gepufferte RTC; ohne echte Zeit tragen unsere
     // Nachrichten veraltete Timestamps und werden von Bots ignoriert.
@@ -495,7 +495,7 @@ protected:
         s_clockConfident = true;
         s_behindCnt = 0; s_fwdCandidate = 0;
         timesync::onExternalSync(t + 1, "Mesh");
-        Serial.printf("[MESH] Uhr aus Advert gesetzt: %lu\n", (unsigned long)t);
+        Serial.printf("[MESH] Set clock from advertisement: %lu\n", (unsigned long)t);
       } else if (!s_clockConfident && t > now) {
         // Großer Vorwärtssprung, noch unbestätigt seit Boot — auf Bestätigung warten.
         if (s_fwdCandidate && t + 300 > s_fwdCandidate && t < s_fwdCandidate + 300) {
@@ -503,11 +503,11 @@ protected:
           s_clockConfident = true;
           s_behindCnt = 0; s_fwdCandidate = 0;
           timesync::onExternalSync(t + 1, "Mesh");
-          Serial.printf("[MESH] Uhr aus Advert gesetzt (bestätigt): %lu\n",
+          Serial.printf("[MESH] Set clock from advertisement (confirmed): %lu\n",
                         (unsigned long)t);
         } else {
           s_fwdCandidate = t;
-          Serial.printf("[MESH] Großer Vorwärtssprung %lu vorgemerkt (warte auf Bestätigung)\n",
+          Serial.printf("[MESH] Large forward jump %lu recorded (waiting for confirmation)\n",
                         (unsigned long)t);
         }
       } else if (t + 3600 < now) {
@@ -518,7 +518,7 @@ protected:
                                : (a < c ? a : (b < c ? c : b));
           getRTCClock()->setCurrentTime(med + 1);
           timesync::onExternalSync(med + 1, "Mesh");
-          Serial.printf("[MESH] Uhr zurückgesetzt (Median aus 3 Adverts): %lu\n",
+          Serial.printf("[MESH] Clock reset (median of 3 advertisements): %lu\n",
                         (unsigned long)med);
           s_behindCnt = 0;
         }
@@ -667,9 +667,9 @@ public:
           self_id = mesh::LocalIdentity(prvHex, pubHex);
           store.save("_main", self_id);
           fromSd = true;
-          Serial.println("[MESH] Identität von SD geladen (/meshcore/identity.hex)");
+          Serial.println("[MESH] Loaded identity from SD (/meshcore/identity.hex)");
         } else {
-          Serial.println("[MESH] identity.hex ungültig (Key-Prüfung fehlgeschlagen) — ignoriert");
+          Serial.println("[MESH] identity.hex is invalid (key check failed) — ignoring");
         }
       }
     }
@@ -685,7 +685,7 @@ public:
         count++;
       }
       store.save("_main", self_id);
-      Serial.println("[MESH] Neue Identität erzeugt");
+      Serial.println("[MESH] Created new identity");
     }
 
     // Node-Name kommt aus den NVS-Settings (Settings-App), nicht aus SPIFFS.
@@ -730,7 +730,7 @@ public:
     ChannelDetails* added = addChannel(full, b64);
     if (!added) return -1;
     int idx = findChannelIdx(added->channel);
-    Serial.printf("[MESH] Kanal '%s' beigetreten (Index %d)\n", full, idx);
+    Serial.printf("[MESH] Joined channel '%s' (index %d)\n", full, idx);
     return idx;
   }
 
@@ -838,7 +838,7 @@ bool begin() {
   if (!s_msgs) s_msgs = (MsgView*)calloc(kMaxMsgs, sizeof(MsgView));
 
   if (!SPIFFS.begin(true)) {
-    Serial.println("[MESH] SPIFFS-Mount fehlgeschlagen");
+    Serial.println("[MESH] SPIFFS mount failed");
     return false;
   }
 
@@ -926,7 +926,7 @@ namespace { bool s_suspended = false; }
 
 void setSuspended(bool sus) {
   s_suspended = sus;
-  if (s_ready) Serial.printf("[MESH] Pumpe %s\n", sus ? "pausiert (WiFi aktiv)" : "läuft wieder");
+  if (s_ready) Serial.printf("[MESH] Pump %s\n", sus ? "paused (Wi-Fi active)" : "resumed");
 }
 
 void loop() {

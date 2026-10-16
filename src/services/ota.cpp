@@ -21,13 +21,13 @@ constexpr uint32_t kConnectTimeoutMs = 15000;
 constexpr uint32_t kHttpTimeoutMs    = 15000;
 constexpr uint32_t kReadTimeoutMs    = 8000;
 
-// Aktiver UI-Fortschritts-Callback des On-Device-Pfads (nur gesetzt, solange
-// deviceApply() flasht). Der captureless Update.onProgress-Trampolin speist hier
-// ein. nullptr im Konsolen-/Web-Pfad (dort nur Serial).
+// Active UI progress callback for deviceApply(), set only while flashing. The
+// captureless Update.onProgress trampoline feeds this callback. It is null for
+// console and web paths, which report to Serial instead.
 ota::ProgressFn s_uiCb = nullptr;
 
-// --- WLAN auf/zu (zentraler Helfer: Scan → stärkstes bekanntes Netz) ------------
-// ssid/pass werden ignoriert; wifi::connect wählt selbst aus den Profilen.
+// --- Wi-Fi connection helpers (scan and select the strongest known network) ---
+// ssid/pass are ignored; wifi::connect selects from the saved profiles.
 bool wifiUp(const char* ssid, const char* pass) {
   (void)ssid; (void)pass;
   return wifi::connect(kConnectTimeoutMs);
@@ -42,8 +42,8 @@ int hexVal(char c) {
   return -1;
 }
 
-// Wert des JSON-String-Schlüssels "key" aus body extrahieren + entescapen.
-// Minimal-Parser (kein ArduinoJson; gleiche Logik wie notes_ai::jsonExtractString).
+// Extract and unescape the JSON string value for "key" from body. This minimal
+// parser does not use ArduinoJson and matches notes_ai::jsonExtractString.
 bool jsonExtractString(const char* body, const char* key, char* out, size_t cap) {
   char needle[40];
   snprintf(needle, sizeof(needle), "\"%s\"", key);
@@ -83,7 +83,7 @@ bool jsonExtractString(const char* body, const char* key, char* out, size_t cap)
   return true;
 }
 
-// Erste "browser_download_url", die auf .bin endet (GitHub-Release-Asset).
+// Find the first GitHub release browser_download_url ending in .bin.
 bool findBinUrl(const char* body, char* out, size_t cap) {
   const char* key = "\"browser_download_url\"";
   for (const char* p = strstr(body, key); p; p = strstr(p + 1, key)) {
@@ -100,7 +100,8 @@ bool findBinUrl(const char* body, char* out, size_t cap) {
   return false;
 }
 
-// HTTP-GET, Body nach out (gechunkt gelesen wie notes_ai). true = HTTP 200 + Body.
+// GET a response body into out in chunks, as in notes_ai. Returns true for
+// HTTP 200 with a body.
 bool httpGetBody(const char* url, char* out, size_t cap) {
   bool https = strncmp(url, "https", 5) == 0;
   HTTPClient http;
@@ -136,8 +137,8 @@ bool httpGetBody(const char* url, char* out, size_t cap) {
   return total > 0;
 }
 
-// Folgt EINEM Redirect manuell: liest den Location-Header, ohne den (großen)
-// Body herunterzuladen. Bei direktem 200 ist die URL bereits final.
+// Follow one redirect manually by reading the Location header without
+// downloading the (potentially large) body. A direct 200 means the URL is final.
 bool resolveRedirect(const char* url, char* out, size_t cap) {
   bool https = strncmp(url, "https", 5) == 0;
   HTTPClient http;
@@ -170,7 +171,7 @@ bool resolveRedirect(const char* url, char* out, size_t cap) {
   return ok;
 }
 
-// Semantischer Versionsvergleich "vX.Y.Z". true = a ist strikt neuer als b.
+// Compare semantic versions "vX.Y.Z". Returns true when a is newer than b.
 bool semverGt(const char* a, const char* b) {
   const char* pa = (*a == 'v' || *a == 'V') ? a + 1 : a;
   const char* pb = (*b == 'v' || *b == 'V') ? b + 1 : b;
@@ -182,13 +183,13 @@ bool semverGt(const char* a, const char* b) {
   return apch > bpch;
 }
 
-// Fortschritt nach Serial (captureless — als Funktionszeiger für Update.onProgress).
+// Report progress to Serial; captureless so it can be passed to Update.onProgress.
 void otaProgress(size_t done, size_t total) {
   static int last = -1;
   int pct = total ? (int)(done * 100 / total) : 0;
   if (pct != last && (pct % 10 == 0 || pct == 100)) {
     Serial.printf("[OTA] %d%%\n", pct);
-    if (s_uiCb) s_uiCb("Installiere Firmware", pct);   // E-Ink: 10%-Schritte, Ghosting-arm
+    if (s_uiCb) s_uiCb("Installing firmware", pct);   // E-Ink: 10% steps reduce ghosting
     last = pct;
   }
 }
@@ -201,7 +202,7 @@ CheckResult check(const char* manifestUrl) {
   CheckResult r;
   snprintf(r.current, sizeof(r.current), "%s", FENNEK_VERSION);
   if (!manifestUrl || !manifestUrl[0]) {
-    snprintf(r.err, sizeof(r.err), "keine Update-URL konfiguriert");
+    snprintf(r.err, sizeof(r.err), "No update URL configured");
     return r;
   }
 
@@ -209,19 +210,19 @@ CheckResult check(const char* manifestUrl) {
   // ein Abschnitt reicht. Heap-schonend einmalig holen.
   static char body[8192];
   if (!httpGetBody(manifestUrl, body, sizeof(body))) {
-    snprintf(r.err, sizeof(r.err), "Manifest nicht erreichbar");
+    snprintf(r.err, sizeof(r.err), "Manifest is unreachable");
     return r;
   }
   // Version: tag_name (GitHub) oder version (eigenes Manifest).
   if (!jsonExtractString(body, "tag_name", r.latest, sizeof(r.latest)) &&
       !jsonExtractString(body, "version",  r.latest, sizeof(r.latest))) {
-    snprintf(r.err, sizeof(r.err), "kein tag_name/version (Release vorhanden?)");
+    snprintf(r.err, sizeof(r.err), "No tag_name/version (is a release available?)");
     return r;
   }
   // Firmware-URL: erste .bin-Asset (GitHub) oder url (eigenes Manifest).
   if (!findBinUrl(body, r.url, sizeof(r.url)) &&
       (!jsonExtractString(body, "url", r.url, sizeof(r.url)) || !r.url[0])) {
-    snprintf(r.err, sizeof(r.err), "keine firmware.bin im Release");
+    snprintf(r.err, sizeof(r.err), "No firmware.bin in release");
     return r;
   }
   r.ok = true;
@@ -235,7 +236,7 @@ bool apply(const char* downloadUrl, char* errOut, size_t errCap) {
     Serial.printf("[OTA] %s\n", m);
     return false;
   };
-  if (!downloadUrl || !downloadUrl[0]) return fail("keine Firmware-URL");
+  if (!downloadUrl || !downloadUrl[0]) return fail("No firmware URL");
 
   // 302 selbst auflösen (GitHub -> release-assets.githubusercontent.com); umgeht
   // die wackelige Cross-Host-Redirect-Logik von httpUpdate. Die signierte
@@ -243,8 +244,8 @@ bool apply(const char* downloadUrl, char* errOut, size_t errCap) {
   // wird sie abgeschnitten und der Flash-GET liefert 4xx (httpUpdate-Fehler -104).
   char finalUrl[1400];
   if (!resolveRedirect(downloadUrl, finalUrl, sizeof(finalUrl)))
-    return fail("Redirect-Aufloesung fehlgeschlagen");
-  Serial.printf("[OTA] Lade Firmware: %s\n", finalUrl);
+    return fail("Redirect resolution failed");
+  Serial.printf("[OTA] Downloading firmware: %s\n", finalUrl);
 
   bool https = strncmp(finalUrl, "https", 5) == 0;
   WiFiClientSecure cs; WiFiClient cp;
@@ -257,11 +258,11 @@ bool apply(const char* downloadUrl, char* errOut, size_t errCap) {
 
   t_httpUpdate_return ret = httpUpdate.update(*client, finalUrl);
   if (ret == HTTP_UPDATE_OK) {
-    Serial.println("[OTA] Update geschrieben — bereit zum Reboot");
+    Serial.println("[OTA] Update written — ready to reboot");
     return true;
   }
   char m[80];
-  snprintf(m, sizeof(m), "Update-Fehler %d: %s", (int)httpUpdate.getLastError(),
+  snprintf(m, sizeof(m), "Update error %d: %s", (int)httpUpdate.getLastError(),
            httpUpdate.getLastErrorString().c_str());
   return fail(m);
 }
@@ -270,33 +271,32 @@ bool apply(const char* downloadUrl, char* errOut, size_t errCap) {
 namespace {
 void runConsole(bool doApply, bool force) {
   if (webfm::state() != webfm::State::OFF) {
-    Serial.println("[OTA] WLAN/WebFM laeuft bereits — bitte erst stoppen");
+    Serial.println("[OTA] Wi-Fi/WebFM is already running — stop it first");
     return;
   }
   char ssid[33], pass[65], url[160];
   settings::wifiSsid(ssid, sizeof(ssid));
   settings::wifiPass(pass, sizeof(pass));
   settings::otaUrl(url, sizeof(url));
-  if (!ssid[0]) { Serial.println("[OTA] Keine WLAN-SSID konfiguriert ('wifi ssid <name>')"); return; }
-
-  Serial.printf("[OTA] Verbinde mit '%s' ...\n", ssid);
-  if (!wifiUp(ssid, pass)) { Serial.println("[OTA] WLAN-Verbindung fehlgeschlagen"); wifiDown(); return; }
+  if (!ssid[0]) { Serial.println("[OTA] No Wi-Fi SSID configured ('wifi ssid <name>')"); return; }
+  Serial.printf("[OTA] Connecting to '%s' ...\n", ssid);
+  if (!wifiUp(ssid, pass)) { Serial.println("[OTA] Wi-Fi connection failed"); wifiDown(); return; }
 
   CheckResult r = check(url);
   if (!r.ok) { Serial.printf("[OTA] Pruefung fehlgeschlagen: %s\n", r.err); wifiDown(); return; }
-  Serial.printf("[OTA] aktuell=%s  neu=%s  %s\n", r.current, r.latest,
-                r.updateAvail ? "(Update verfuegbar)" : "(aktuell)");
+  Serial.printf("[OTA] current=%s  latest=%s  %s\n", r.current, r.latest,
+                r.updateAvail ? "(update available)" : "(up to date)");
 
   if (!doApply) { wifiDown(); return; }
   if (!r.updateAvail && !force) {
-    Serial.println("[OTA] Kein Update noetig ('ota force' erzwingt Re-Flash)");
+    Serial.println("[OTA] No update needed ('ota force' forces a reflash)");
     wifiDown();
     return;
   }
 
   char err[80] = "";
   if (apply(r.url, err, sizeof(err))) {
-    Serial.println("[OTA] Reboot in neue Version ...");
+    Serial.println("[OTA] Rebooting into new version ...");
     delay(200);
     ESP.restart();
   } else {
@@ -314,23 +314,22 @@ CheckResult deviceCheck(ProgressFn progress) {
   CheckResult r;
   snprintf(r.current, sizeof(r.current), "%s", FENNEK_VERSION);
   if (webfm::state() != webfm::State::OFF) {
-    snprintf(r.err, sizeof(r.err), "WLAN belegt (Dateien-App?)");
+    snprintf(r.err, sizeof(r.err), "Wi-Fi is busy (Files app?)");
     return r;
   }
   char ssid[33], pass[65], url[160];
   settings::wifiSsid(ssid, sizeof(ssid));
   settings::wifiPass(pass, sizeof(pass));
   settings::otaUrl(url, sizeof(url));
-  if (!ssid[0]) { snprintf(r.err, sizeof(r.err), "Keine WLAN-SSID"); return r; }
-
-  if (progress) progress("Verbinde WLAN", -1);
+  if (!ssid[0]) { snprintf(r.err, sizeof(r.err), "No Wi-Fi SSID"); return r; }
+  if (progress) progress("Connecting to Wi-Fi", -1);
   if (!wifiUp(ssid, pass)) {
-    snprintf(r.err, sizeof(r.err), "WLAN fehlgeschlagen");
+    snprintf(r.err, sizeof(r.err), "Wi-Fi connection failed");
     wifiDown();
     return r;
   }
 
-  if (progress) progress("Pruefe Version", -1);
+  if (progress) progress("Checking version", -1);
   r = check(url);          // füllt ok/err/current/latest/url/updateAvail
   wifiDown();
   return r;
@@ -341,18 +340,18 @@ bool deviceApply(const char* downloadUrl, ProgressFn progress, char* errOut, siz
     if (errOut) { strncpy(errOut, m, errCap - 1); errOut[errCap - 1] = '\0'; }
     return false;
   };
-  if (!downloadUrl || !downloadUrl[0]) return fail("keine Firmware-URL");
-  if (webfm::state() != webfm::State::OFF) return fail("WLAN belegt (Dateien-App?)");
+  if (!downloadUrl || !downloadUrl[0]) return fail("No firmware URL");
+  if (webfm::state() != webfm::State::OFF) return fail("Wi-Fi is busy (Files app?)");
 
   char ssid[33], pass[65];
   settings::wifiSsid(ssid, sizeof(ssid));
   settings::wifiPass(pass, sizeof(pass));
-  if (!ssid[0]) return fail("Keine WLAN-SSID");
+  if (!ssid[0]) return fail("No Wi-Fi SSID");
 
-  if (progress) progress("Verbinde WLAN", -1);
-  if (!wifiUp(ssid, pass)) { wifiDown(); return fail("WLAN fehlgeschlagen"); }
+  if (progress) progress("Connecting to Wi-Fi", -1);
+  if (!wifiUp(ssid, pass)) { wifiDown(); return fail("Wi-Fi connection failed"); }
 
-  if (progress) progress("Installiere Firmware", 0);
+  if (progress) progress("Installing firmware", 0);
   s_uiCb = progress;                 // otaProgress() speist ab jetzt die UI
   char err[80] = "";
   bool ok = apply(downloadUrl, err, sizeof(err));

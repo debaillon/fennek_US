@@ -294,7 +294,7 @@ void saveCurrent() {
     s_dirtyBuf = false;
     s_lastSave = millis();
   }
-  Serial.printf("[NOTES] %s gespeichert (%s, %d B)\n",
+  Serial.printf("[NOTES] %s saved (%s, %d B)\n",
                 s_curFile, ok ? "ok" : "FEHLER", s_len);
 }
 
@@ -356,13 +356,13 @@ void startRecord() {
 void drawStopAck(Adafruit_GFX& g) {
   g.fillRect(0, 70, W, 80, GxEPD_WHITE);
   g.setTextColor(GxEPD_BLACK);
-  gui::printAt(g, 30, 86, "Gespeichert", 3);
+  gui::printAt(g, 30, 86, "Saved", 3);
   gui::printAt(g, 30, 124, "...", 2);
 }
 
 void stopRecord() {
   if (s_screen != RECORD) return;
-  Serial.println("[NOTES] Aufnahme gestoppt");
+  Serial.println("[NOTES] Recording stopped");
   s_screen = LIST;                                 // gegen Doppel-Stop
   mic::stopRecording();                            // WAV finalisieren (schnell)
   display::renderRegion(drawStopAck, 70, 80);      // sofortiges Feedback (~0,3 s)
@@ -632,8 +632,8 @@ void drawConfirmDel(Adafruit_GFX& g) {
 void drawRecord(Adafruit_GFX& g) {
   gui::printAt(g, 6, HEADER_Y, i18n::tr(i18n::Str::AppNotes), 2);
   g.drawFastHLine(0, HEADER_H, W, GxEPD_BLACK);
-  gui::printAt(g, 24, 96, "Aufnahme", 4);
-  gui::printAt(g, 24, 150, "Sprich jetzt ...", 2);
+  gui::printAt(g, 24, 96, "Recording", 4);
+  gui::printAt(g, 24, 150, "Speak now ...", 2);
   gui::printAt(g, 24, 210, "Tippen / Enter = Stop", 1);
   gui::drawButton(g, kBack, "Stop", true);
 }
@@ -672,7 +672,7 @@ void drawPlayer(Adafruit_GFX& g) {
 
   gui::printAt(g, 6, HEADER_H + 12, s_playTitle[0] ? s_playTitle : "Sprachnotiz", 2);
   if (!playerActive(st))
-    gui::printAt(g, 6, HEADER_H + 38, "(gestoppt)", 1);
+    gui::printAt(g, 6, HEADER_H + 38, "(stopped)", 1);
 
   drawTimeAndBar(g, st);
 
@@ -898,11 +898,11 @@ App* get() { return &s_app; }
 // Vergangenheit, damit die heutige echte Notiz unberührt bleibt.
 void debugSmoke() {
   if (!ensureBuffers() || !board::sdReady()) {
-    Serial.println("[NOTES] SMOKE: keine SD / kein Puffer");
+    Serial.println("[NOTES] SMOKE: no SD card / no buffer");
     return;
   }
   const char* kTest = "1970-01-02.md";
-  const char* kBody = "Smoke-Test äöü ß\nZweite Zeile.";
+  const char* kBody = "Smoke test\nSecond line.";
   strncpy(s_curFile, kTest, kFileLen - 1); s_curFile[kFileLen - 1] = '\0';
   strncpy(s_buf, kBody, kNoteCap - 1); s_buf[kNoteCap - 1] = '\0';
   s_len = (int)strlen(s_buf);
@@ -912,24 +912,24 @@ void debugSmoke() {
   s_buf[0] = '\0'; s_len = 0;
   loadCurrent();
   bool roundtrip = (strcmp(s_buf, kBody) == 0);
-  Serial.printf("[NOTES] SMOKE: Roundtrip %s (%d B zurückgelesen)\n",
+  Serial.printf("[NOTES] SMOKE: round trip %s (%d B read back)\n",
                 roundtrip ? "OK" : "FEHLER", s_len);
 
   scanNotes();
   bool found = false;
   for (int i = 0; i < s_count; i++)
     if (strcmp(s_notes[i].file, kTest) == 0) { found = true;
-      Serial.printf("[NOTES] SMOKE: gelistet '%s' Vorschau='%s'\n",
+      Serial.printf("[NOTES] SMOKE: listed '%s' preview='%s'\n",
                     s_notes[i].file, s_notes[i].title); }
-  Serial.printf("[NOTES] SMOKE: %d Notiz(en) gescannt, Testdatei %s\n",
-                s_count, found ? "gefunden" : "FEHLT");
+  Serial.printf("[NOTES] SMOKE: scanned %d note(s), test file %s\n",
+                s_count, found ? "found" : "MISSING");
 
   char path[40];
   notePath(kTest, path, sizeof(path));
   spiLock(); if (SD.exists(path)) SD.remove(path); spiUnlock();
   s_curFile[0] = '\0'; s_buf[0] = '\0'; s_len = 0; s_dirtyBuf = false;
   scanNotes();
-  Serial.printf("[NOTES] SMOKE: aufgeräumt, jetzt %d Notiz(en)\n", s_count);
+  Serial.printf("[NOTES] SMOKE: cleaned up; %d note(s) remain\n", s_count);
 }
 
 }  // namespace notes_app

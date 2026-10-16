@@ -1,45 +1,47 @@
-# Karteikarten-Decks (Flashcards)
+# Flashcard decks
 
-Beispiel-Decks für die **Karteikarten-App** (Launcher-Kachel „Lernen"). Die App
-liest Decks von der SD-Karte aus dem Ordner **`/flashcards`**.
+Example decks for the **Flashcards app** (the launcher tile labeled “Learn”).
+The app reads decks from the SD card’s **`/flashcards`** directory.
 
-## Aufs Gerät bringen
+## Transfer decks to the device
 
-Die Dateien aus diesem Ordner per **Web-Dateiverwaltung** (App „Dateien" → WLAN
-starten → `http://fennek.local`) in den SD-Ordner `/flashcards` hochladen. Der
-Ordner wird beim ersten Öffnen der App automatisch angelegt.
+Upload files from this directory to the SD card’s `/flashcards` directory
+using the **Web file manager** (open the “Files” app, start Wi-Fi, then visit
+`http://fennek.local`). The app creates the directory automatically the first
+time it is opened.
 
-## Deck-Format
+## Deck format
 
-Eine Textdatei (`.txt` oder `.tsv`) = ein Deck. Der Dateiname (ohne Endung) ist
-der Deck-Titel in der Liste. Pro Zeile eine Karte:
+Each text file (`.txt` or `.tsv`) is one deck. The filename without its
+extension is the deck title shown in the list. Each line contains one card:
 
 ```
-Vorderseite<TAB>Rückseite
+Front<TAB>Back
 ```
 
-- Trenner ist ein **Tabulator** (bevorzugt) oder ` | ` (Pipe) als Fallback.
-- Zeilen, die mit `#` beginnen, und Leerzeilen sind Kommentare.
-- Vorder-/Rückseite je bis ~95 Zeichen (länger wird gekappt).
-- UTF-8 mit Umlauten (å, ä, ö …) ist ok — die Anzeige läuft über `gui::print`.
+- Use a **tab** as the separator (preferred), or ` | ` (pipe) as a fallback.
+- Blank lines and lines starting with `#` are treated as comments.
+- Each side can contain about 95 characters; longer text is truncated.
+- UTF-8, including accented characters, is supported; display output uses
+  `gui::print`.
 
-## Lernlogik (Leitner)
+## Leitner learning system
 
-Jede Karte wandert durch fünf Boxen. „Gewusst" schiebt eine Box höher (längeres
-Wiederholungs-Intervall: 1 / 3 / 7 / 16 Tage), „Falsch" zurück in Box 0. Eine
-**Übung umfasst maximal 10 Karten**: die App sammelt die **fälligen** Karten,
-**mischt** sie und nimmt bevorzugt die mit niedriger Box (also wenig Gelerntes —
-bereits Gelerntes kommt seltener dran). Falsch beantwortete Karten kommen in
-derselben Übung noch einmal dran. Der Fortschritt wird je Deck unter
-`/flashcards/.progress/<deck>.prg` gespeichert (über einen CRC der Vorderseite
-referenziert, übersteht also das Umsortieren oder Ergänzen des Decks).
+Each card moves through five boxes. “Correct” advances a card by one box,
+increasing its review interval (1 / 3 / 7 / 16 days); “Incorrect” sends it back
+to box 0. A **practice session contains at most 10 cards**: the app collects
+cards that are due, shuffles them, then prioritizes cards in lower boxes (less
+learned cards appear first; learned cards appear less often). Incorrectly
+answered cards are repeated in the same session. Progress is stored per deck
+at `/flashcards/.progress/<deck>.prg`; cards are referenced by a CRC of the
+front side, so progress survives deck reordering or additions.
 
-> Hinweis: Das Gerät hat keine Hardware-Uhr. Ist die Systemzeit noch nicht
-> gestellt (kein GPS/NTP/Mesh seit dem Kaltstart), gelten **alle** Karten als
-> fällig — terminiert wird erst mit gestellter Uhr.
+> The device has no hardware clock. Until system time has been set (by GPS,
+> NTP, or mesh since cold boot), all cards are considered due. Scheduling starts
+> once the clock is set.
 
-## Mitgelieferte Decks
+## Included decks
 
-- `schwedisch.txt` — komplettes Schwedisch-Deck (~700 Karten): Grundwortschatz,
-  Zahlen/Zeit, Alltag, Reise, Verben, Adjektive sowie nützliche Sätze und
-  Gesprächsführung — alles in einem Deck, gemischt abgefragt.
+- `schwedisch.txt` — a complete Swedish deck (~700 cards) covering basic
+  vocabulary, numbers and time, daily life, travel, verbs, adjectives, useful
+  phrases, and conversation, all mixed in one deck.

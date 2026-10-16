@@ -46,7 +46,7 @@ bool pickBest(char* ssid, size_t ns, char* pass, size_t np) {
   } else {
     char sel[33];
     settings::wifiSsidAt(best, sel, sizeof(sel));
-    Serial.printf("[WIFI] Bekanntes Netz gewählt: %s (%d dBm)\n", sel, bestRssi);
+    Serial.printf("[WIFI] Selected known network: %s (%d dBm)\n", sel, bestRssi);
   }
 
   settings::wifiSsidAt(best, ssid, ns);
@@ -60,7 +60,7 @@ bool connect(uint32_t timeoutMs) {
 
   char ssid[33], pass[65];
   if (!pickBest(ssid, sizeof(ssid), pass, sizeof(pass))) {
-    Serial.println("[WIFI] Kein WLAN konfiguriert");
+    Serial.println("[WIFI] No Wi-Fi network configured");
     WiFi.mode(WIFI_OFF);
     mesh_client::setSuspended(false);
     return false;

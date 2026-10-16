@@ -94,7 +94,7 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ### [2.3.0] — 2026-06-19
 - GPS/WAV diagnostic logs (maps-app GPS-time + mic recording level).
-- Maps fallback centre moved to **Düsseldorf** (covered by the NRW tiles).
+- Maps fallback center moved to **Düsseldorf** (covered by the NRW tiles).
 - Notes list derives the title from the WAV filename as a date/time label.
 
 ## [2.2.x]
@@ -166,13 +166,13 @@ and the project uses [Semantic Versioning](https://semver.org/).
 ### Changed
 - **Unified back/home navigation across all apps.** Home is now a visible affordance:
   the status bar shows a house glyph (⌂) outside the launcher and the whole bar taps
-  to Home. Lower corner buttons are consistently labelled "Back" (exactly one level):
+  to Home. Lower corner buttons are consistently labeled "Back" (exactly one level):
   the audiobook/reader/notes lists and Settings now say "Back" instead of "Home", and
   the Settings back button steps edit → category → root → launcher. Mesh sub-screens
   (conversation/contacts/join) dropped their redundant second "Home" button (they
   already have a "Back"); the chat list and error screen relabel "Home" → "Back". The
   Files app gained a visible "Back" button, and the reader's footer tap-to-list zone
-  is now labelled "◄ List". Games intentionally keep no on-screen back button — they
+  is now labeled "◄ List". Games intentionally keep no on-screen back button — they
   exit via the status-bar Home glyph (keyboard `Backspace`/`Q` still returns to the
   games menu). Keyboard conventions (`Q` = Home, `Backspace` = one level back) are
   unchanged.

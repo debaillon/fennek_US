@@ -1,109 +1,261 @@
 # CLAUDE.md
 
-## Projekt
+## Project
 
-**Fennek** — Multi-App-Handheld-Firmware für das **LilyGO T-Deck Pro V1.1** (ESP32-S3, 8 MB PSRAM), PlatformIO/Arduino. Remote `danst0/fennek`. Version: `FENNEK_VERSION` in `src/config.h`, Log-Präfix `[FENNEK]`, NVS-Namespace `fennek`, SD-Cache `/.fennek`. Apps: Musik, Hörbuch, Lesen, Mesh, Spiele, Dateien, Notizen, Wecker, Karten, Kopfrechnen, Karteikarten, Kalender, Todo. Code/Doku/Serial-Ausgaben **deutsch**; Textausgaben über `gui::print` (UTF-8 → CP437).
+**Fennek** is multi-app handheld firmware for the **LilyGO T-Deck Pro V1.1**
+(ESP32-S3, 8 MB PSRAM), built with PlatformIO/Arduino. Remote:
+`danst0/fennek`. Version: `FENNEK_VERSION` in `src/config.h`; log prefix
+`[FENNEK]`; NVS namespace `fennek`; SD cache `/.fennek`. Apps: Music,
+Audiobooks, Reading, Mesh, Games, Files, Notes, Alarms, Maps, Mental Math,
+Flashcards, Calendar, and Todo. Firmware UI and serial output are localized;
+rendered text goes through `gui::print` (UTF-8 → CP437).
 
-- Aktiver Code `src/`, einzige Build-Env `fennek`. `lib/meshcore/` + `lib/ed25519/` = vendored MeshCore. Alte Meck-Firmware in der Git-Historie.
-- `boards/t-deck_pro.json`, Partition `default_16MB.csv` (6,5 MB App-Slots, 3,4 MB SPIFFS, 20 KB NVS).
+- Active code is in `src/`; the only build environment is `fennek`.
+  `lib/meshcore/` and `lib/ed25519/` contain the vendored MeshCore subset.
+  The old Meck firmware is in Git history.
+- `boards/t-deck_pro.json`; partition `default_16MB.csv` (6.5 MB app slots,
+  3.4 MB SPIFFS, 20 KB NVS).
 
-## Build & Flash
+## Build and flash
 
 ```bash
-pio run -e fennek              # bauen
-pio run -e fennek -t upload    # flashen (/dev/ttyACM0, 921600 Baud)
-pio device monitor -b 115200  # Boot-Log + Exception-Decoder
+pio run -e fennek              # build
+pio run -e fennek -t upload    # flash (/dev/ttyACM0, 921600 baud)
+pio device monitor -b 115200  # boot log + exception decoder
 ```
 
-Keine Unit-Tests; Verifikation am Gerät. Bootet vollständig **ohne SD-Karte**.
+Host tests cover the Arduino-free cores; hardware behavior still requires
+on-device verification. The firmware boots fully **without an SD card**.
 
-Debug-Flags (`-D`): `AUDIO_DEBUG_GAP`, `PLAYLIST_SELFTEST`, `MESH_SMOKE_TEST`, `GAMES_SMOKE_TEST`, `SLEEP_WAKE_TEST`, `BATTLOG`.
+Debug flags (`-D`): `AUDIO_DEBUG_GAP`, `PLAYLIST_SELFTEST`, `MESH_SMOKE_TEST`,
+`GAMES_SMOKE_TEST`, `SLEEP_WAKE_TEST`, `BATTLOG`.
 
-## Toolchain — nicht aktualisieren
+## Toolchain — do not upgrade
 
-`espressif32@6.11.0` (Arduino-ESP32 2.0.17 / IDF 4.4), `ESP32-audioI2S#2.0.6`, RadioLib ^7.3 (`RADIOLIB_GODMODE=1`), rweather/Crypto, densaugeo/base64. Upgrades nur auf ausdrücklichen Wunsch.
+`espressif32@6.11.0` (Arduino-ESP32 2.0.17 / IDF 4.4),
+`ESP32-audioI2S#2.0.6`, RadioLib ^7.3 (`RADIOLIB_GODMODE=1`), rweather/Crypto,
+and densaugeo/base64. Upgrade only when explicitly requested.
 
-## Architektur — Anti-Stotter-Invarianten
+## Architecture — audio anti-stutter invariants
 
-**E-Ink, SD und LoRa-SX1262 teilen denselben SPI-Bus** (HSPI, SCLK 36/MOSI 33/MISO 47).
+**E-Ink, SD, and the LoRa SX1262 share the same SPI bus** (HSPI, SCLK 36/MOSI
+33/MISO 47).
 
 ```
-Core 0:  Audio-Decode-Task (Prio 4) ── audio.loop()
+Core 0:  Audio decode task (priority 4) ── audio.loop()
 Core 1:  Arduino loop() ── appmgr ── g_spiMutex (core/board.h)
-Core 1:  Mesh-Pumpe (mesh_app::background → spiLock)
+Core 1:  Mesh pump (mesh_app::background → spiLock)
 ```
 
-1. **Jeder SPI-Zugriff (SD, E-Ink, LoRa) unter `spiLock()`/`spiUnlock()`.**
-2. **`audio.*`-Aufrufe nur im Audio-Task** — UI sendet Kommandos via Queue (`services/audio.cpp`).
-3. **SPI-Mutex-Freigabe während E-Ink-BUSY** (`setBusyCallback` in `core/display.cpp`).
-4. **256 KB PSRAM-Read-Ahead** (`audio.setBufsize(-1, 256*1024)`).
-5. **SPI auf 4 MHz** (`SPI_BUS_HZ`) — 8 MHz korrumpiert SD-Writes.
-6. **LoRa-CS (GPIO 3) im Leerlauf HIGH**; Radio nutzt bestehende `g_spi`-Instanz (`P_LORA_SCLK` NICHT definieren).
-7. **E-Ink-Refresh nur bei Änderung** (Dirty-Flag); Fortschritt/Statuszeile nur als `renderRegion`.
-8. **NVS für Settings/Bookmarks** (nie SPI-Bus). SD für Bulk-Caches + Mesh-Daten. Mesh-Identity auf SPIFFS.
-9. **WiFi aktiv ⇒ `audio::stop()` + `mesh_client::setSuspended(true)`** (webfm-Regel — alle WLAN-Dienste).
+1. **Every SPI access (SD, E-Ink, LoRa) must be inside `spiLock()` /
+   `spiUnlock()`.**
+2. **Call `audio.*` only from the audio task** — the UI sends commands through
+   a queue (`services/audio.cpp`).
+3. **Release the SPI mutex while E-Ink is BUSY** (`setBusyCallback` in
+   `core/display.cpp`).
+4. **Use 256 KB PSRAM read-ahead** (`audio.setBufsize(-1, 256*1024)`).
+5. **SPI runs at 4 MHz** (`SPI_BUS_HZ`) — 8 MHz corrupts SD writes.
+6. **LoRa CS (GPIO 3) must be HIGH when idle**; the radio uses the existing
+   `g_spi` instance (do NOT define `P_LORA_SCLK`).
+7. **Refresh E-Ink only when content changes** (dirty flag); draw progress and
+   status only with `renderRegion`.
+8. **Use NVS for settings/bookmarks** (never the SPI bus). Use SD for bulk
+   caches and mesh data. Mesh identity is stored in SPIFFS.
+9. **When Wi-Fi is active, call `audio::stop()` and
+   `mesh_client::setSuspended(true)`** (the webfm rule applies to every
+   Wi-Fi service).
 
-## Module (`src/`)
+## Modules (`src/`)
 
-- `config.h` — Pins & Konstanten.
-- `core/board.*` — SPI-Bus, SD-Mount, `g_spiMutex`, `loraPower`, `gpsPower`. GPS (GPIO39) + DRV2605 (GPIO2) beim Boot aus. Kein 4G-Modem (diese Variante = Audio, PCM5102A-DAC).
-- `core/display.*` — GxEPD2-E-Ink, `render(fn,full)` / `renderRegion(fn,y,h)`, BUSY-Callback, `hibernate()` (Default: nur `powerOff()`, s. Falle 9).
-- `core/gui.*` — `toCp437`/`print`/`printAt`/`textBounds`, `drawButton`, `drawRowText`, `Rect`.
-- `core/touch.*` + `core/hyn/` — CST328 (I2C 13/14). **hyn/ nicht refactoren.**
-- `core/keyboard.*` — TCA8418 (I2C 0x34), Sticky Shift/Alt/Sym, Key-Repeat 400/150 ms.
-- `core/battery.*` — BQ27220-Fuel-Gauge (nur Lesen).
-- `core/settings.*` — NVS: Lautstärke, letzte App, Resume-Positionen, Bookmarks. **WLAN-Profile** (bis 20) als kompakter Blob `wifis` (Migration aus Alt-Keys `wssid`/`wpass` = Slot 0); `wifiCount/wifiSsidAt/wifiPassAt/wifiSet/wifiRemove`, Slot 0 = Legacy-Einfachzugriff (`wifiSsid`/`setWifiSsid`, ini-Export/webfm).
-- `core/console.*` — USB-Debug-Konsole (`help`). Befehle: `status`, `time`/`tz`, `eink hib`, `mesh init`, `mesh eco`, `advert [flood]`, `public`/`join`/`chan`/`dm`, `pos`, `gps [scan|off]`, `wifi`, `alarm`, `ollama`, `podcast`, `ota`, `todo`, `cal`, `calibre`, `nav`, `scrobble`, `notes`, `rm`. Konsolen-Eingabe verlängert Auto-Standby (`power::noteActivity()`).
-- `core/power.*` — Knopf (kurz=Tastensperre, lang=Standby), Auto-Standby, Deep Sleep. **CPU-Takt-Governor:** Basistakt 80 MHz ab `boostBegin()` (Setup-Ende); `boostLock()/boostUnlock()` (Zähler) → 240 MHz bei Audio-Decode, WLAN (zentral via WiFi-Events — Services müssen nichts tun), Schach-KI, EPUB-Konvertierung, Konsolen-Befehlen. APB bleibt 80 MHz, SPI/UART/I2S unberührt. **Zwei Seitenknöpfe: OBEN=GPIO0 (Firmware), UNTEN=RST (Hardware-Reset — sofort, Firmware sieht nichts).** Timer-Wake: Minimal-Pfad (nur Banner), alle 12 Wakes Vollbild. Wecker-Wake: `handleTimerWake()` gibt `false` → Vollboot. Schutznetze (nach 3 stillen Tiefentladungen 06-07/26): Task-WDT um Minimal-Pfad + `enterStandby()`, Timeout der Loslass-Warteschleife, `noteBoot()`-Crash-Loop-Bremse (3 abnormale Resets → Not-Standby nur Knopf-Wake), Tiefentladeschutz (≤5 % → Standby ohne Stunden-Wake), Schlaf-Diagnose im RTC-RAM (`logSleepDebug()` kippt Phase + Wake-Historie ins battlog).
-- `core/appmgr.*` — App-Lifecycle, Statuszeile, Dirty-Koaleszenz, 30-s-Persistenz. Tap Statuszeile = Home.
-- `services/timesync.*` — Kein HW-RTC; kanonische Uhr = ESP32-Systemzeit. Quellen (Prio): GPS > NTP > Mesh-Adverts. Drift-Lernen, Pre-Standby-Sync, Zeitzone als POSIX-TZ (NVS `tz`, Default Europe/Berlin).
-- `services/audio.*` — Pfadbasierte Queue (PSRAM-Staging), Owner-Token (Music/Book/Podcast), Shuffle/Repeat, `seekRel`, Sleep-Timer.
-- `services/scrobble.*` — Navidrome/Subsonic. WLAN⊥Audio → Batch vor Auto-Standby. Queue → `/.fennek/scrobbles.tsv`. NVS `nscro/nurl/nuser/npass`.
-- `services/notes_ai.*` — Ollama-Schönschreiben vergangener Notizen. Batch vor Auto-Standby, max. 20/Lauf. Done-Liste `/.fennek/notes_ai.done` (SHA256). NVS `oai/ourl/omod`.
-- `services/ota.*` — OTA via GitHub-Releases-API (`danst0/fennek`). Löst 302-Redirect selbst auf. Flasht in inaktiven OTA-Slot. NVS `otau`. Release: `gh release create vX.Y.Z .pio/build/fennek/firmware.bin`.
-- `services/podcast.*` — **DEAKTIVIERT (v2.5.9)**. Code bleibt für Reaktivierung. Abos `/podcasts/feeds.txt`, je Feed nur neueste Folge.
-- `services/library.*` — Musik `/music`, PSRAM-Blöcke (kein Track-Limit), Cache `/.fennek/tracks.bin`. `TRACK_PATH_LEN`=256 (längere überspringen).
-- `services/id3.*` — Minimaler ID3v1/v2-Reader (TIT2/TPE1/TALB).
-- `services/gps.*` — u-blox MIA-M10Q, UART1 38400 Baud. Parst GGA/RMC. UBX-Aiding (Zeit + Grob-Pos) beim Start. GPS nur aktiv solange Maps-App vorn.
-- `services/maps_tiles.*` — 1-bit-Kacheln `/maps/{z}/{x}/{y}.bin` (8192 B). PSRAM-LRU-Cache (16 Slots). `ensureViewport()` nur aus `tick()`.
-- `services/textdoc.*` — Streaming-Paginierung, Offset-Index-Cache `/.fennek/idx/`.
-- `services/epubzip.h`/`epubproc.*` — EPUB→TXT, Cache `/books/.epub_cache/`.
-- `services/alarmclock.*` — 4 Wecker (NVS `alarm`), Schlummer (RTC-RAM). Piepton `/.fennek/alarm.wav`, Backlight-Blinken (GPIO42). Signal-Modus pro Wecker (Ton/Blinken/Beides). Auto-Quittung 5 min.
-- `services/calendar.*` + `apps/ical_core.h` — iCal-Abo, read-only. Feeds `/calendar/feeds.txt`. Bedingter GET (ETag/304), Streaming-Parser, Fenster jetzt−1…+56 Tage. RRULE DAILY/WEEKLY/MONTHLY. NVS-Toggle `calauto`.
-- `services/reinschrift.*` + `apps/reinschrift_core.h` — Todo-Sync via WebDAV (Nextcloud). Op-Queue `/.fennek/todo_ops.tsv` + ETag-gestützter PUT mit Konflikt-Merge (412→GET+Merge). NVS `todourl/todousr/todopw/todopath`.
-- `services/calibre_books.*` — E-Book-Pull-Sync von **Calibre-Web** via OPDS (calibre.dumke.me; NICHT der native Content Server). Bücherregal (Shelf, Default „Fennek") → `/opds/shelfindex` + `/opds/download/<id>/epub/` → `/books`. Nur-hinzufügend; Manifest `/.fennek/calibre.tsv`. Basic-Auth (= Calibre-Web-Login). Auto-Sync vor Standby höchstens alle 6 h (Podcast-Lektion), max. 8 Downloads/Lauf. NVS `cburl/cbusr/cbpw/cbshelf/cbauto`. Konsole `calibre`.
-- `services/wifi.*` — Zentrale WLAN-Anbindung. `connect(timeout)` setzt die WLAN-Regel durch (Audio stop + Mesh suspend), scannt und wählt das **stärkste in Reichweite befindliche bekannte Netz** (Profile in `settings::wifi*`, bis 20; Rückfall auf Slot 0 = versteckte SSID), `disconnect()` als Gegenstück, `pickBest()` für webfm (eigene State-Machine). Modem-Sleep aus für Download-Durchsatz. Alle Dienste (timesync/scrobble/ota/podcast/calendar/calibre/notes_ai/reinschrift/webfm) nutzen diesen Helfer statt eigener `WiFi.begin`-Sequenz.
-- `services/webfm.*` — WLAN-Dateiserver (`http://fennek.local`), JSON-API + OTA-Endpunkte. SD-Zugriffe unter spiLock, Netz-I/O nach spiUnlock.
-- `apps/launcher.*` — 2 Seiten à 10 Kacheln. S1: Musik/Hörbuch/Lesen/Mesh/Optionen/Spiele/Dateien/Notizen/Wecker/Karten. S2: Lage/Rechnen/Lernen/Kalender/Todo.
-- `apps/music_app.*` — Künstler/Album/Playlist-Browser + Player.
-- `apps/book_app.*` — Hörbücher `/audiobooks`, NVS-Bookmarks, ±30 s.
-- `apps/reader_app.*` — Bücher `/books` (.txt/.epub), Fortschrittsanzeige.
-- `apps/mesh_client.*` — `MeshClient : BaseChatMesh`. SD-Persistenz: `/meshcore/messages.log` (256-KB-Rotation), `/meshcore/contacts.bin`, `/meshcore/channels.txt`. SD-Writes deferred (5-s-Drossel, nie aus Mesh-Callback).
-- `apps/mesh_app.*` — Kanal-/Kontakt-/DM-Screens. Radio-Init lazy beim ersten Betreten.
-- `apps/games_app.*` — 2048, Minensucher, Schach (Negamax+AB, FreeRTOS-Task Prio 1), TTT, Sudoku (iterativer Generator, rekursionsfrei). Logik in Arduino-freien `*_core.h`, host-getestet.
-- `apps/files_app.*` — WebFM-Start/Stop, SSID/IP-Anzeige.
-- `apps/notes_app.*` — Tagesnotizen `/notes/YYYY-MM-DD.md`.
-- `apps/alarms_app.*` — Wecker-UI, Ziffern-Direkteingabe, Klingel-Screen.
-- `apps/maps_app.*` — Karten + GPS-Marker. Tile-Load in `tick()`, Blit in `draw()`. Follow ab >24 px Bewegung. Mesh-Pos-Nachführung (≥30 s & >10 m).
-- `apps/mathquiz_app.*` — Kopfrechnen. CFO-Modus (SHARE/GROWTH/MARKUP/DISCOUNT/PCT/RULE72). Adaptive Schwierigkeit (Skill-Zähler, je Modus persistiert, NVS `mqlvl`). **Zeit-Ziel ~20 s/Aufgabe:** Zahlenbereiche gedeckelt + Schätz-Toleranz (`Problem.tol`/`toleranceFor`/`accept` in `mathquiz_core.h`) — bei schätzbaren Aufgaben (große Produkte ab Mittel, Geld-Prozente, SHARE/GROWTH) zählt eine gute Näherung als richtig („Gut geschätzt!", exakter Wert wird gezeigt); Plus/Minus/glatte Division/Rule72 bleiben exakt. Feedback nennt die gebrauchten Sekunden.
-- `apps/flashcards_app.*` — Leitner-Boxen 0–4, Decks `/flashcards/*.txt`, Fortschritt `/flashcards/.progress/`.
-- `tools/host_test_games.cpp` / `host_test_apps.cpp` — Host-Tests der Arduino-freien Cores.
-- `main.cpp` — Init: `handleTimerWake()` → Power → Display → Touch/KB/Akku/Settings → SD/Library → Audio → Apps.
+- `config.h` — pins and constants.
+- `core/board.*` — SPI bus, SD mount, `g_spiMutex`, `loraPower`, `gpsPower`.
+  GPS (GPIO39) and DRV2605 (GPIO2) are off at boot. No 4G modem (this variant
+  is audio with a PCM5102A DAC).
+- `core/display.*` — GxEPD2 E-Ink, `render(fn,full)` /
+  `renderRegion(fn,y,h)`, BUSY callback, and `hibernate()` (default is
+  `powerOff()` only; see pitfall 9).
+- `core/gui.*` — `toCp437`/`print`/`printAt`/`textBounds`, `drawButton`,
+  `drawRowText`, `Rect`.
+- `core/touch.*` and `core/hyn/` — CST328 (I2C 13/14). **Do not refactor
+  `hyn/`.**
+- `core/keyboard.*` — TCA8418 (I2C 0x34), sticky Shift/Alt/Sym, key repeat
+  400/150 ms.
+- `core/battery.*` — BQ27220 fuel gauge (read-only).
+- `core/settings.*` — NVS: volume, last app, resume positions, bookmarks.
+  **Wi-Fi profiles** (up to 20) are stored in compact blob `wifis` (migrated
+  from old keys `wssid`/`wpass` into slot 0); APIs
+  `wifiCount/wifiSsidAt/wifiPassAt/wifiSet/wifiRemove`; slot 0 provides legacy
+  single-profile access (`wifiSsid`/`setWifiSsid`, INI export/webfm).
+- `core/console.*` — USB debug console (`help`). Commands: `status`,
+  `time`/`tz`, `eink hib`, `mesh init`, `mesh eco`, `advert [flood]`,
+  `public`/`join`/`chan`/`dm`, `pos`, `gps [scan|off]`, `wifi`, `alarm`,
+  `ollama`, `podcast`, `ota`, `todo`, `cal`, `calibre`, `nav`, `scrobble`,
+  `notes`, `rm`. Console input resets the auto-standby timer
+  (`power::noteActivity()`).
+- `core/power.*` — button (short press = key lock, long press = standby),
+  auto-standby, deep sleep. **CPU clock governor:** base clock 80 MHz from
+  `boostBegin()` (end of setup); `boostLock()`/`boostUnlock()` (reference
+  counter) switches to 240 MHz for audio decoding, Wi-Fi (centrally through
+  Wi-Fi events; services need not handle it), chess AI, EPUB conversion, and
+  console commands. APB stays at 80 MHz; SPI/UART/I2S are unaffected.
+  **Two side buttons: TOP=GPIO0 (firmware), BOTTOM=RST (hardware reset;
+  immediate, invisible to firmware).** Timer wake uses a minimal path (banner
+  only), with a full-screen refresh every 12 wakes. Alarm wake makes
+  `handleTimerWake()` return `false` for a full boot. Safeguards added after
+  three silent deep discharges (06-07/26): task watchdog around the minimal
+  path and `enterStandby()`, release-wait timeout, `noteBoot()` crash-loop
+  brake (3 abnormal resets → emergency standby with button-only wake),
+  deep-discharge protection (≤5% → standby without hourly wake), and sleep
+  diagnostics in RTC RAM (`logSleepDebug()` writes phase and wake history to
+  battlog).
+- `core/appmgr.*` — app lifecycle, status line, dirty-state coalescing,
+  30-second persistence. Tapping the status line goes Home.
+- `services/timesync.*` — no hardware RTC; canonical time is ESP32 system time.
+  Sources in priority order: GPS > NTP > mesh adverts. Learns clock drift,
+  syncs before standby, and uses POSIX-TZ (`tz` in NVS; default
+  `Europe/Berlin`).
+- `services/audio.*` — path-based queue (PSRAM staging), owner tokens
+  (Music/Book/Podcast), shuffle/repeat, `seekRel`, sleep timer.
+- `services/scrobble.*` — Navidrome/Subsonic. Wi-Fi and audio are mutually
+  exclusive; batch scrobbles before auto-standby. Queue:
+  `/.fennek/scrobbles.tsv`. NVS `nscro/nurl/nuser/npass`.
+- `services/notes_ai.*` — Ollama cleanup of past notes. Batch before
+  auto-standby, up to 20 per run. Done list `/.fennek/notes_ai.done` (SHA256).
+  NVS `oai/ourl/omod`.
+- `services/ota.*` — OTA through the GitHub Releases API (`danst0/fennek`).
+  Resolves HTTP 302 redirects itself and flashes the inactive OTA slot. NVS
+  `otau`. Release command:
+  `gh release create vX.Y.Z .pio/build/fennek/firmware.bin`.
+- `services/podcast.*` — **DISABLED (v2.5.9)**. Code remains available for
+  reactivation. Subscriptions are in `/podcasts/feeds.txt`; only the newest
+  episode per feed is retained.
+- `services/library.*` — music under `/music`, growing PSRAM blocks (no track
+  limit), cache `/.fennek/tracks.bin`. `TRACK_PATH_LEN`=256 (longer paths are
+  skipped).
+- `services/id3.*` — minimal ID3v1/v2 reader (TIT2/TPE1/TALB).
+- `services/gps.*` — u-blox MIA-M10Q, UART1 38400 baud. Parses GGA/RMC. Sends
+  UBX aiding (time + approximate position) at startup. GPS is active only
+  while the Maps app is in the foreground.
+- `services/maps_tiles.*` — 1-bit tiles `/maps/{z}/{x}/{y}.bin` (8192 B).
+  PSRAM LRU cache (16 slots). Call `ensureViewport()` only from `tick()`.
+- `services/textdoc.*` — streaming pagination and offset-index cache
+  `/.fennek/idx/`.
+- `services/epubzip.h` / `epubproc.*` — EPUB→TXT, cache
+  `/books/.epub_cache/`.
+- `services/alarmclock.*` — 4 alarms (NVS `alarm`), snooze in RTC RAM. Beep
+  file `/.fennek/alarm.wav`, backlight blinking (GPIO42). Per-alarm signal
+  mode (tone/blink/both). Auto-dismiss after 5 minutes.
+- `services/calendar.*` and `apps/ical_core.h` — read-only iCal subscriptions.
+  Feeds `/calendar/feeds.txt`. Conditional GET (ETag/304), streaming parser,
+  window from 1 day ago through 56 days ahead. RRULE DAILY/WEEKLY/MONTHLY.
+  NVS toggle `calauto`.
+- `services/reinschrift.*` and `apps/reinschrift_core.h` — Todo sync over
+  WebDAV (Nextcloud). Operation queue `/.fennek/todo_ops.tsv` and ETag-based
+  PUT with conflict merge (412 → GET + merge). NVS
+  `todourl/todousr/todopw/todopath`.
+- `services/calibre_books.*` — e-book pull sync from **Calibre-Web** via OPDS
+  (`calibre.dumke.me`; NOT the native Content Server). Shelf (default
+  “Fennek”) → `/opds/shelfindex` + `/opds/download/<id>/epub/` → `/books`.
+  Add-only; manifest `/.fennek/calibre.tsv`. Basic Auth uses the Calibre-Web
+  login. Auto-sync at most every 6 hours before standby (lesson from podcast
+  sync), max. 8 downloads per run. NVS `cburl/cbusr/cbpw/cbshelf/cbauto`.
+  Console: `calibre`.
+- `services/wifi.*` — centralized Wi-Fi. `connect(timeout)` applies the
+  Wi-Fi rule (stop audio + suspend mesh), scans and chooses the **strongest
+  known network in range** (up to 20 profiles in `settings::wifi*`; falls
+  back to slot 0 for a hidden SSID). `disconnect()` is the counterpart;
+  `pickBest()` is webfm’s separate state machine. Modem sleep is disabled for
+  download throughput. All services (timesync/scrobble/ota/podcast/calendar/
+  calibre/notes_ai/reinschrift/webfm) use this helper rather than their own
+  `WiFi.begin` sequence.
+- `services/webfm.*` — Wi-Fi file server (`http://fennek.local`), JSON API,
+  and OTA endpoints. SD access under `spiLock`; network I/O after
+  `spiUnlock`.
+- `apps/launcher.*` — 2 pages with up to 10 tiles each. Page 1:
+  Music/Audiobooks/Reading/Mesh/Options/Games/Files/Notes/Alarms/Maps. Page 2:
+  Motion/Math/Learn/Calendar/Todo.
+- `apps/music_app.*` — artist/album/playlist browser and player.
+- `apps/book_app.*` — audiobooks under `/audiobooks`, NVS bookmarks, ±30 s.
+- `apps/reader_app.*` — books under `/books` (.txt/.epub), progress display.
+- `apps/mesh_client.*` — `MeshClient : BaseChatMesh`. SD persistence:
+  `/meshcore/messages.log` (256 KB rotation), `/meshcore/contacts.bin`,
+  `/meshcore/channels.txt`. SD writes are deferred (5-second throttle, never
+  from a mesh callback).
+- `apps/mesh_app.*` — channel/contact/DM screens. Radio initialization is
+  lazy, on first entry.
+- `apps/games_app.*` — 2048, Minesweeper, Chess (Negamax + alpha-beta, FreeRTOS
+  task priority 1), TTT, Sudoku (iterative generator, no recursion). Logic is
+  in Arduino-free `*_core.h` files and host-tested.
+- `apps/files_app.*` — starts/stops WebFM and shows SSID/IP.
+- `apps/notes_app.*` — daily notes `/notes/YYYY-MM-DD.md`.
+- `apps/alarms_app.*` — alarm UI, direct numeric entry, ringing screen.
+- `apps/maps_app.*` — maps and GPS marker. Load tiles in `tick()`, blit in
+  `draw()`. Follow after >24 px movement. Follow mesh position after ≥30 s
+  and >10 m.
+- `apps/mathquiz_app.*` — mental math. CFO modes (SHARE/GROWTH/MARKUP/
+  DISCOUNT/PCT/RULE72). Adaptive difficulty (per-mode skill counter persisted
+  in NVS `mqlvl`). **Target time: ~20 seconds per problem:** operand ranges
+  are capped and estimates have tolerance (`Problem.tol` /
+  `toleranceFor` / `accept` in `mathquiz_core.h`). A good approximation is
+  accepted for estimable problems (large products at medium level, money
+  percentages, SHARE/GROWTH) with “Good estimate!” feedback and the exact
+  answer shown; addition/subtraction/exact division/Rule72 remain exact.
+  Feedback reports elapsed seconds.
+- `apps/flashcards_app.*` — Leitner boxes 0–4, decks
+  `/flashcards/*.txt`, progress `/flashcards/.progress/`.
+- `tools/host_test_games.cpp` / `host_test_apps.cpp` — host tests for the
+  Arduino-free cores.
+- `main.cpp` — initialization order:
+  `handleTimerWake()` → Power → Display → Touch/KB/Battery/Settings →
+  SD/Library → Audio → Apps.
 
-## Funkparameter
+## Radio parameters
 
-Default **„EU/UK Narrow"**: **869,618 MHz, BW 62,5 kHz, SF 8, CR 4/5**, 22 dBm, DIO2-RF-Switch, TCXO 2,4 V. Maßgeblich sind die NVS-Werte (`settings::meshParams()`), Settings-App „Optionen → Funk". `initContacts()` **muss** in `MeshClient::begin()` gerufen werden — sonst NULL-`contacts`-Crash.
+Default **“EU/UK Narrow”**: **869.618 MHz, BW 62.5 kHz, SF 8, CR 4/5**,
+22 dBm, DIO2 RF switch, 2.4 V TCXO. NVS values
+(`settings::meshParams()`) are authoritative; Settings app “Options → Radio”.
+`initContacts()` **must** be called in `MeshClient::begin()` or the first
+advert causes a NULL `contacts` crash.
 
-**RX-Sparmodus** (NVS `mesheco`, Default an, Konsole `mesh eco on|off`): SX1262-Duty-Cycle-RX statt Dauer-RX (~2/3 des RX-Stroms gespart). Umsetzung im vendored Wrapper (`RadioLibWrappers.*`/`CustomSX1262Wrapper.h`): `startRx()` virtuell, TIMEOUT zusätzlich auf DIO1 (Re-Arm nach Fehl-Präambel), Noise-Floor-Sampling im Duty-Modus aus (SPI-Proben wecken den schlafenden Chip). Voraussetzung: Sender nutzen ≥ unsere Präambel-Länge. Kein rohes `s_radio->startReceive()` — immer `s_radioDrv->restartRecv()`.
+**RX power-saving mode** (NVS `mesheco`, enabled by default; console
+`mesh eco on|off`): SX1262 duty-cycle RX instead of continuous RX (saves about
+2/3 of RX power). Implemented in the vendored wrapper
+(`RadioLibWrappers.*`/`CustomSX1262Wrapper.h`): virtual `startRx()`, TIMEOUT
+also on DIO1 (re-arm after a false preamble), and noise-floor sampling disabled
+in duty mode (SPI probes wake the sleeping chip). Senders must use at least our
+preamble length. Do not call raw `s_radio->startReceive()`; always call
+`s_radioDrv->restartRecv()`.
 
-## Bekannte Fallen (nicht reintroduzieren)
+## Known pitfalls (do not reintroduce)
 
-1. **`initContacts()` in `MeshClient::begin()`** — fehlt → NULL-Crash beim ersten Advert.
-2. **Kein `spiLock()` aus Code, der schon unter dem Lock läuft** — nicht-rekursiver Mutex → komplettes Einfrieren (Loop, Touch, KB, Serial, kein Watchdog). Merke: `MeshClient::begin()`, alle Mesh-Callbacks und `App::draw()` laufen bereits unter spiLock.
-3. **Uhr-Sync: nicht blind vorwärts ratschen.** Regeln: Vorwärts <1 h, Rückwärts erst nach 3 Adverts >1 h hinter uns. `s_clockConfident`-Bootstrap für ersten plausiblen Sprung nach Boot. ESP32-Systemzeit übersteht Deep Sleep; `millis()` nicht.
-4. **Kontakt-Tabelle voll (MAX_CONTACTS=64):** `shouldOverwriteWhenFull() = true` — ältester Nicht-Favorit wird ersetzt.
-5. **Auto-Standby kennt Konsole:** `power::noteActivity()` in `console::handleLine()`.
-6. **Standby-Tests auf Akku:** USB-JTAG-DTR kann GPIO0-Druck als Reset interpretieren.
-7. **Flood statt Zero-Hop für Mesh-Position:** Zero-Hop erreicht 1-Hop-Bridges nicht.
-8. **GPS-Baudrate 38400** (MIA-M10Q) — bei 9600 nur Müll.
-9. **E-Ink-Controller-Deep-Sleep (0x07) bleibt aus.** `GxEPD2::hibernate()` schickt den UC8253 per 0x07 schlafen, aus dem NUR ein Hardware-Reset zurückholt — auf der T-Deck Pro **V1.0 ist die EPD-RST-Leitung gar nicht verdrahtet** (LilyGO: `BOARD_EPD_RST -1`; GPIO 16 ist dort der ALS-Interrupt. V1.1/V2 = 16, V3 = 9). Das Panel hängt dann firmwareübergreifend mit aktivem BUSY, bis es sich nach Stunden selbst entladen hat (Issue #2). `display::hibernate()` macht deshalb per Default nur `powerOff()` (Bild steht stromlos weiter); 0x07 nur bei NVS `einkhib` (Konsole `eink hib on|off`), und ein einmal hängendes Panel (`display::panelStuck()`) löscht das Flag dauerhaft. **RST-Puls trotzdem nicht verkürzen:** GxEPD2 setzt `_hibernating=false` bedingungslos, `initPanel()` eskaliert deshalb 20/50/200 ms (früher 2, GxEPD2-Default 10) und prüft BUSY nach jedem Versuch.
+1. **Call `initContacts()` from `MeshClient::begin()`** — otherwise the first
+   advert causes a NULL crash.
+2. **Never call `spiLock()` from code that already holds the lock** — the
+   mutex is non-recursive and causes a complete freeze (loop, touch, keyboard,
+   serial; no watchdog). `MeshClient::begin()`, all mesh callbacks, and
+   `App::draw()` already run under `spiLock`.
+3. **Do not blindly move the clock forward during sync.** Rules: forward jumps
+   under 1 hour; move backward only after 3 adverts more than 1 hour behind.
+   `s_clockConfident` bootstraps the first plausible jump after boot. ESP32
+   system time survives deep sleep; `millis()` does not.
+4. **Full contact table (`MAX_CONTACTS=64`):**
+   `shouldOverwriteWhenFull() = true` replaces the oldest non-favorite.
+5. **Auto-standby must account for console activity:**
+   `power::noteActivity()` in `console::handleLine()`.
+6. **Test standby on battery:** USB-JTAG-DTR can interpret GPIO0 press as a
+   reset.
+7. **Use flood, not zero-hop, for mesh position:** zero-hop does not reach
+   one-hop bridges.
+8. **GPS baud rate is 38400** (MIA-M10Q) — 9600 produces garbage.
+9. **Keep E-Ink controller deep sleep (0x07) disabled by default.**
+   `GxEPD2::hibernate()` sends the UC8253 to sleep with 0x07; only a hardware
+   reset wakes it. On T-Deck Pro **V1.0, the EPD RST line is not wired**
+   (LilyGO: `BOARD_EPD_RST -1`; GPIO 16 is the ALS interrupt. V1.1/V2 = 16,
+   V3 = 9). The panel then hangs with BUSY active across firmware resets until
+   it discharges itself after hours (Issue #2). Therefore
+   `display::hibernate()` defaults to `powerOff()` only (the image remains
+   without power); 0x07 is used only with NVS `einkhib` (console
+   `eink hib on|off`), and a stuck panel (`display::panelStuck()`) permanently
+   clears the flag. **Do not shorten the RST pulse:** GxEPD2 unconditionally
+   sets `_hibernating=false`, so `initPanel()` tries 20/50/200 ms (previously
+   2; GxEPD2 default is 10) and checks BUSY after each attempt.

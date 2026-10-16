@@ -200,7 +200,7 @@ bool downloadEpisode(const char* url, const char* dest, podcast::Progress prog, 
 
   // Server ignoriert Range → 200 statt 206: Neustart erzwingen
   if (st && partSize > 0 && code == 200) {
-    Serial.printf("[PODCAST] %s: kein Range-Support (HTTP 200), starte neu\n", feedName);
+    Serial.printf("[PODCAST] %s: no Range support (HTTP 200); restarting download\n", feedName);
     http->end(); st = nullptr;
     partSize = 0;
     spiLock(); SD.remove(tmp); spiUnlock();
@@ -225,7 +225,7 @@ bool downloadEpisode(const char* url, const char* dest, podcast::Progress prog, 
   File f = SD.open(tmp, partSize > 0 ? FILE_APPEND : FILE_WRITE);
   bool open = (bool)f;
   spiUnlock();
-  if (!open) { http->end(); delete http; delete cs; delete cp; Serial.println("[PODCAST] SD-Datei nicht offen"); return false; }
+  if (!open) { http->end(); delete http; delete cs; delete cp; Serial.println("[PODCAST] Could not open SD file"); return false; }
 
   // --- PSRAM-Puffer ---
   int bufSz = 64 * 1024;
@@ -295,7 +295,7 @@ bool downloadEpisode(const char* url, const char* dest, podcast::Progress prog, 
   if (ok && written == 0 && partSize == 0) ok = false;
   if (!ok) {
     // .part + .dl_url stehen lassen → nächster Sync kann fortsetzen
-    Serial.printf("[PODCAST] %s: unterbrochen bei %u+%u B, Resume beim naechsten Sync\n",
+    Serial.printf("[PODCAST] %s: interrupted at %u+%u B; resume on next sync\n",
                   feedName, (unsigned)partSize, (unsigned)written);
     return false;
   }
@@ -306,7 +306,7 @@ bool downloadEpisode(const char* url, const char* dest, podcast::Progress prog, 
   if (!ren) SD.remove(tmp);
   SD.remove(urlFile);  // .dl_url nach erfolgreichem Download aufräumen
   spiUnlock();
-  if (!ren) { Serial.println("[PODCAST] rename fehlgeschlagen"); return false; }
+  if (!ren) { Serial.println("[PODCAST] Rename failed"); return false; }
   Serial.printf("[PODCAST] %s: %u Bytes gesamt -> %s\n", feedName, (unsigned)(partSize + written), dest);
   return true;
 }
@@ -344,12 +344,12 @@ void retain(const char* slug, const char* keepBase) {
 int syncFeedWifiUp(const podcast::Feed& f, podcast::Progress prog) {
   if (prog) prog(f.name, -1);
   podcast::EpisodeMeta meta;
-  if (!fetchLatest(f.url, meta)) { Serial.printf("[PODCAST] %s: Feed-Fehler\n", f.name); return -1; }
+  if (!fetchLatest(f.url, meta)) { Serial.printf("[PODCAST] %s: feed error\n", f.name); return -1; }
 
   podcast::Local loc;
   bool have = podcast::localEpisode(f, &loc);
   if (have && strcmp(loc.guid, meta.guid) == 0) {
-    Serial.printf("[PODCAST] %s: aktuell (%s)\n", f.name, meta.title);
+    Serial.printf("[PODCAST] %s: up to date (%s)\n", f.name, meta.title);
     return 0;
   }
 
@@ -373,19 +373,19 @@ bool syncCore(int onlyIdx, bool roundRobin, bool useBackoff, char* log, size_t l
               podcast::Progress prog) {
   auto setLog = [&](const char* m) { if (log && logN) { strncpy(log, m, logN - 1); log[logN - 1] = '\0'; } };
 
-  if (useBackoff && !settings::podcastAutoSync()) { setLog("Auto-Sync aus"); return true; }
-  if (!board::sdReady()) { setLog("keine SD-Karte"); return false; }
+  if (useBackoff && !settings::podcastAutoSync()) { setLog("Auto-sync is off"); return true; }
+  if (!board::sdReady()) { setLog("No SD card"); return false; }
 
   auto* feeds = (podcast::Feed*)malloc(podcast::kMaxFeeds * sizeof(podcast::Feed));
   if (!feeds) { setLog("out of memory"); return false; }
   int n = podcast::readFeeds(feeds, podcast::kMaxFeeds);
-  if (n == 0) { setLog("keine Feeds"); free(feeds); return true; }
+  if (n == 0) { setLog("No feeds"); free(feeds); return true; }
 
   char ssid[33], wpass[65];
   settings::wifiSsid(ssid, sizeof(ssid));
   settings::wifiPass(wpass, sizeof(wpass));
-  if (!ssid[0]) { setLog("kein WLAN konfiguriert"); free(feeds); return false; }
-  if (webfm::state() != webfm::State::OFF) { setLog("WLAN belegt"); free(feeds); return false; }
+  if (!ssid[0]) { setLog("Wi-Fi is not configured"); free(feeds); return false; }
+  if (webfm::state() != webfm::State::OFF) { setLog("Wi-Fi is busy"); free(feeds); return false; }
 
   if (useBackoff) {
     uint32_t cur = timesync::now();
@@ -394,8 +394,8 @@ bool syncCore(int onlyIdx, bool roundRobin, bool useBackoff, char* log, size_t l
       uint32_t wait  = kBackoffBaseSecs << shift;
       if (wait > kBackoffMaxSecs) wait = kBackoffMaxSecs;
       if (cur - s_lastAttemptEpoch < wait) {
-        Serial.printf("[PODCAST] Pre-Standby-Sync uebersprungen (Back-off: %u Fehlschlaege, "
-                      "warte %lus)\n", (unsigned)s_failCount, (unsigned long)wait);
+        Serial.printf("[PODCAST] Pre-standby sync skipped (backoff: %u failures, "
+                      "wait %lus)\n", (unsigned)s_failCount, (unsigned long)wait);
         setLog("Back-off aktiv");
         free(feeds);
         return false;
@@ -407,7 +407,7 @@ bool syncCore(int onlyIdx, bool roundRobin, bool useBackoff, char* log, size_t l
   if (!wifiUp(ssid, wpass)) {
     wifiDown();
     if (useBackoff && s_failCount < 0xFF) s_failCount++;
-    setLog("WLAN-Fehler");
+    setLog("Wi-Fi error");
     free(feeds);
     return false;
   }
@@ -415,7 +415,7 @@ bool syncCore(int onlyIdx, bool roundRobin, bool useBackoff, char* log, size_t l
   int neu = 0, aktuell = 0, fehler = 0;
   auto acc = [&](int r) { if (r == 1) neu++; else if (r == 0) aktuell++; else fehler++; };
 
-  Serial.printf("[PODCAST] WLAN verbunden, synchronisiere ...\n");
+  Serial.printf("[PODCAST] Wi-Fi connected; syncing ...\n");
   if (roundRobin) {
     int idx = s_rrIndex % n;
     s_rrIndex = (uint16_t)((idx + 1) % n);
@@ -435,7 +435,7 @@ bool syncCore(int onlyIdx, bool roundRobin, bool useBackoff, char* log, size_t l
   }
 
   char m[64];
-  snprintf(m, sizeof(m), "%d neu, %d aktuell, %d Fehler", neu, aktuell, fehler);
+  snprintf(m, sizeof(m), "%d new, %d current, %d errors", neu, aktuell, fehler);
   setLog(m);
   Serial.printf("[PODCAST] %s\n", m);
   return fehler == 0;

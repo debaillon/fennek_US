@@ -63,7 +63,7 @@ void openGame(int i) {
     case GSUDOKU: sudoku_ui::enter();  break;
     default: break;
   }
-  Serial.printf("[GAME] öffne %s\n", i18n::tr(kMenu[i].label));
+  Serial.printf("[GAME] Opening %s\n", i18n::tr(kMenu[i].label));
   appmgr::markDirty();
 }
 

@@ -1,341 +1,371 @@
-# Offene Themen
-- [x] Kalender-App (iCal, Sparse Sync) + Todo-App (Reinschrift via Nextcloud/WebDAV)
-      ERLEDIGT (v2.6.1): Zwei neue Apps (Kacheln 13/14, Seite 2).
-      KALENDER (read-only): abonniert .ics-Feeds (`/calendar/feeds.txt`), zeigt
-      Agenda. Sparse = bedingter GET (304) + Streaming-Parse + Vorwaerts-Fenster
-      (56 Tage); Parser `apps/ical_core.h` (RFC-5545-Subset, RRULE DAILY/WEEKLY/
-      MONTHLY, host-getestet). Service `services/calendar.*`, Per-Feed-Cache
-      `/calendar/<slug>.bin`. Konsole `cal …`.
-      TODO (Reinschrift, ../TodosExtension): Sync der Markdown-DB ueber Nextcloud/
-      WebDAV (Basic-Auth, GET/PUT). KONFLIKTAUFLOESUNG zentral: nie blind
-      ueberschreiben — lokale Aenderungen sind eine ueber ^marker adressierte
-      Op-Queue (`/.fennek/todo_ops.tsv`); Sync = GET+ETag -> applyOps-Merge ->
-      PUT mit If-Match (412 -> einmal neu mergen). Fremde Edits an anderen
-      Aufgaben ueberleben. Core `apps/reinschrift_core.h` (host-getestet,
-      Merge-/Konflikt-Szenarien). Service `services/reinschrift.*`, App
-      `apps/todo_app` (abhaken/Quick-Add/heute-morgen/Filter). Konsole `todo …`.
-      Beide: Settings-Ordner „Todo"/„Kalender", WLAN ⊥ Audio, Sync per Button +
-      vor Auto-Standby (Back-off). Host-Tests gruen (608k Checks), Build OK.
-      OFFEN am Geraet: echter WebDAV-Roundtrip gegen globe.dumke.me + realer
-      .ics-Feed; Konflikt-Pfad (zwei Geraete) verifizieren; E-Ink-Ergonomie.
-- [x] Akkuanzeige noch immer bei 72%
-      ERLEDIGT (battery.cpp): percent() liest nicht mehr das Gauge-SoC-Register
-      (REG_SOC), sondern leitet den Ladestand SPANNUNGSBASIERT aus der LiPo-
-      Entladekurve ab (percentFromMilliVolts, lineare Interpolation).
-      Diagnose: Die BQ27220 ist `sealed`; ihr Coulomb-Counter resynct FCC nur an
-      einer sauberen Vollladung. Auf dem Dev-Geraet (Reboots beim Flashen
-      unterbrechen das Laden) driftet FCC tief (1272 statt 1400 mAh) -> SoC haengt
-      bei 72% fest, obwohl 4136 mV auf einer echten LiPo-Kurve ~90% bedeuten. Der
-      v2.4.8-RM/DC-Versuch + v2.4.9-Revert kreisten beide ums Gauge-Register; die
-      eigentliche Ursache ist, dass das Register selbst unbrauchbar ist. Die
-      Klemmenspannung folgt dagegen dem realen Ladestand (unter der leichten,
-      stetigen E-Ink-Last sackt sie kaum unter die Ruhespannung). `gauge`-Dump
-      zeigt jetzt beide Werte nebeneinander (Gauge-SoC ungenutzt vs. Anzeige).
-      Build OK. OFFEN am Geraet: `gauge` bei vollem Akku -> Anzeige ~100%? und
-      ueber einen Entladezyklus pruefen, dass die % monoton fallen.
-- [x] Kann die USB-C Geschwindigkeit zur SD-Karte beschleunigt werden (OTG)?
-      ERLEDIGT (Analyse, keine Code-Aenderung — lohnt nicht):
-      Der Flaschenhals ist NICHT die Transport-Strecke (USB/WLAN), sondern der
-      geteilte HSPI-Bus, an dem die SD haengt: SPI_BUS_HZ = 4 MHz (config.h:30,
-      `SD.begin(PIN_SD_CS, g_spi, SPI_BUS_HZ)` board.cpp:90). 8 MHz korrumpiert
-      Writes (hardware-verifiziert) -> 4 MHz ist Hartgrenze. Das sind theoretisch
-      ~500 KB/s, real ~250-400 KB/s. Jede SD-Lesung — ob WebFM-WLAN oder USB —
-      laeuft durch genau diesen 4-MHz-Bus und kann ihn nicht ueberholen.
-      Warum OTG/USB-MSC nichts bringt:
-        1. ESP32-S3-USB ist nur Full-Speed (USB 1.1, 12 Mbit/s ~ 1 MB/s), kein
-           High-Speed-PHY. Selbst perfektes USB-MSC deckelt bei ~1 MB/s — und die
-           4-MHz-SD (~0,5 MB/s) liegt DARUNTER. USB entlastet die echte Grenze nicht.
-        2. USB-MSC braucht exklusiven Block-Zugriff: Host und gemountetes FAT der
-           Firmware duerfen die Karte nicht gleichzeitig anfassen (Korruption).
-           Man muesste alle Firmware-SD-Nutzung (Audio/Apps) waehrend des Transfers
-           stilllegen, und die MSC-Bloecke laufen weiter unter spiLock am geteilten
-           Bus. Grosse Architektur-Stoerung fuer null Geschwindigkeitsgewinn.
-        3. Echter Speedup-Pfad waere SD_MMC im 4-bit-Modus (SDIO, 20-40 MHz) —
-           ist aber NICHT verdrahtet: die SD teilt sich die HSPI-Pins bewusst mit
-           E-Ink/LoRa, es gibt keine dedizierten SDMMC-Datenleitungen. Geht nur
-           mit Hardware-Aenderung.
-      Fazit: USB-OTG/MSC bringt keinen messbaren Vorteil; der 4-MHz-SPI-SD-Bus
-      dominiert vor wie nach. Nicht umsetzen.
-- [x] Welche sonstigen Optimierungen siehst du?
-      ANALYSE: Das meiste ist schon eng optimiert — NVS schreibt write-on-change +
-      Delta (settings.cpp:142-154, kein Flash-Wear), SD-Scans gechunkt + pausieren
-      bei Wiedergabe, Refreshes region-scoped, Audio auf eigenem Core mit 256-KB-
-      PSRAM-Read-Ahead. Die leichten Gewinne sind durch. Verbleibend (nach Wert):
-        1. Idle-CPU/Akku (Haupthebel): main loop() endete in festem `delay(10)`
-           (100-Hz-Busy-Poll) — auch wenn das Geraet wach, aber im Leerlauf ist
-           (statisches E-Ink, kein Audio) weckt Core 1 alle 10 ms zum Polling.
-        2. `[APP] Tap`-Serial-Spam (appmgr.cpp): feuerte pro Tap-Event; gehaltener
-           Finger (bekanntes kosmetisches Dauer-Tap-Problem) flutete Serial.
-        3. esp_pm Auto-Light-Sleep waere der groesste Idle-Strom-Hebel, aber
-           riskant mit I2S/SPI/Audio-Task — braucht Geraete-Strommessung. NICHT
-           umgesetzt (verletzt sonst die Verify-on-Device-Disziplin).
-        4. background()-Fan-out (alle Apps je Loop) ist absichtlich + billig
-           (No-op-Virtuals) — gelassen.
-      ERLEDIGT (umgesetzt, Build OK 27,7 %):
-        (1) Adaptives Eingabe-Polling (main.cpp): `power::idleMs()` (neuer Getter
-            in core/power, liefert ms seit letzter Aktivitaet; laufende Wiedergabe
-            haelt ihn bei ~0). Loop bleibt bei ~100 Hz solange busy (idleMs<3 s
-            ODER webfm bedient HTTP), drosselt sonst auf ~30 Hz (delay 33). Touch/
-            Tastatur bleiben reaktiv (Key-Repeat/Debounce millis()-basiert, Audio
-            auf Core 0); greift nur im wachen Leerlauf vor dem Auto-Standby.
-        (2) Tap-Log auf ≥400 ms gedrosselt (statischer Zeitstempel); Tap-
-            Verarbeitung selbst unberuehrt — Serial bleibt sauber bei gehaltenem
-            Finger.
-      OFFEN am Geraet: bestaetigen, dass sich Touch/Tippen im Leerlauf weiterhin
-      snappy anfuehlt (33-ms-Polling); optional Strommessung, ob der Idle-Drop
-      messbar ist. esp_pm-Light-Sleep separat evaluieren, wenn gewuenscht.
-- [x] Podcast app deaktivieren, der WLAN Sync ist zu langsam.
-      ERLEDIGT (v2.5.9, Soft-Disable): Der Schmerzpunkt war der Auto-WLAN-Sync vor
-      dem Standby (`podcast::flushBeforeStandby()` in core/power.cpp) — brachte bei
-      JEDEM Standby das WLAN hoch und lud ueber den 4-MHz-SD-Bus eine (oft >100 MB)
-      Folge. Auskommentiert. Dazu: Launcher-Kachel (main.cpp:229) + App-Registrierung
-      (main.cpp:215) + `podcast::begin()` (main.cpp:151) auskommentiert -> App vom
-      Geraet verschwunden, Slot 13 (Seite 2) bleibt leer (Label None -> uebersprungen).
-      BEWUSST BEHALTEN fuer Reaktivierung: services/podcast.*, apps/podcast_app.*,
-      podcast_core.h (kompilieren weiter), Konsolen-Befehle `podcast …`, NVS-Toggle
-      `pcas`, i18n-Strings. Build OK (Flash 27,7 %). CLAUDE.md vermerkt den Status.
+# Open items
 
-- [ ] transkription der audionotizen
-      HINWEIS: erst wenn am Gerät bestätigt ist, dass WAV-Aufnahmen hörbaren Ton
-      enthalten (s. erledigtes Todo), lohnt die Transkription. Dann gleiche
-      WLAN⊥Audio-Batch-Logik wie notes_ai/scrobble (externer Whisper/Dienst,
-      Lauf vor dem Auto-Standby).
-- [ ] später mal sync nach obsidian
+- [x] Calendar app (iCal, sparse sync) + Todo app (Reinschrift via
+  Nextcloud/WebDAV)
+  - **Done (v2.6.1):** Added two apps (tiles 13/14, page 2).
+  - **Calendar (read-only):** Subscribes to `.ics` feeds
+    (`/calendar/feeds.txt`) and displays an agenda. Sparse sync uses
+    conditional GET (304), streaming parsing, and a forward window (56 days).
+    Parser: `apps/ical_core.h` (RFC-5545 subset, RRULE DAILY/WEEKLY/MONTHLY,
+    host-tested). Service: `services/calendar.*`; per-feed cache:
+    `/calendar/<slug>.bin`. Console: `cal …`.
+  - **Todo (Reinschrift, ../TodosExtension):** Syncs the Markdown database
+    over Nextcloud/WebDAV (Basic Auth, GET/PUT). Conflict resolution is
+    central: never blindly overwrite. Local changes use an operation queue
+    addressed by `^` markers (`/.fennek/todo_ops.tsv`); sync is
+    GET+ETag → applyOps merge → PUT with If-Match (on 412, merge once more).
+    Edits to other tasks made elsewhere are preserved. Core:
+    `apps/reinschrift_core.h` (host-tested merge/conflict scenarios). Service:
+    `services/reinschrift.*`; app: `apps/todo_app` (complete, Quick Add, today/
+    tomorrow, filters). Console: `todo …`.
+  - Both apps use “Todo” / “Calendar” settings folders, Wi-Fi/audio
+    exclusion, and sync via button plus before auto-standby (with back-off).
+    Host tests passed (608k checks); build passed.
+  - **Still needs device verification:** real WebDAV round-trip against
+    globe.dumke.me and a real `.ics` feed; conflict path across two devices;
+    E-Ink usability.
+- [x] Battery display stuck at 72%
+  - **Done (`battery.cpp`):** `percent()` no longer reads the gauge SoC
+    register (`REG_SOC`); it derives charge from the LiPo discharge curve using
+    voltage (`percentFromMilliVolts`, linear interpolation).
+  - Diagnosis: the BQ27220 is `sealed`; its coulomb counter only resynchronizes
+    FCC after a clean full charge. On the development device, reboots while
+    flashing interrupt charging and FCC drifts low (1272 instead of 1400 mAh),
+    leaving SoC stuck at 72% even though 4136 mV corresponds to about 90% on a
+    real LiPo curve. The v2.4.8 RM/DC attempt and v2.4.9 revert both focused on
+    the gauge register; the actual issue is that the register is unreliable.
+    Terminal voltage tracks the real charge level instead (under the light,
+    steady E-Ink load it barely falls below resting voltage). The `gauge`
+    dump now shows both values side by side (unused gauge SoC vs. displayed
+    value). Build passed.
+  - **Still needs device verification:** run `gauge` at full charge and confirm
+    the display is near 100%; verify that the percentage falls monotonically
+    over a discharge cycle.
+- [x] Can USB-C speed up SD-card transfers (OTG)?
+  - **Done (analysis only; no code change, not worthwhile):** The bottleneck is
+    not the USB/Wi-Fi transport but the shared HSPI bus used by the SD card:
+    `SPI_BUS_HZ = 4 MHz` (`config.h:30`,
+    `SD.begin(PIN_SD_CS, g_spi, SPI_BUS_HZ)` in `board.cpp:90`). 8 MHz
+    corrupts writes (verified on hardware), so 4 MHz is the hard limit.
+    Theoretical throughput is ~500 KB/s; actual throughput is ~250–400 KB/s.
+    Every SD read, whether via WebFM/Wi-Fi or USB, uses that bus.
+  - Why OTG/USB-MSC would not help:
+    1. ESP32-S3 USB is Full-Speed only (USB 1.1, 12 Mbit/s, about 1 MB/s), with
+       no High-Speed PHY. Even ideal USB-MSC tops out around 1 MB/s, while the
+       4 MHz SD link (~0.5 MB/s) is slower. USB does not remove the actual
+       bottleneck.
+    2. USB-MSC requires exclusive block access: the host and the firmware’s
+       mounted FAT filesystem cannot access the card simultaneously without
+       risking corruption. All firmware SD use (audio/apps) would need to stop
+       during transfers; MSC would still use the shared bus under `spiLock`.
+       This is major architectural disruption for no speed gain.
+    3. The real speedup would be SD_MMC in 4-bit mode (SDIO, 20–40 MHz), but it
+       is not wired: SD shares the HSPI pins with E-Ink/LoRa and has no
+       dedicated SDMMC data lines. This requires a hardware change.
+  - Conclusion: USB-OTG/MSC offers no measurable benefit; the 4 MHz SPI SD bus
+    remains the bottleneck. Do not implement.
+- [x] What other optimizations are possible?
+  - **Analysis:** Most areas are already tightly optimized: NVS uses
+    write-on-change plus delta (`settings.cpp:142-154`, avoiding flash wear);
+    SD scans are chunked and pause during playback; refreshes are region-scoped;
+    audio runs on its own core with 256 KB PSRAM read-ahead. Most easy wins
+    were already taken. Remaining options, by value:
+    1. Idle CPU/power (main opportunity): `main loop()` had a fixed
+       `delay(10)` (100 Hz polling), waking Core 1 every 10 ms even when the
+       device was awake but idle (static E-Ink, no audio).
+    2. `[APP] Tap` serial spam (`appmgr.cpp`): logged each tap; a held finger
+       (known cosmetic repeated-tap issue) flooded serial.
+    3. `esp_pm` automatic light sleep could save the most idle power, but is
+       risky with I2S/SPI/audio tasks and requires device power measurements.
+       **Not implemented** to preserve the verify-on-device discipline.
+    4. `background()` fan-out (all apps each loop) is intentional and cheap
+       (no-op virtual methods), so it was left alone.
+  - **Done (implemented; build passed, 27.7%):**
+    1. Adaptive input polling (`main.cpp`): `power::idleMs()` (new getter in
+       `core/power`, milliseconds since last activity; active playback keeps
+       it near zero). The loop stays near 100 Hz while busy (`idleMs < 3 s` or
+       WebFM is serving HTTP), then drops to about 30 Hz (`delay(33)`). Touch
+       and keyboard remain responsive (key repeat/debounce use `millis()`;
+       audio is on Core 0). Applies only during awake idle before auto-standby.
+    2. Tap logging is throttled to once per ≥400 ms (static timestamp); tap
+       processing is unchanged, and serial stays clear while a finger is held.
+  - **Still needs device verification:** confirm touch and typing still feel
+    responsive during idle at 33 ms polling; optionally measure whether idle
+    power measurably drops. Evaluate `esp_pm` light sleep separately if desired.
+- [x] Disable the Podcast app because Wi-Fi sync is too slow.
+  - **Done (v2.5.9, soft-disabled):** The pain point was automatic Wi-Fi sync
+    before standby (`podcast::flushBeforeStandby()` in `core/power.cpp`),
+    which brought up Wi-Fi at EVERY standby and downloaded an episode (often
+    >100 MB) over the 4 MHz SD bus. This sync was commented out. The launcher
+    tile (`main.cpp:229`), app registration (`main.cpp:215`), and
+    `podcast::begin()` (`main.cpp:151`) were also commented out, removing the
+    app from the device; slot 13 (page 2) remains empty (label None is skipped).
+    **Intentionally retained for reactivation:** `services/podcast.*`,
+    `apps/podcast_app.*`, `podcast_core.h` (still compiles), console commands
+    `podcast …`, NVS toggle `pcas`, and i18n strings. Build passed (flash
+    27.7%). Status is recorded in `CLAUDE.md`.
 
-# Verifikation am Gerät — neue Features 17.06. (v2.0.x)
-- [ ] Verifikation am Gerät (Build OK): Mesh-Identität von SD, Chats-Navigation,
-      Reader-Refresh ohne Vollbild-Blitzen, Buch 2x öffnen = Cache-Hit.
-- [ ] Verifikation am Gerät (Build OK, 12.06.): Schlafbild-Akku-% + Timer-Wake
-      (mit -D SLEEP_WAKE_TEST flashen: 60 s statt 1 h; Achtung, Deep Sleep
-      trennt USB -> Monitor neu verbinden) und Web-Dateiverwaltung
-      (Konsole: wifi ssid/pass/start; Browser: Upload/Download/Loeschen,
-      MP3-Upload danach abspielbar; wifi stop -> Mesh empfaengt wieder).
+- [ ] Transcribe voice notes.
+  - **Note:** Do this only after confirming on the device that WAV recordings
+    contain audible sound (see the completed item below). Then use the same
+    Wi-Fi/audio batch model as `notes_ai`/scrobble (external Whisper/service,
+    run before auto-standby).
+- [ ] Sync with Obsidian later.
 
-# Erledigt
-- [x] ich hätte gerne noch ein spiel, mach einen vorschlag
-      ERLEDIGT: Vorschlag Sudoku (passt ideal zum E-Ink: statisches 9×9-Gitter,
-      kein Flackern; rein arithmetisch host-testbar). Fünftes Spiel in der
-      „Spiele"-App. apps/sudoku.* (UI) + Arduino-freier apps/sudoku_core.h
-      (Generator + Solver, host-getestet, tools/host_test_games.cpp: testSudoku
-      prüft eindeutige Lösung, gültige sol[], Konflikt-Erkennung). Generator =
-      randomisiertes Backtracking für die Vollösung, dann Zellen ausgraben
-      solange eindeutig lösbar (countSolutions bricht bei 2 ab); Backtracker
-      iterativ/rekursionsfrei (81 tief würde den Loop-Task-Stack sprengen).
-      Schwierigkeit Leicht/Mittel/Schwer (40/32/26 Vorgaben), Touch-Tap/WASD-
-      Cursor, Zifferntasten 1–9 setzen, 0/Backspace/Mikrofon leeren, Konflikt-
-      zellen invertiert, „Gelöst"-Overlay mit Zeit. Beststände im NVS
-      (settings::sudokuSolved/sudokuBestSec, INI-Export/-Import ergänzt).
-      games_app-Menü auf 5 Einträge umgebaut (46-px-Buttons), i18n GameSudoku,
-      GAMES_SMOKE_TEST um Sudoku erweitert. Host-Tests grün (3068 Checks),
-      Firmware baut sauber.
-      OFFEN am Gerät: Generierungsdauer „Schwer" auf dem ESP32, Lesbarkeit der
-      26-px-Zellen am E-Ink, Ziffern-Eingabe-Ergonomie (Alt/Sym-Ebene).
-- [x] GPS Update der Uhr hat heute nie funktioniert
-      ERLEDIGT (timesync.cpp): Zwei Fixes:
-      (1) `gpsSync()`: `s_lastGpsMs` (gpsFresh) wird jetzt nur noch gesetzt, wenn
-      die Abweichung > 2 s ist — also nur bei echter Satelliten-Korrektur. Vorher
-      setzte ein Null-Diff (GPS-Modul echot die per UBX-MGA-INI injizierte
-      Systemzeit zurück) gpsFresh und blockierte NTP/Mesh 10 min lang ohne
-      nutzbaren Effekt. Löst das "B1 BEWUSST VERWORFEN"-Problem.
-      (2) `gpsSyncBeforeStandby()`: Nicht mehr auf `f.valid` (Positionsfix) warten
-      — RMC liefert UTC oft vor dem Positionsfix (wie maps_app + Konsole `gps` es
-      schon taten). Inline-diff-Prüfung (> 2 s) verhindert die zirkuläre
-      Injektion: wenn GPS die injizierte Systemzeit echot (diff ≈ 0), wird kein
-      Sync gezählt und kein Back-off konsumiert.
-      Diagnose-Erkenntnis: Drinnen liefert u-blox MIA-M10Q RMC oft ohne Datum-
-      Feld → epochUtc = 0 → kein Sync möglich, unabhängig vom Code. GPS-Zeit-
-      Sync erfordert Sky-View. Karten-App und Konsole `gps` decken das ab.
-      OFFEN am Gerät: mit Sky-View prüfen — `time` zeigt nach kurzer GPS-Session
-      (Maps-App oder `gps 60`) „Quelle=GPS Qualität=gut"?
-- [x] update in der webapp zeigt an: "Update verfügbar: v2.4.7 → v2.3.1"
-      ERLEDIGT (v2.4.8): `strcmp(r.latest, r.current) != 0` in ota.cpp durch
-      `semverGt(latest, current)` ersetzt — semantischer Versionsvergleich (Major/
-      Minor/Patch numerisch, v-Prefix toleriert). Am Gerät verifiziert: `ota update`
-      mit GitHub-Release v2.3.1 → korrekt „aktuell" statt falschem Update-Angebot.
-- [x] bitte alle kürzlichen änderungen kritisch testen
-      ERLEDIGT (v2.4.8/v2.4.9): Host-Tests grün (mathquiz, flashcards, podcast, games).
-      Firmware baut sauber. Am Gerät via Konsole verifiziert: `status` (Heap/PSRAM/SD OK),
-      `gauge` (BQ27220 antwortet), `podcast` (Feed-Liste korrekt), `alarm` (4 Wecker),
-      `ota update` (semverGt-Fix bestätigt: v2.3.1 < v2.4.8 → kein Update). Beiläufig
-      entdeckt und korrigiert: RM/DC-Batterie-Fix war falsch (s. Batterie-Eintrag).
-      UI-Pfade (mathquiz Ziffern, Notizen Mikrofontaste, Podcast-App, Touch) stehen als
-      manuelle Geräteverifikation aus — kein Fehler beim Testen gefunden.
-- [x] batterieanzeige geht nur bis 72%
-      ERLEDIGT (Diagnose + Revert, v2.4.9): Gauge BQ27220 hat sich durch einen sauberen
-      Ladezyklus selbst auf FCC=1272 mAh kalibriert (SOH 91% × 1400 mAh = 1274 mAh —
-      passt). Bei vollem Akku (4,2 V) zeigt das SOC-Register 100%; 72% ist der korrekte
-      Wert für den aktuellen Ladestand (4136 mV). Der in v2.4.8 eingebaute RM/DC-Fix
-      war falsch (DC=1400 nominal, FCC=1272 gelernt → max. 91% bei vollem Akku statt
-      100%) und wurde in v2.4.9 wieder auf das SOC-Register zurückgestellt. Keine
-      Firmware-Änderung nötig; Gauge-Selbstkalibrierung hat das Problem gelöst.
-- [x] podcast app mit sync, standard: immer nur die letzte folge behalten,
-      startpodcast: freakshow.fm
-      ERLEDIGT: App "Podcast" (Launcher-Kachel "Podcast", Seite 2, Slot 13).
-      apps/podcast_app.* + Arduino-freier RSS-Parser apps/podcast_core.h
-      (host-getestet, tools/host_test_apps.cpp). Sync-Engine services/podcast.*:
-      Abos in /podcasts/feeds.txt (Default https://freakshow.fm/feed/mp3/, per
-      WebFM editierbar), je Feed /podcasts/<slug>/episode.<ext> + state.txt.
-      "Nur letzte Folge behalten" = beim Sync erstes <item> laden, aeltere
-      Audiodateien loeschen. WLAN-Bring-up selbst (audio::stop + mesh suspend),
-      laedt nur Feed-Anfang bis erstes <item> komplett, gechunkter Download nach
-      SD (Redirect-Aufloesung http/https, Netz nach spiUnlock). Manueller Sync
-      (App-Button/`podcast sync`) = alle Feeds; Auto-Sync vor Standby
-      (flushBeforeStandby in power::poll, RTC-RAM-Back-off, NVS-Toggle pcas) =
-      ein Feed je Standby (Round-Robin). Wiedergabe via Audio-Queue
-      (Owner::Podcast), Resume-Bookmark wie book_app. Konsole podcast/podcast
-      feed/rm/on/off/sync. Build OK, Host-Tests gruen.
-      OFFEN am Geraet: realer Download (Freakshow-Folgen >100 MB! SD-Platz +
-      Dauer pruefen), m4a/AAC-Wiedergabe, Redirect-Ketten der CDN-URLs,
-      Episodentitel-Umbruch am E-Ink.
-- [x] erklaerung in der doku und auf der webseite zu den herausforderungen des
-      geraetes (keine uhr, nicht dauer-online, nur zwei kerne, e-ink)
-      ERLEDIGT: web/index.html "The defining quirk" zu "Engineering around the
-      hardware" ausgebaut (SPI-Bus + vier Challenge-Kacheln: keine RTC / nicht
-      dauer-online / zwei Kerne / E-Ink, je mit Loesung); Podcast-App-Kachel +
-      Footer-Version v2.4.6 nachgezogen. README.md/.de.md/.sv.md je neuer
-      Abschnitt "Engineering around the hardware" + Podcast-App-Zeile.
-- [x] layout rechenapp, die aufgaben passen nicht ganz hin
-      ERLEDIGT: quizMid() in mathquiz_app.cpp auf Auto-Fit umgestellt — neuer
-      fitSize-Helfer waehlt die groesste Schrift (3->2->1), deren GEMESSENE
-      Pixelbreite in 228 px passt (Aufgabe + Antwort-Eingabe). Aufgabe/Antwort/
-      Feedback als Block vertikal mittig im 108-px-Streifen statt fixer Offsets
-      -> kein Ueberlauf/Ueberlapp bei langen CFO-Aufgaben. Nebenbei latenten
-      Zentrier-Bug behoben (textBounds maß bei Header-Groesse 2 statt qsize).
-      Build OK. OFFEN: lange CFO-Aufgaben am Geraet sichten.
-- [x] karteikarten deutlich ausbauen (500x Schwedisch), gemischt + Wiederholung,
-      eine Uebung = 10 Karten
-      ERLEDIGT: flashcards_core.h um shuffle (Fisher-Yates) + stableSortByBox +
-      kSessionLimit=10 erweitert (host-getestet). buildQueue() in
-      flashcards_app.cpp: faellige sammeln -> mischen -> nach Box aufsteigend
-      (wenig Gelerntes zuerst, "bereits gelernte seltener") -> auf 10 kappen
-      (esp_random, kein rand()). Falsch-Wiederholen bleibt in der Sitzung.
-      Inhalt: decks/schwedisch.txt (703 Karten, 3 Alt-Decks zusammengefuehrt +
-      erweitert, 0 Dubletten/ungueltige Zeilen), README angepasst. Build OK.
-      OFFEN: am Geraet 10er-Uebung + Mischung pruefen, Deck per WebFM hochladen.
-- [x] ich haette gerne noch eine app fuer kopfrechnen uben
-      ERLEDIGT: App "Kopfrechnen" (Launcher-Kachel "Rechnen", Slot 11).
-      apps/mathquiz_app.* + Arduino-freier Core apps/mathquiz_core.h
-      (host-getestet, tools/host_test_apps.cpp). Modi Plus/Minus/Mal/Geteilt/
-      Gemischt x 3 Stufen; Subtraktion nie negativ, Division geht glatt auf
-      (reine Ziffern-Eingabe). Bestserie im NVS (settings::mathBestStreak).
-      Build OK. OFFEN: am Gerät bedienen (Ziffern-Eingabe, Region-Refresh).
-- [x] eine karteikarten app
-      ERLEDIGT: App "Karteikarten" (Launcher-Kachel "Lernen", Slot 12).
-      apps/flashcards_app.* + Core apps/flashcards_core.h (host-getestet).
-      Decks = Textdateien /flashcards/*.txt (vorn<TAB>hinten), Leitner-Boxen
-      0..4, Fortschritt je Deck nach /flashcards/.progress/<deck>.prg
-      (CRC-keyed). SD-Disziplin wie notes_app. Build OK.
-      OFFEN: am Gerät — Decks per WebFM nach /flashcards hochladen, lernen,
-      Fortschritt-Persistenz über Reboot prüfen; Umlaut-Umbruch am E-Ink.
-- [x] karteikarten für swedisch vokabeln und sätze sowie für gesprächsführung/Kommunikation
-      ERLEDIGT (Inhalt): decks/schwedisch-vokabeln.txt (37),
-      decks/schwedisch-saetze.txt (20), decks/schwedisch-konversation.txt (15)
-      im Repo + decks/README.md (Format + WebFM-Upload nach /flashcards).
-      Alle Karten parsen 100 % (Host-Check). OFFEN: per WebFM aufs Gerät.
-- [x] ct-Bücher löschen  (manuelle SD-Aktion am Gerät — kein Firmware-Feature;
-      jetzt via Konsole `rm /books/<calibre-pfad>` möglich, auch Überlängenpfade)
-- [x] GPS und Kartenansicht: ohne Fix Fokus auf Düsseldorf
-      ERLEDIGT (Commit 70e20de9): FALLBACK_LAT/LON = 51.2277/6.7735 (Düsseldorf)
-      in maps_app.cpp:31-32.
-      Diagnose: Fallback-Zentrum war Dortmund (51.4818/7.2162) in
-      maps_app.cpp:28-30 (`FALLBACK_LAT/LON`); ohne Fix/Mesh-Pos bleibt die
-      Karte dort. NRW-Kacheln z6-13 sind vorhanden (decken Düsseldorf ab),
-      Dortmund-Detail z14-16 nicht über Düsseldorf.
-      Plan:
-        1. `FALLBACK_LAT=51.2277`, `FALLBACK_LON=6.7735` (Düsseldorf) setzen,
-           Kommentar anpassen.
-        2. Prüfen, dass `scanZooms()` für Düsseldorf eine Stufe findet und
-           `clampZoom()` `DEFAULT_ZOOM` auf eine vorhandene Stufe klemmt
-           (sonst leeres Punktraster). Ggf. DEFAULT_ZOOM auf z13 senken.
-        3. Am Gerät verifizieren: Karten-App ohne Fix zentriert auf Düsseldorf,
-           Kacheln rendern.
-- [x] Benamung der Audio-Recordings: Datum + HH:MM
-      ERLEDIGT (Commit 8370a7ba): scanNotes() leitet den Titel aus dem
-      WAV-Dateinamen als "YYYY-MM-DD HH:MM" ab (notes_app.cpp:196ff).
-      Diagnose: Datei heißt bereits `YYYY-MM-DD-HHMMSS.wav` (notes_app.cpp:319),
-      aber die Liste zeigt für *jede* Aufnahme nur „Sprachnotiz“ (notes_app.cpp:
-      196) — Datum/Uhrzeit sind nirgends sichtbar. Das ist vermutlich gemeint.
-      Plan:
-        1. In `scanNotes()` für WAV den Titel aus dem Dateinamen ableiten und
-           als „YYYY-MM-DD HH:MM“ anzeigen (statt fixem „Sprachnotiz“).
-        2. Optional: Dateiname-Format selbst auf Minuten kürzen, aber Sekunden
-           als Kollisionsschutz bei mehreren Aufnahmen/Minute behalten →
-           Empfehlung: Dateiname mit Sekunden lassen, nur Anzeige HH:MM.
-- [x] Wecker headless: `time set`, `alarm 0 <hh:mm>`, Liste, geplantes Klingeln
-      (Minuten-Match), `alarm test`/`stop` — alles am Gerät grün.
-- [x] Wecker Deep-Sleep-Wake: Gerät aus dem Standby (`sleep`) zur Weckzeit von
-      SELBST aufgewacht + geklingelt (17.06., sogar an USB). Kernmechanismus
-      bestätigt (enterStandby→Timer auf Weckzeit, handleTimerWake→Vollboot, poll).
-- [x] Wecker-Signal pro Wecker (Ton/Blinken/Beides): `mode blink` feuerte nur
-      Backlight, kein Ton — am Gerät bestätigt. Piepton laut, Backlight blinkt.
-- [x] Wecker-App-UI: Kachel (Launcher 2×5), Editor mit Ziffern-Eingabe der
-      Weckzeit (Alt-Halten-Fix), Signal-Feld, „+9 min"-Schlummer-Button.
-- [x] Mesh-Telemetrie: `pos` setzen/lesen/persistieren am Gerät bestätigt.
-- [x] Mesh-GPS-Empfang END-TO-END (17.06.): Fennek „Daniel" sendet `advert flood`
-      mit Position 51.4818/7.2162 → über Relay/Bridge zum Server meshcore.dumke.me
-      → Companion „Antonia" sieht den Node mit korrektem GPS-Pin (~2 min Latenz).
-      Wichtig: nur Flood propagiert (Zero-Hop erreicht die 1-Hop-Bridge nicht).
-      Akku-Telemetrie liegt in den FEAT-Feldern (nicht-Standard) — der Server
-      dekodiert daraus keine Spannung (nur Position ist Standard-Advert-Feld).
-- [x] Fennek-Bild Credit: geschwungener "by Dr. Daniel Dumke" am Schwanz war zu
-      klein -> wieder entfernt (Original-Bild). Falls gewuenscht: groesser/anders.
-      Tools dafuer liegen unter tools/sleepcredit.py + tools/sleepimg.py.
-- [x] Batterie-%-Anzeige auf dem Schlaf-Bildschirm, stuendliches Update:
-      Banner zeigt % rechts unten; Wake-Quellen jetzt Knopf + Stunden-Timer.
-      power::handleTimerWake() faehrt bei Timer-Wake einen Minimal-Pfad
-      (kein SD/Audio/Apps), erneuert nur den Banner-Streifen (alle 12 Wakes
-      Vollbild gegen Ghosting) und schlaeft sofort wieder.
-- [x] Web interface für die Dateiverwaltung auf der SD: App "Dateien"
-      (Kachel 7, Launcher jetzt 2x4) + services/webfm: WLAN-Station,
-      WebServer (Bordmittel) mit eingebetteter HTML-Seite und JSON-API
-      (/api/list|download|upload|delete|mkdir; nur /.fennek
-      schreibgeschuetzt). Zugangsdaten in den Optionen (WLAN-SSID/-Passwort)
-      oder via Serial-Konsole (wifi ssid/pass),
-      Start in der App oder per "wifi start", Stop beim App-Verlassen.
-      Waehrend WiFi: Audio gestoppt + Mesh-Pumpe pausiert. mDNS:
-      http://fennek.local
-- [x] Meshcore mit eigenem Priv/Pub-Key: laedt /meshcore/identity.hex von SD
-      (Zeile1=Privkey 128 Hex, Zeile2=Pubkey 64 Hex). Vorrang vor SPIFFS,
-      wird dorthin uebernommen. (mesh_client.cpp::begin)
-- [x] Indizierung Bücher: war bereits geloest. Buchliste /.fennek/books.bin,
-      Seiten-Index /.fennek/idx/<crc>.idx (Magic+Layout+Dateigroesse),
-      EPUB->TXT /books/.epub_cache/. Wieder-Oeffnen nutzt Cache; nur Erst-Scan
-      ist langsam (inhaerent, geteilter SPI-Bus).
-- [x] Screen refresh zu oft: Reader-Fortschritt jetzt Region- statt Voll-Refresh;
-      Reader-Liste kein Noop-Refresh am oberen Rand; Musik/Hörbuch erzwungener
-      Anti-Ghosting-Full-Refresh von ~30 s auf ~60 s gestreckt.
-- [x] Mesh-App anwenderfreundlicher: neue scrollbare "Chats"-Ansicht (alle Kanäle
-      + DMs als Einträge), Auswahl öffnet die Konversation, Zurück fuehrt zur
-      Liste. Kanäle pro Chat getrennt (MsgView.channelIdx).
-- [x] podcast app stürzt ab direkt beim start
-      ERLEDIGT: Heap-Allokation für das Feed-Array verwendet, um Stack-Overflow
-      auf dem standardmäßig kleinen 8-KB-Task-Stack zu verhindern. feedCount()
-      und feed(idx) optimiert, sodass feeds.txt beim Start nur einmal per
-      readFeeds() eingelesen wird statt n+1 mal.
-- [x] in der rechenapp möchte ich nicht alt drücken für die zahlen, auch ohne alt sollen die zahlen genommen werden
-      ERLEDIGT: mapKeyToDigit() in mathquiz_app.cpp eingeführt, das im Quiz-Bildschirm
-      Buchstaben (w,e,r,s,d,f,z,x,c) und Mikrofon-Taste (0x02) auf ihre
-      Ziffern-Entsprechungen (1-9, 0) mappt.
-- [x] in der notizenapp, menüpunkt für audionotizen entfernen. nutze dazu die mikrofontaste auf der tastatur
-      ERLEDIGT: kSpecialRows von 2 auf 1 verringert (Aufnahme-Zeile aus Liste entfernt).
-      onListKey() fängt Mikrofontaste (0x02) ab und ruft startRecord() auf.
-- [x] audio aufnahmen sind immer noch sehr schwierig (langsam, leise, speichern dauert lange)
-      ERLEDIGT: 8-KB-RAM-Schreibpuffer (s_writeBuf) in mic.cpp implementiert, um
-      Schreibvorgänge zu blocken und SPI-Locks drastisch zu reduzieren. kGain auf
-      12 (+6 dB) angehoben für lauteres Audio.
-- [x] rechenapp, die null funktioniert nicht (liegt auf alt-mikrofontaste)
-      ERLEDIGT: s_altActive-Abfrage beim Handling der Mikrofontaste (Code 34) in
-      keyboard.cpp ergänzt. Alt-Mikrofontaste liefert nun korrekt '0'.
-- [x] Audiorecordings spielen nicht ab — valide WAV-Dateien?
-      ERLEDIGT (code-seitig diagnostiziert): WAV-Header korrekt (RIFF/WAVE, PCM,
-      16 kHz mono 16-bit, RIFF-/data-Größe in stopRecording gepatcht). Leise
-      Aufnahmen durch Aufnahme-Gain x12 (mic.cpp) behoben. I2S0-Handover
-      (audio::beginMic/endMic via setI2SCommFMT_LSB) korrekt. Diagnose-Log in
-      stopRecording (Peak-Pegel) und neues Failure-Log in audio::startCurrent
-      (audio.cpp) beim connecttoFS-Fehler vorhanden — Serial-Output zeigt
-      `[AUDIO] connecttoFS FEHLER: <pfad>` wenn die Datei nicht geöffnet/geparst
-      werden kann.
-      OFFEN am Gerät: WAV aufnehmen, Log prüfen (Peak-Pegel > 64?), abspielen —
-      bei Stille im Lautsprecher: Peak im Log und ggf. Datei per WebFM herunterladen
-      und auf PC mit Audacity/xxd testen.
+# On-device verification — new features from 06/17 (v2.0.x)
 
+- [ ] Verify on device (build passed): mesh identity loaded from SD, chat
+  navigation, reader refresh without full-screen flashing, and opening the
+  same book twice produces a cache hit.
+- [ ] Verify on device (build passed, 06/12): battery percentage on standby
+  screen + timer wake (flash with `-D SLEEP_WAKE_TEST` for 60 seconds instead
+  of 1 hour; deep sleep disconnects USB, so reconnect the monitor) and Web file
+  manager (console: `wifi ssid/pass/start`; browser: upload/download/delete;
+  uploaded MP3 plays; `wifi stop` restores mesh reception).
+
+# Completed
+
+- [x] Add another game; suggest an option.
+  - **Done:** Sudoku was selected (well suited to E-Ink: static 9×9 grid, no
+    flicker; arithmetic logic is host-testable). Added as the fifth game in
+    “Games.” `apps/sudoku.*` provides the UI; Arduino-free
+    `apps/sudoku_core.h` provides generator and solver and is host-tested
+    (`tools/host_test_games.cpp`: `testSudoku` checks unique solution, valid
+    `sol[]`, and conflict detection). The generator uses randomized
+    backtracking for a complete solution, then digs out cells while uniqueness
+    holds (`countSolutions` stops at 2); the backtracker is iterative and
+    non-recursive (depth 81 would overflow the loop-task stack). Easy/Medium/
+    Hard difficulty (40/32/26 clues), touch tap/WASD cursor, number keys 1–9,
+    0/Backspace/Microphone to clear, inverted conflict cells, and a timed
+    “Solved” overlay. Best records in NVS (`settings::sudokuSolved` /
+    `settings::sudokuBestSec`, added to INI export/import). `games_app` menu
+    now has five entries (46-px buttons); added i18n `GameSudoku` and Sudoku
+    to `GAMES_SMOKE_TEST`. Host tests passed (3068 checks); firmware builds.
+  - **Still needs device verification:** generation time for Hard on ESP32,
+    readability of 26-px cells on E-Ink, and number-entry ergonomics
+    (Alt/Sym layer).
+- [x] GPS time updates were not working.
+  - **Done (`timesync.cpp`):** Two fixes. (1) `gpsSync()` now sets
+    `s_lastGpsMs` (`gpsFresh`) only when the difference exceeds 2 seconds,
+    i.e. for an actual satellite correction. Previously a zero difference
+    (the GPS module echoed system time injected through UBX-MGA-INI) marked
+    GPS fresh and blocked NTP/mesh for 10 minutes without providing a useful
+    update. This fixes the “B1 INTENTIONALLY DISCARDED” issue.
+    (2) `gpsSyncBeforeStandby()` no longer waits for `f.valid` (a position
+    fix); RMC often provides UTC before a position fix (as Maps and console
+    `gps` already did). An inline difference check (>2 s) prevents circular
+    injection: if GPS echoes the injected system time (difference ≈0), no
+    sync is counted and no back-off is consumed.
+  - Diagnostic finding: indoors, the u-blox MIA-M10Q often sends RMC without
+    a date, so `epochUtc = 0` and sync is impossible regardless of code. GPS
+    time sync requires sky visibility; the Maps app and console `gps` support
+    this.
+  - **Still needs device verification:** with sky visibility, confirm `time`
+    reports “Source=GPS Quality=good” after a short GPS session (Maps app or
+    `gps 60`).
+- [x] The web app reported “Update available: v2.4.7 → v2.3.1”.
+  - **Done (v2.4.8):** Replaced `strcmp(r.latest, r.current) != 0` in
+    `ota.cpp` with `semverGt(latest, current)` for semantic version comparison
+    (numeric Major/Minor/Patch; accepts a `v` prefix). Verified on device:
+    `ota update` with GitHub release v2.3.1 correctly reports “current”
+    instead of falsely offering an update.
+- [x] Critically test all recent changes.
+  - **Done (v2.4.8/v2.4.9):** Host tests passed (mathquiz, flashcards,
+    podcast, games); firmware builds. Verified on-device via console:
+    `status` (heap/PSRAM/SD OK), `gauge` (BQ27220 responds), `podcast` (feed
+    list correct), `alarm` (4 alarms), `ota update` (`semverGt` confirmed:
+    v2.3.1 < v2.4.8, so no update). Discovered and fixed the incorrect RM/DC
+    battery fix (see battery item). UI paths (mathquiz numeric entry, Notes
+    microphone key, Podcast app, touch) remain to be manually verified on
+    device; no test failures found.
+- [x] Battery display only reached 72%.
+  - **Done (diagnosis + revert, v2.4.9):** A clean charge cycle calibrated
+    the BQ27220 gauge to FCC=1272 mAh (SOH 91% × 1400 mAh = 1274 mAh).
+    At full charge (4.2 V), the SOC register shows 100%; 72% was correct for
+    the current charge level (4136 mV). The v2.4.8 RM/DC fix was wrong
+    (nominal DC=1400, learned FCC=1272 would cap a full battery at 91%) and
+    v2.4.9 restored the SOC register. No firmware change was needed; gauge
+    self-calibration resolved the issue.
+- [x] Add a Podcast app with sync, retaining only the latest episode by
+  default; start with Freakshow.fm.
+  - **Done:** “Podcast” app (launcher tile “Podcast,” page 2, slot 13).
+    `apps/podcast_app.*` and Arduino-free RSS parser `apps/podcast_core.h`
+    (host-tested in `tools/host_test_apps.cpp`). Sync engine
+    `services/podcast.*`: subscriptions in `/podcasts/feeds.txt` (default
+    `https://freakshow.fm/feed/mp3/`, editable through WebFM); each feed uses
+    `/podcasts/<slug>/episode.<ext>` and `state.txt`. “Keep only the latest”
+    means load the first `<item>` during sync and delete older audio files.
+    The service starts Wi-Fi itself (stop audio + suspend mesh), fetches only
+    enough of the feed to complete the first `<item>`, then downloads in
+    chunks to SD (resolves http/https redirects; network I/O after
+    `spiUnlock`). Manual sync (app button/`podcast sync`) handles all feeds.
+    Auto-sync before standby (`flushBeforeStandby` in `power::poll`, RTC-RAM
+    back-off, NVS toggle `pcas`) handles one feed per standby (round-robin).
+    Playback uses the audio queue (`Owner::Podcast`) with a resume bookmark
+    like the book app. Console: `podcast` / `podcast feed/rm/on/off/sync`.
+    Build and host tests passed.
+  - **Still needs device verification:** real download (Freakshow episodes
+    >100 MB; check SD space and duration), m4a/AAC playback, CDN redirect
+    chains, and episode-title wrapping on E-Ink.
+- [x] Document device constraints on the website and in the documentation
+  (no clock, cannot stay online, two cores, E-Ink).
+  - **Done:** Expanded `web/index.html` from “The defining quirk” to
+    “Engineering around the hardware” (shared SPI bus plus four challenge
+    tiles: no RTC, not always online, two cores, E-Ink, each with its
+    solution); updated Podcast app tile and footer version to v2.4.6. Added
+    “Engineering around the hardware” section and Podcast app row to the three
+    README files.
+- [x] The mental-math layout did not fit all problems.
+  - **Done:** `quizMid()` in `mathquiz_app.cpp` now auto-fits. New `fitSize`
+    helper chooses the largest font (3→2→1) whose measured pixel width fits
+    within 228 px (problem + answer entry). Problem/answer/feedback are
+    vertically centered as a block in the 108-px strip instead of using fixed
+    offsets, preventing overflow/overlap for long CFO problems. Also fixed a
+    latent centering bug: `textBounds` measured using header size 2 instead of
+    `qsize`. Build passed.
+  - **Still needs device verification:** inspect long CFO problems on device.
+- [x] Expand flashcards substantially (500× Swedish), shuffle + review,
+  10 cards per session.
+  - **Done:** Added shuffle (Fisher–Yates), `stableSortByBox`, and
+    `kSessionLimit=10` to host-tested `flashcards_core.h`. In
+    `flashcards_app.cpp`, `buildQueue()` collects due cards, shuffles them,
+    sorts by box ascending (less learned first; learned cards appear less
+    often), then caps at 10 (`esp_random`, not `rand()`). Incorrect answers
+    repeat in the same session. Content: `decks/schwedisch.txt` (703 cards;
+    three older decks combined and expanded; no duplicates or invalid lines).
+    README updated; build passed.
+  - **Still needs device verification:** test a 10-card session and shuffling;
+    upload the deck through WebFM.
+- [x] Add an app for mental arithmetic practice.
+  - **Done:** “Mental Math” app (launcher tile “Math,” slot 11).
+    `apps/mathquiz_app.*` and Arduino-free core `apps/mathquiz_core.h`
+    (host-tested in `tools/host_test_apps.cpp`). Modes: addition, subtraction,
+    multiplication, division, and mixed, each at three levels. Subtraction is
+    never negative; division is exact (digits-only input). Best streak in NVS
+    (`settings::mathBestStreak`). Build passed.
+  - **Still needs device verification:** numeric input and region refresh.
+- [x] Add a flashcards app.
+  - **Done:** “Flashcards” app (launcher tile “Learn,” slot 12).
+    `apps/flashcards_app.*` and host-tested core `apps/flashcards_core.h`.
+    Decks are text files in `/flashcards/*.txt` (`front<TAB>back`), using
+    Leitner boxes 0–4. Per-deck progress stored in
+    `/flashcards/.progress/<deck>.prg` (CRC-keyed). SD handling follows
+    `notes_app`; build passed.
+  - **Still needs device verification:** upload decks to `/flashcards` via
+    WebFM, study, verify progress survives reboot, and check accented-text
+    wrapping on E-Ink.
+- [x] Add Swedish vocabulary, phrases, and conversation flashcards.
+  - **Done (content):** Added `decks/schwedisch-vokabeln.txt` (37 cards),
+    `decks/schwedisch-saetze.txt` (20), and
+    `decks/schwedisch-konversation.txt` (15), plus `decks/README.md` with
+    format and WebFM upload instructions for `/flashcards`. All cards parsed
+    successfully in host check.
+  - **Still needs device verification:** upload through WebFM.
+- [x] Delete CT books.
+  - Manual SD action on device, not a firmware feature; now possible through
+    console command `rm /books/<calibre-path>`, including overlength paths.
+- [x] Center maps on Düsseldorf when there is no GPS fix.
+  - **Done (commit `70e20de9`):** `FALLBACK_LAT/LON = 51.2277/6.7735`
+    (Düsseldorf) in `maps_app.cpp:31-32`.
+  - Diagnosis: fallback center was Dortmund (51.4818/7.2162) in
+    `maps_app.cpp:28-30` (`FALLBACK_LAT/LON`), so the map stayed there without
+    a fix or mesh position. NRW tiles z6–13 cover Düsseldorf; Dortmund detail
+    tiles z14–16 do not cover Düsseldorf.
+  - Original plan: set fallback to Düsseldorf; check that `scanZooms()` finds
+    an available level and `clampZoom()` clamps `DEFAULT_ZOOM` to an available
+    level (otherwise the grid is empty), lowering `DEFAULT_ZOOM` to z13 if
+    needed; verify on device that the no-fix map centers on Düsseldorf and
+    renders tiles.
+- [x] Show date and HH:MM for audio recordings.
+  - **Done (commit `8370a7ba`):** `scanNotes()` derives the title from the WAV
+    filename as `YYYY-MM-DD HH:MM` (`notes_app.cpp:196ff`).
+  - Diagnosis: filename was already `YYYY-MM-DD-HHMMSS.wav`
+    (`notes_app.cpp:319`), but every recording appeared only as “Voice note”
+    in the list (`notes_app.cpp:196`), hiding date and time.
+  - Plan: derive the WAV title in `scanNotes()` rather than always showing
+    “Voice note.” Optionally shorten the filename to minutes, but keeping
+    seconds prevents collisions for multiple recordings per minute; the
+    recommendation is to keep seconds in the filename and show HH:MM only.
+- [x] Headless alarm support: `time set`, `alarm 0 <hh:mm>`, list, scheduled
+  ringing (minute match), `alarm test`/`stop`; all verified on device.
+- [x] Alarm wake from deep sleep: device woke **by itself** from standby
+  (`sleep`) at alarm time and rang (06/17, including while connected to USB).
+  Core path confirmed: `enterStandby` → timer set to alarm time →
+  `handleTimerWake` → full boot → poll.
+- [x] Per-alarm signal (tone/blink/both): device confirmed that `mode blink`
+  triggered only the backlight, not audio. Beep is now loud and backlight
+  blinks.
+- [x] Alarm app UI: tile (launcher 2×5), editor with numeric alarm-time entry
+  (Alt-hold fix), signal field, and “+9 min” snooze button.
+- [x] Mesh telemetry: setting, reading, and persisting `pos` confirmed on
+  device.
+- [x] End-to-end mesh GPS reception (06/17): Fennek “Daniel” sent
+  `advert flood` at position 51.4818/7.2162; via relay/bridge it reached
+  `meshcore.dumke.me`, where companion “Antonia” showed the node at the correct
+  GPS pin (~2-minute latency). Only flood propagates; zero-hop does not reach
+  the one-hop bridge. Battery telemetry is in non-standard FEAT fields, so
+  the server does not decode voltage (position is the only standard advert
+  field).
+- [x] Remove the Fennek image credit: curved “by Dr. Daniel Dumke” text on the
+  tail was too small, so it was removed and the original image restored. If
+  desired, it could be larger or styled differently. Tools:
+  `tools/sleepcredit.py` and `tools/sleepimg.py`.
+- [x] Show battery percentage on standby screen with hourly update. Banner
+  shows percentage at bottom right; wake sources are now the button and an
+  hourly timer. On timer wake, `power::handleTimerWake()` uses a minimal path
+  (no SD/audio/apps), refreshes only the banner strip (full-screen refresh
+  every 12 wakes to prevent ghosting), then immediately sleeps again.
+- [x] Web interface for SD file management: “Files” app (tile 7; launcher now
+  2×4) plus `services/webfm`: Wi-Fi station, built-in `WebServer`, embedded
+  HTML page, and JSON API (`/api/list|download|upload|delete|mkdir`; only
+  `/.fennek` is read-only). Credentials are in Options (Wi-Fi SSID/password)
+  or via serial console (`wifi ssid/pass`). Start in app or with
+  `wifi start`; stop when leaving app. While Wi-Fi is active, audio stops and
+  mesh pump pauses. mDNS: `http://fennek.local`.
+- [x] MeshCore identity using a custom private/public key: loads
+  `/meshcore/identity.hex` from SD (line 1 = 128-hex private key; line 2 =
+  64-hex public key), takes precedence over SPIFFS, and is copied there
+  (`mesh_client.cpp::begin`).
+- [x] Book indexing was already implemented. Book list:
+  `/.fennek/books.bin`; page index `/.fennek/idx/<crc>.idx` (magic + layout +
+  file size); EPUB→TXT cache `/books/.epub_cache/`. Reopening uses the cache;
+  only the initial scan is slow (inherent to the shared SPI bus).
+- [x] Reduce excessive screen refreshes: reader progress now uses region
+  refresh instead of full refresh; reader list avoids a no-op refresh at the
+  top edge; forced anti-ghosting full refresh for Music/Audiobooks increased
+  from ~30 s to ~60 s.
+- [x] Improve Mesh app navigation: added a scrollable “Chats” view (all
+  channels and DMs as rows); selecting one opens the conversation, and Back
+  returns to the list. Channels are separated by chat (`MsgView.channelIdx`).
+- [x] Podcast app crashed at startup.
+  - **Done:** Feed array now uses heap allocation to avoid stack overflow on
+    the default 8 KB task stack. `feedCount()` and `feed(idx)` were optimized
+    so `feeds.txt` is read once at startup via `readFeeds()` instead of n+1
+    times.
+- [x] Use number keys in the mental-math app without pressing Alt.
+  - **Done:** Added `mapKeyToDigit()` in `mathquiz_app.cpp`, mapping quiz
+    screen letters (w,e,r,s,d,f,z,x,c) and microphone key (`0x02`) to digits
+    1–9 and 0.
+- [x] Remove the voice-notes menu item from Notes; use the keyboard microphone
+  key instead.
+  - **Done:** Reduced `kSpecialRows` from 2 to 1 (removed recording row from
+    list). `onListKey()` intercepts microphone key (`0x02`) and calls
+    `startRecord()`.
+- [x] Audio recordings were difficult (slow, quiet, slow to save).
+  - **Done:** Added an 8 KB RAM write buffer (`s_writeBuf`) in `mic.cpp` to
+    block writes and greatly reduce SPI lock operations. Raised `kGain` to 12
+    (+6 dB) for louder audio.
+- [x] Mental-math zero key did not work (it was on Alt-microphone).
+  - **Done:** Added an `s_altActive` check when handling microphone key (code
+    34) in `keyboard.cpp`. Alt-microphone now correctly returns `0`.
+- [x] Audio recordings did not play — are the WAV files valid?
+  - **Done (diagnosed in code):** WAV header is correct (RIFF/WAVE, PCM,
+    16 kHz mono 16-bit; RIFF/data sizes patched in `stopRecording`). Quiet
+    recordings were addressed with recording gain ×12 (`mic.cpp`). I2S0
+    handoff (`audio::beginMic/endMic` via `setI2SCommFMT_LSB`) is correct.
+    `stopRecording` logs peak level; `audio::startCurrent` logs
+    `connecttoFS` failure. Serial shows
+    `[AUDIO] connecttoFS ERROR: <path>` if a file cannot be opened/parsed.
+  - **Still needs device verification:** record a WAV, check the log (peak
+    level >64?), then play it. If the speaker is silent, check peak in log and
+    download the file through WebFM for testing on a PC with Audacity/`xxd`.
