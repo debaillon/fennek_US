@@ -41,8 +41,8 @@ bool exportToSd() {
   spiUnlock();
 
   free(buf);
-  Serial.printf("[FENNEK] settings.ini schreiben: %s (%u B)\n",
-                ok ? "ok" : "FEHLER", (unsigned)len);
+  Serial.printf("[FENNEK] Writing settings.ini: %s (%u B)\n",
+                ok ? "ok" : "ERROR", (unsigned)len);
   return ok;
 }
 
@@ -74,7 +74,7 @@ bool importFromSd() {
     Serial.println("[FENNEK] settings.ini: parse error");
     return false;
   }
-  Serial.printf("[FENNEK] settings.ini gelesen: %d Werte uebernommen\n", applied);
+  Serial.printf("[FENNEK] Read settings.ini: applied %d values\n", applied);
   return applied > 0;
 }
 

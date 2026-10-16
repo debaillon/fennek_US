@@ -57,7 +57,7 @@ podcast::Local s_local;
 bool s_haveLocal = false;
 uint32_t s_epKey = 0;          // CRC32 des Episodenpfads (Bookmark-Key)
 
-// Blockierender Sync: Anforderung wird erst nach dem "Synchronisiere…"-Frame
+// Blocking sync: process the request after drawing the "Syncing..." frame
 // ausgeführt, damit der Nutzer Feedback sieht, bevor die UI blockiert.
 int      s_syncReq = -2;       // -2 = keiner, -1 = alle, >=0 = Feed-Index
 bool     s_syncDrawn = false;
@@ -162,7 +162,7 @@ void onSyncProgress(const char* /*phase*/, int pct) {
 void drawSyncing(Adafruit_GFX& g) {
   gui::printAt(g, 6, HEADER_Y, "Podcast", 2);
   g.drawFastHLine(0, HEADER_H, W, GxEPD_BLACK);
-  gui::printAt(g, 10, 110, "Synchronisiere ...", 2);
+  gui::printAt(g, 10, 110, "Syncing...", 2);
   if (s_syncFeedName[0]) gui::printAt(g, 10, 140, s_syncFeedName, 1);
   drawSyncProgressStrip(g);
   gui::printAt(g, 10, SYNC_STRIP_Y + SYNC_STRIP_H + 4, "Wi-Fi active - please wait", 1);
@@ -408,7 +408,7 @@ class PodcastApp : public App {
   }
 
   void tick() override {
-    // Aufgeschobener, blockierender Sync: erst nach dem "Synchronisiere…"-Frame.
+    // Defer the blocking sync until after drawing the "Syncing..." frame.
     if (s_syncReq != -2) {
       if (!s_syncDrawn) {
         if (!appmgr::isDirty()) s_syncDrawn = true;   // Frame steht

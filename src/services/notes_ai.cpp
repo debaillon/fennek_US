@@ -26,22 +26,22 @@
 namespace {
 
 constexpr const char* kNotesDir  = "/notes";
-constexpr const char* kStateFile = "/.fennek/notes_ai.done";  // "Dateiname<TAB>SHA256"/Zeile
+constexpr const char* kStateFile = "/.fennek/notes_ai.done";  // "filename<TAB>SHA256"/line
 constexpr int kFileLen   = 16;     // "YYYY-MM-DD.md" + Reserve
 constexpr int kHashLen   = 65;     // SHA256 als Hex (64) + NUL
 constexpr int kMaxDone   = 400;    // gut ein Jahr Tagesnotizen
-constexpr int kMaxPerRun = 20;     // je Standby hoechstens so viele (WLAN kurz halten)
+constexpr int kMaxPerRun = 20;     // At most this many per standby (keep Wi-Fi use brief)
 constexpr int kNoteCap   = 8192;   // RAM-Puffer pro Notiz (wie notes_app)
 constexpr int kBodyCap   = 49152;  // JSON-Request (Notiz escaped + Wrapper)
 constexpr int kRespCap   = 49152;  // JSON-Response von Ollama
 
 constexpr uint32_t kConnectTimeoutMs = 15000;
-// HTTPClient::setTimeout() nimmt ein uint16_t (max. 65535 ms) — 120000 lief
-// still auf 54464 ms über. Das ist die Wartezeit auf die Antwort-Header, also
-// das Zeitfenster, in dem Ollama (stream:false) generieren darf, bevor das
-// erste Byte kommt. Wir schöpfen den uint16_t-Bereich knapp aus; der Body-Read
-// danach ist ohnehin separat über kReadTimeoutMs abgesichert.
-constexpr uint16_t kGenTimeoutMs     = 65000;   // LLM-Generierung kann dauern
+// HTTPClient::setTimeout() takes a uint16_t (max. 65535 ms); 120000 silently
+// overflowed to 54464 ms. This is the wait for response headers, i.e. the
+// window in which Ollama (stream:false) may generate before sending the first
+// byte. We use nearly the full uint16_t range; the body read is separately
+// protected by kReadTimeoutMs.
+constexpr uint16_t kGenTimeoutMs     = 65000;   // LLM generation can take time
 constexpr uint32_t kReadTimeoutMs    = 30000;
 
 // System prompt: change as little as possible. Requests use UTF-8 over HTTP,
@@ -54,7 +54,7 @@ const char* kSystem =
   "otherwise be unclear. Do not invent or omit content. Reply only with the "
   "corrected note, without an introduction, explanation, or quotation marks.";
 
-// Back-off fuer den Pre-Standby-Lauf (RTC-RAM ueberlebt Deep Sleep), analog zu
+// Back-off for the pre-standby run (RTC RAM survives deep sleep), as in
 // services/scrobble.cpp.
 RTC_DATA_ATTR uint8_t  s_failCount        = 0;
 RTC_DATA_ATTR uint32_t s_lastAttemptEpoch = 0;
@@ -68,7 +68,7 @@ bool hasExt(const char* n, const char* e) {
   return ln > le && strcasecmp(n + ln - le, e) == 0;
 }
 
-// Heutige Tagesnotiz (lokale Zeit ueber timesync) — wird ausgelassen.
+// Today's daily note (local time from timesync) is skipped.
 void todayFile(char* out, size_t n) {
   time_t t = (time_t)timesync::now();
   struct tm tmv;
@@ -76,15 +76,15 @@ void todayFile(char* out, size_t n) {
   strftime(out, n, "%Y-%m-%d.md", &tmv);
 }
 
-// Basis-URL ohne abschliessenden '/'.
+// Base URL without a trailing '/'.
 void baseUrl(char* out, size_t n) {
   settings::aiUrl(out, n);
   size_t l = strlen(out);
   while (l > 0 && out[l - 1] == '/') out[--l] = '\0';
 }
 
-// JSON-String-Escape (Notiz/Modell in den Request). UTF-8-Bytes (>=0x80)
-// laufen unveraendert durch (gueltig in JSON). Gibt false bei Pufferende.
+// Escape a JSON string (note/model in the request). UTF-8 bytes (>=0x80) pass
+// through unchanged (valid in JSON). Returns false if the buffer is exhausted.
 bool jsonAppendEscaped(char* dst, size_t cap, size_t* len, const char* src) {
   static const char* hx = "0123456789abcdef";
   size_t o = *len;
@@ -110,7 +110,7 @@ bool jsonAppendEscaped(char* dst, size_t cap, size_t* len, const char* src) {
   return true;
 }
 
-// Codepoint als UTF-8 anhaengen (fuer \uXXXX in der Antwort).
+// Append a code point as UTF-8 (for \uXXXX in the response).
 void appendUtf8(char* dst, size_t cap, size_t* len, uint32_t cp) {
   size_t o = *len;
   auto put = [&](char c){ if (o + 1 < cap) dst[o++] = c; };
@@ -377,7 +377,7 @@ void stripThink(char* s) {
     char* close = nullptr;
     for (char* p = gt + 1; *p; p++)
       if (p[0] == '<' && strncasecmp(p, "</think", 7) == 0) { close = p; break; }
-    if (!close) break;                       // unvollstaendig -> stehen lassen
+    if (!close) break;                       // leave incomplete item as is
     char* after = strchr(close, '>');
     if (!after) break;
     after++;
@@ -397,12 +397,12 @@ bool ollamaGenerate(const char* base, const char* model, const char* note,
   lit("\",\"prompt\":\"");
   bool full = jsonAppendEscaped(body, bodyCap, &bl, note);
   lit("\",\"stream\":false,\"options\":{\"temperature\":0.1}}");
-  if (!full) Serial.println("[NOTESAI] Warnung: Notiz fuer Request gekuerzt");
+  if (!full) Serial.println("[NOTESAI] Warning: note truncated for request");
 
   String url = String(base) + "/api/generate";
   if (!httpPostJson(url, body, resp, respCap)) return false;
   if (!jsonExtractString(resp, "response", out, outCap)) {
-    Serial.println("[NOTESAI] Antwort ohne 'response'-Feld");
+    Serial.println("[NOTESAI] Response has no 'response' field");
     return false;
   }
   stripThink(out);   // falls das Modell den Denkteil inline einbettet

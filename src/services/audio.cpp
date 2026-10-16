@@ -177,13 +177,13 @@ void startCurrent(uint32_t startSec = 0) {
     // Debug-Akku-Logger (no-op ohne BATTLOG): Owner + Dateiname festhalten.
     {
       const char* bn  = strrchr(p, '/');
-      const char* own = ((audio::Owner)s_owner == audio::Owner::Book)    ? "Hoerbuch"
+      const char* own = ((audio::Owner)s_owner == audio::Owner::Book)    ? "Audiobook"
                       : ((audio::Owner)s_owner == audio::Owner::Podcast) ? "Podcast"
                                                                          : "Musik";
       BATTLOG_EVENT("Audio", "%s: %s", own, bn ? bn + 1 : p);
     }
   } else {
-    Serial.printf("[AUDIO] connecttoFS FEHLER: %s\n", p);
+    Serial.printf("[AUDIO] connecttoFS error: %s\n", p);
     board::dacPower(false);
     s_playing = false;
   }

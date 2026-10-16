@@ -62,14 +62,14 @@ void cmdHelp() {
   Serial.println("[CON]   sleep             - enter standby (like a long press)");
   Serial.println("[CON]   eink hib [on|off] - E-Ink controller deep sleep in standby (default off)");
   Serial.println("[CON]   alarm             - list alarms");
-  Serial.println("[CON]   alarm <i> <hh:mm> [tage] - set alarm (days: einmal|taeglich|mo,di,..)");
-  Serial.println("[CON]   alarm <i> off / <i> mode ton|blink|vibra|beides|alle / sound <pfad> / test / stop / snooze");
+  Serial.println("[CON]   alarm <i> <hh:mm> [days] - set alarm (once|daily|mo,tu,..)");
+  Serial.println("[CON]   alarm <i> off / <i> mode tone|blink|vibra|both|all / sound <path> / test / stop / snooze");
   Serial.println("[CON]   mesh init         - initialize the Mesh radio");
   Serial.println("[CON]   mesh eco [on|off] - show/set RX duty-cycle (radio power saving)");
   Serial.println("[CON]   advert            - send a zero-hop advertisement (with battery telemetry)");
   Serial.println("[CON]   advert flood      - send a multi-hop advertisement to distant nodes");
   Serial.println("[CON]   pos [<lat> <lon>] - show/set node position (location beacon in advertisement)");
-  Serial.println("[CON]   gps [sek] / off   - read raw NMEA and fix (default 10 s), or turn module off");
+  Serial.println("[CON]   gps [seconds] / off - read raw NMEA and fix (default 10 s), or turn module off");
   Serial.println("[CON]   public <text>     - send a message to the public channel");
   Serial.println("[CON]   dm <idx> <text>   - send a direct message to contact #idx");
   Serial.println("[CON]   contacts          - list contacts");
@@ -100,8 +100,8 @@ void cmdHelp() {
   Serial.println("[CON]   nav test          - Subsonic ping (Wi-Fi)");
   Serial.println("[CON]   scrobble          - show pending scrobbles");
   Serial.println("[CON]   scrobble flush    - upload pending scrobbles now (Wi-Fi)");
-  Serial.println("[CON]   ollama url <url>  - Ollama-Server (z. B. http://10.0.0.5:11434)");
-  Serial.println("[CON]   ollama model <m>  - Ollama-Modell (z. B. llama3.2)");
+  Serial.println("[CON]   ollama url <url>  - Ollama server (e.g. http://10.0.0.5:11434)");
+  Serial.println("[CON]   ollama model <m>  - Ollama model (e.g. llama3.2)");
   Serial.println("[CON]   ollama on|off     - automatically proofread notes");
   Serial.println("[CON]   ollama / test     - status / connection test (Wi-Fi)");
   Serial.println("[CON]   ollama flush      - proofread pending notes now (Wi-Fi)");
@@ -126,8 +126,8 @@ void cmdHelp() {
 }
 
 void cmdSettingsShow() {
-  // exportIni() exportiert das WLAN-Passwort bewusst nicht (Feld bleibt leer),
-  // daher gibt es hier nichts zu maskieren.
+  // exportIni() deliberately leaves the Wi-Fi password field blank, so there
+  // is nothing to mask here.
   static char buf[2048];
   settings::exportIni(buf, sizeof(buf));
   Serial.print(buf);
@@ -222,7 +222,7 @@ void cmdRm(const char* path) {
   else           Serial.printf("[CON] Delete failed (possibly partial): %s\n", path);
 }
 
-// Letzte ~2 KB des SD-Nachrichten-Logs ausgeben.
+// Print the last ~2 KB of the SD message log.
 void cmdMeshLog() {
   if (!board::sdReady()) { Serial.println("[CON] No SD card"); return; }
   spiLock();
@@ -268,7 +268,7 @@ void cmdBatLog() {
   if (!f) { spiUnlock(); Serial.println("[CON] Log is not readable"); return; }
   uint32_t sz = f.size();
   spiUnlock();
-  Serial.printf("[CON] %s (%u Bytes):\n", path, (unsigned)sz);
+  Serial.printf("[CON] %s (%u bytes):\n", path, (unsigned)sz);
   // In Häppchen lesen — SD-Read unter spiLock, Serial-Ausgabe danach.
   static char buf[1025];
   uint32_t off = 0;
@@ -291,14 +291,14 @@ void cmdBatLog() {
 // Beliebige SD-Textdatei gechunkt über Serial ausgeben (SD-Read unter spiLock,
 // Serial danach) — z. B. `cat /.fennek/battery.log`.
 void cmdCat(const char* path) {
-  if (!board::sdReady()) { Serial.println("[CON] Keine SD-Karte"); return; }
+  if (!board::sdReady()) { Serial.println("[CON] No SD card"); return; }
   spiLock();
   bool ok = SD.exists(path);
   File f = ok ? SD.open(path, FILE_READ) : File();
   uint32_t sz = f ? f.size() : 0;
   spiUnlock();
   if (!ok || !f) { Serial.printf("[CON] %s is not readable\n", path); return; }
-  Serial.printf("[CON] %s (%u Bytes):\n", path, (unsigned)sz);
+  Serial.printf("[CON] %s (%u bytes):\n", path, (unsigned)sz);
   static char buf[1025];
   uint32_t off = 0;
   while (off < sz) {
@@ -317,34 +317,34 @@ void cmdCat(const char* path) {
   Serial.println("\n[CON] --- cat Ende ---");
 }
 
-// Bekannte Geräte auf dem geteilten I2C-Bus (SDA 13 / SCL 14) benennen, damit
-// der Scan auf einen Blick verrät, ob ein Hardware-RTC bestückt ist.
+// Name known devices on the shared I2C bus (SDA 13 / SCL 14) so the scan
+// quickly reveals whether a hardware RTC is installed.
 const char* i2cKnownName(uint8_t addr) {
   switch (addr) {
     case 0x1A: return "CST328 Touch";
     case 0x28: return "BHI260AP Gyro/IMU";
-    case 0x34: return "TCA8418 Tastatur";
-    case 0x51: return "PCF85063/PCF8563 RTC?";   // genau das wollen wir wissen
+    case 0x34: return "TCA8418 keyboard";
+    case 0x51: return "PCF85063/PCF8563 RTC?";   // This is the device we want to find.
     case 0x55: return "BQ27220 Fuel-Gauge";
-    case 0x5A: return "DRV2605 Vibrationsmotor";
-    case 0x6B: return "BQ25896 Ladekontroller";
+    case 0x5A: return "DRV2605 vibration motor";
+    case 0x6B: return "BQ25896 charge controller";
     default:   return nullptr;
   }
 }
 
-// I2C-Bus abklopfen (0x08..0x77). Diagnose-Befehl: zeigt, was wirklich auf dem
-// Bus hängt — insbesondere ob auf 0x51 ein RTC-Chip ackt (es gibt keinen; die
-// Uhr läuft auf der ESP32-Systemzeit, frisch gehalten von services/timesync aus
-// Mesh-Adverts + NTP). Läuft im Arduino-loop() wie der Rest des I2C-Pollings,
-// daher kein SPI-Lock nötig (eigener Bus).
+// Scan the I2C bus (0x08..0x77). This diagnostic shows what is connected,
+// especially whether an RTC responds at 0x51 (none is installed; the clock
+// uses ESP32 system time, synchronized by services/timesync from mesh adverts
+// and NTP). Runs in Arduino loop() with the other I2C polling, so it needs no
+// SPI lock because I2C uses a separate bus.
 void cmdI2cScan() {
-  Serial.println("[CON] I2C-Scan (SDA 13 / SCL 14):");
+  Serial.println("[CON] I2C scan (SDA 13 / SCL 14):");
   int found = 0;
   for (uint8_t addr = 0x08; addr <= 0x77; addr++) {
     Wire.beginTransmission(addr);
     if (Wire.endTransmission() == 0) {
       const char* name = i2cKnownName(addr);
-      Serial.printf("[CON]   0x%02X  %s\n", addr, name ? name : "(unbekannt)");
+      Serial.printf("[CON]   0x%02X  %s\n", addr, name ? name : "(unknown)");
       found++;
     }
   }
@@ -355,13 +355,13 @@ void cmdI2cScan() {
 void cmdStatus() {
   // Hinweis: Die Konsole selbst hält während des Befehls den 240-MHz-Boost —
   // der Wert zeigt also den Boost-Takt, nicht den Leerlauf-Basistakt (80).
-  Serial.printf("[CON] Heap=%uKB PSRAM=%uKB CPU=%luMHz Akku=%umV/%u%%%s SD=%s\n",
+  Serial.printf("[CON] Heap=%uKB PSRAM=%uKB CPU=%luMHz Battery=%umV/%u%%%s SD=%s\n",
                 (unsigned)(ESP.getFreeHeap() / 1024),
                 (unsigned)(ESP.getFreePsram() / 1024),
                 (unsigned long)getCpuFrequencyMhz(),
                 battery::milliVolts(), battery::percent(),
                 battery::charging() ? "+" : "",
-                board::sdReady() ? "ja" : "nein");
+                board::sdReady() ? "yes" : "no");
   // Standby-Diagnose: Warum lief dieser Boot an? (1=Poweron/Hardware-Reset
   // 5=DeepSleep-Wake 12=SW; Wake 3=EXT1/Knopf 4=Timer). Achtung: Der UNTERE
   // Seitenknopf ist der Hardware-Reset -> immer Reset-Grund=1, Firmware
@@ -386,7 +386,7 @@ void cmdStatus() {
                 timesync::source(), (unsigned long)timesync::estErrSeconds());
 }
 
-// Uhr-Diagnose (Zeit-Koordinator): lokale + UTC-Zeit, Quelle, Qualität, Drift.
+// Clock diagnostics: local and UTC time, source, quality, and drift.
 void cmdTime() {
   uint32_t e = timesync::now();
   time_t   tt = (time_t)e;
@@ -395,7 +395,7 @@ void cmdTime() {
   localtime_r(&tt, &loc);   // Zeitzone via timesync::applyTimezone gesetzt
   char tz[48];
   settings::tzString(tz, sizeof(tz));
-  Serial.printf("[CON] Zeit lokal: %04d-%02d-%02d %02d:%02d:%02d (%s)\n",
+  Serial.printf("[CON] Local time: %04d-%02d-%02d %02d:%02d:%02d (%s)\n",
                 loc.tm_year + 1900, loc.tm_mon + 1, loc.tm_mday,
                 loc.tm_hour, loc.tm_min, loc.tm_sec, tz);
   Serial.printf("[CON]   UTC=%lu (%02d:%02d:%02d) source=%s quality=%s "
@@ -405,15 +405,15 @@ void cmdTime() {
                 (unsigned long)timesync::estErrSeconds(), timesync::driftPpm());
 }
 
-// `time set YYYY-MM-DD HH:MM[:SS]` — lokale Zeit setzen (über die Zeitzone nach
-// UTC umgerechnet). Fallback, wenn nie WLAN/Mesh erreichbar ist.
+// `time set YYYY-MM-DD HH:MM[:SS]` sets local time and converts it to UTC
+// through the configured time zone. Use as a fallback when Wi-Fi/mesh is unavailable.
 void cmdTimeSet(const char* arg) {
   struct tm lt;
   memset(&lt, 0, sizeof(lt));
   int y, mo, d, h, mi, s = 0;
   int got = sscanf(arg, "%d-%d-%d %d:%d:%d", &y, &mo, &d, &h, &mi, &s);
   if (got < 5) {
-    Serial.println("[CON] Nutzung: time set YYYY-MM-DD HH:MM[:SS] (lokale Zeit)");
+    Serial.println("[CON] Usage: time set YYYY-MM-DD HH:MM[:SS] (local time)");
     return;
   }
   lt.tm_year = y - 1900; lt.tm_mon = mo - 1; lt.tm_mday = d;
@@ -428,7 +428,7 @@ void cmdTimeSet(const char* arg) {
 void cmdContacts() {
   if (!mesh_client::ready()) { Serial.println("[CON] Mesh not initialized"); return; }
   int n = mesh_client::contactCount();
-  Serial.printf("[CON] %d Kontakt(e):\n", n);
+  Serial.printf("[CON] %d contact(s):\n", n);
   for (int i = 0; i < n; i++) {
     char nm[40];
     mesh_client::contactName(i, nm, sizeof(nm));
@@ -447,33 +447,33 @@ void cmdPos(const char* arg) {
   if (!arg || !*arg) {
     double lat, lon;
     mesh_client::nodePos(&lat, &lon);
-    if (lat == 0.0 && lon == 0.0) Serial.println("[CON] Keine Position gesetzt (pos <lat> <lon>)");
+    if (lat == 0.0 && lon == 0.0) Serial.println("[CON] No position set (pos <lat> <lon>)");
     else                          Serial.printf("[CON] Position: %.6f, %.6f\n", lat, lon);
     return;
   }
   const char* sp = strchr(arg, ' ');
-  if (!sp) { Serial.println("[CON] Nutzung: pos <lat> <lon>"); return; }
+  if (!sp) { Serial.println("[CON] Usage: pos <lat> <lon>"); return; }
   double lat = atof(arg);
   double lon = atof(sp + 1);
   mesh_client::setNodePosition(lat, lon);
-  Serial.printf("[CON] Position gesetzt: %.6f, %.6f (advert sendet sie nun mit)\n", lat, lon);
+  Serial.printf("[CON] Position set: %.6f, %.6f (advert now includes it)\n", lat, lon);
 }
 
 void alarmPrintList() {
   Serial.println("[CON] Alarms:");
-  const char* dn[7] = {"Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"};
+  const char* dn[7] = {"Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"};
   for (int i = 0; i < alarmclock::count(); i++) {
     alarmclock::Alarm a = alarmclock::get(i);
-    if (!a.enabled) { Serial.printf("[CON]   [%d] --:--  (aus)\n", i); continue; }
+    if (!a.enabled) { Serial.printf("[CON]   [%d] --:--  (off)\n", i); continue; }
     char days[40] = "";
-    if (a.once) strcpy(days, "einmalig");
-    else if (a.dowMask == 0) strcpy(days, "taeglich");
+    if (a.once) strcpy(days, "once");
+    else if (a.dowMask == 0) strcpy(days, "daily");
     else for (int d = 0; d < 7; d++)
       if (a.dowMask & (1 << d)) { strcat(days, dn[d]); strcat(days, " "); }
     char sig[24] = "";
-    if (a.signal & alarmclock::SIG_TONE)  strcat(sig, "Ton ");
+    if (a.signal & alarmclock::SIG_TONE)  strcat(sig, "Tone ");
     if (a.signal & alarmclock::SIG_BLINK) strcat(sig, "Blink ");
-    if (a.signal & alarmclock::SIG_VIBRA) strcat(sig, "Vibra ");
+    if (a.signal & alarmclock::SIG_VIBRA) strcat(sig, "Vibration ");
     Serial.printf("[CON]   [%d] %02u:%02u  %-9s  %s\n", i, a.hour, a.minute, days, sig);
   }
   char snd[TRACK_PATH_LEN];
@@ -481,13 +481,17 @@ void alarmPrintList() {
   Serial.printf("[CON]   Ringtone: %s\n", snd[0] ? snd : "(first track)");
 }
 
-// "mo,di,fr" -> Bitmaske (bit0=Mo); "taeglich"/leer -> 0 (täglich).
+// "mo,tu,fr" -> bit mask (bit 0 = Monday); "daily" or empty -> 0.
 uint8_t alarmParseDays(const char* s) {
   if (!s || !*s) return 0;
-  if (strstr(s, "taegl") || strstr(s, "dai") || strstr(s, "all")) return 0;
-  static const char* k[7] = {"mo", "di", "mi", "do", "fr", "sa", "so"};
+  if (strstr(s, "taegl") || strstr(s, "daily") || strstr(s, "all")) return 0;
+  static const char* k[7][2] = {
+    {"mo", "mo"}, {"tu", "di"}, {"we", "mi"}, {"th", "do"},
+    {"fr", "fr"}, {"sa", "sa"}, {"su", "so"}
+  };
   uint8_t m = 0;
-  for (int i = 0; i < 7; i++) if (strstr(s, k[i])) m |= (1 << i);
+  for (int i = 0; i < 7; i++)
+    if (strstr(s, k[i][0]) || strstr(s, k[i][1])) m |= (1 << i);
   return m;
 }
 
@@ -505,7 +509,7 @@ void cmdAlarm(const char* arg) {
   int i = atoi(arg);
   const char* sp = strchr(arg, ' ');
   if (i < 0 || i >= alarmclock::count() || !sp) {
-    Serial.println("[CON] Nutzung: alarm <0..3> <hh:mm> [tage] | <i> off | <i> mode ton|blink|beides");
+    Serial.println("[CON] Usage: alarm <0..3> <hh:mm> [days] | <i> off | <i> mode tone|blink|both");
     return;
   }
   sp++;
@@ -517,11 +521,11 @@ void cmdAlarm(const char* arg) {
   if (strncmp(sp, "mode ", 5) == 0) {                  // Signal-Modus pro Wecker
     const char* m = sp + 5;
     uint8_t v = strstr(m, "vibr") ? alarmclock::SIG_VIBRA
-              : strstr(m, "alle") ? (uint8_t)(alarmclock::SIG_TONE | alarmclock::SIG_BLINK | alarmclock::SIG_VIBRA)
+              : (strstr(m, "all") || strstr(m, "alle")) ? (uint8_t)(alarmclock::SIG_TONE | alarmclock::SIG_BLINK | alarmclock::SIG_VIBRA)
               : strstr(m, "ton") ? alarmclock::SIG_TONE
               : strstr(m, "blink") ? alarmclock::SIG_BLINK
               : (strstr(m, "beid") || strstr(m, "both")) ? alarmclock::SIG_BOTH : 0;
-    if (!v) { Serial.println("[CON] alarm <i> mode ton|blink|vibra|beides|alle"); return; }
+    if (!v) { Serial.println("[CON] alarm <i> mode tone|blink|vibra|both|all"); return; }
     alarmclock::Alarm a = alarmclock::get(i);
     a.signal = v;
     alarmclock::set(i, a);
@@ -530,7 +534,7 @@ void cmdAlarm(const char* arg) {
   }
   int hh, mm;
   if (sscanf(sp, "%d:%d", &hh, &mm) != 2 || hh < 0 || hh > 23 || mm < 0 || mm > 59) {
-    Serial.println("[CON] Zeit als hh:mm (z.B. 06:30)");
+    Serial.println("[CON] Enter time as hh:mm (e.g. 06:30)");
     return;
   }
   const char* daysArg = strchr(sp, ' ');
@@ -543,44 +547,44 @@ void cmdAlarm(const char* arg) {
   a.dowMask = a.once ? 0 : alarmParseDays(daysStr);
   alarmclock::set(i, a);
   Serial.printf("[CON] Alarm %d: %02d:%02d %s set\n", i, hh, mm,
-                a.once ? "(einmalig)" : a.dowMask ? "(Wochentage)" : "(taeglich)");
+                a.once ? "(once)" : a.dowMask ? "(weekdays)" : "(daily)");
 }
 
 void cmdMsgs() {
   int n = mesh_client::msgCount();
-  Serial.printf("[CON] %d Nachricht(en) im Verlauf:\n", n);
+  Serial.printf("[CON] %d message(s) in history:\n", n);
   for (int i = 0; i < n; i++) {
     mesh_client::MsgView m;
     if (!mesh_client::msg(i, m)) continue;
     const char* kind = (m.kind == 0) ? "CH " : (m.kind == 1) ? "DM<" : "DM>";
     const char* ack  = (m.kind != 2) ? ""
-                     : (m.ackState == 2) ? " [zugestellt]"
+                     : (m.ackState == 2) ? " [delivered]"
                      : (m.ackState == 3) ? " [timeout]"
-                     : (m.ackState == 1) ? " [ausstehend]" : "";
+                     : (m.ackState == 1) ? " [pending]" : "";
     Serial.printf("[CON]   %s %lu %s%s%s%s\n", kind, (unsigned long)m.timestamp,
                   m.from[0] ? m.from : "", m.from[0] ? ": " : "", m.text, ack);
   }
 }
 
-// GPS headless testen: Modul an, N s rohe NMEA + dekodierten Fix loggen, aus.
-// Bestätigt Verkabelung/Enable/Baudrate ohne Display (wie Mesh-/Wecker-Tests).
+// Test GPS without the display: enable the module, log raw NMEA and decoded
+// fixes for N seconds, then turn it off. Confirms wiring, enable, and baud rate.
 void cmdGps(const char* arg) {
   if (arg && strncmp(arg, "off", 3) == 0) {
     gps::end();
-    Serial.println("[GPS] Modul aus");
+    Serial.println("[GPS] Module off");
     return;
   }
   if (arg && strncmp(arg, "scan", 4) == 0) {
-    // Gängige GPS-Baudraten durchprobieren und gültige NMEA-Zeilen zählen.
+    // Try common GPS baud rates and count valid NMEA lines.
     pinMode(PIN_GPS_EN, OUTPUT);
     digitalWrite(PIN_GPS_EN, HIGH);
     delay(50);
     const long bauds[] = {9600, 38400, 115200, 57600, 4800};
-    Serial.println("[GPS] Baudraten-Scan (je 3 s) ...");
+    Serial.println("[GPS] Scanning baud rates (3 s each)...");
     for (long b : bauds) {
       Serial1.begin(b, SERIAL_8N1, PIN_GPS_RX, PIN_GPS_TX);
       delay(80);
-      while (Serial1.available()) Serial1.read();   // Puffer leeren
+      while (Serial1.available()) Serial1.read();   // Clear the buffer.
       char line[100]; int len = 0;
       unsigned long bytes = 0, good = 0;
       char sample[100]; sample[0] = '\0';
@@ -605,16 +609,16 @@ void cmdGps(const char* arg) {
         delay(2);
       }
       Serial1.end();
-      Serial.printf("[GPS]   %6ld Baud: %lu Bytes, %lu NMEA-Zeilen%s%s\n",
-                    b, bytes, good, sample[0] ? "  z.B. " : "", sample);
+      Serial.printf("[GPS]   %6ld baud: %lu bytes, %lu NMEA lines%s%s\n",
+                    b, bytes, good, sample[0] ? "  e.g. " : "", sample);
     }
     digitalWrite(PIN_GPS_EN, LOW);
-    Serial.println("[GPS] Scan fertig — Baud mit NMEA-Zeilen = GPS_BAUD setzen.");
+    Serial.println("[GPS] Scan complete — set GPS_BAUD to the baud rate with NMEA lines.");
     return;
   }
   int secs = 10;
   if (arg && *arg) { int v = atoi(arg); if (v > 0 && v <= 120) secs = v; }
-  Serial.printf("[GPS] Modul an (Baud %d), lese %d s rohe NMEA ...\n", GPS_BAUD, secs);
+  Serial.printf("[GPS] Module on (baud %d); reading raw NMEA for %d s...\n", GPS_BAUD, secs);
   gps::begin();
 
   gps::Fix fix = {};
@@ -635,14 +639,14 @@ void cmdGps(const char* arg) {
       } else if (len < (int)sizeof(line) - 1) {
         line[len++] = c;
       } else {
-        len = 0;   // Überlauf (Müll) — Zeile verwerfen
+        len = 0;   // Overflow; discard the line.
       }
     }
-    power::noteActivity();   // Auto-Standby während des Tests verhindern
+    power::noteActivity();   // Prevent auto-standby during the test.
     delay(5);
   }
 
-  Serial.printf("[GPS] %lu Bytes, %lu Zeilen empfangen\n", bytes, lines);
+  Serial.printf("[GPS] Received %lu bytes and %lu lines\n", bytes, lines);
   if (bytes == 0)
     Serial.println("[GPS] NO DATA — check wiring and enable (GPIO39).");
   else if (lines == 0)
@@ -661,7 +665,7 @@ void cmdGps(const char* arg) {
     Serial.printf("[GPS] No position fix yet (last satellites=%u) — try again outdoors.\n",
                   (unsigned)fix.sats);
   gps::end();
-  Serial.println("[GPS] Modul aus");
+  Serial.println("[GPS] Module off");
 }
 
 // BHI260-IMU testen: Firmware laden (~10 s), 2 s lesen, Werte ausgeben.
@@ -678,7 +682,7 @@ void cmdGyro() {
     }
   }
   gyro::end();
-  Serial.println("[CON] Gyro: fertig (Sensor auf 0 Hz)");
+  Serial.println("[CON] Gyro: done (sensor at 0 Hz)");
 }
 
 // Mikro-Aufnahmetest: N s nach /rectest.wav aufnehmen (Standard 3 s).
@@ -686,7 +690,7 @@ void cmdRec(const char* arg) {
   int secs = 3;
   if (arg && *arg) { int v = atoi(arg); if (v > 0 && v <= 30) secs = v; }
   const char* path = "/rectest.wav";
-  Serial.printf("[CON] Aufnahme %d s -> %s (jetzt sprechen!) ...\n", secs, path);
+  Serial.printf("[CON] Recording %d s -> %s (speak now!) ...\n", secs, path);
   if (!audio::beginMic()) { Serial.println("[CON] I2S0 handoff failed"); return; }
   if (!mic::startRecording(path)) { audio::endMic(); Serial.println("[CON] Microphone initialization or SD failed"); return; }
   uint16_t maxLvl = 0;
@@ -698,19 +702,19 @@ void cmdRec(const char* arg) {
   }
   uint32_t dur = mic::stopRecording();
   audio::endMic();   // I2S0 zurück an die Audio-Engine
-  Serial.printf("[CON] Aufnahme fertig: %lu s, Spitzenpegel %u/32767 %s\n",
+  Serial.printf("[CON] Recording complete: %lu s, peak level %u/32767 %s\n",
                 (unsigned long)dur, maxLvl,
-                maxLvl > 1500 ? "(Ton erkannt)" : "(sehr leise/Stille?)");
-  Serial.println("[CON] Abspielen: via WebFM herunterladen oder in /music kopieren.");
+                maxLvl > 1500 ? "(audio detected)" : "(very quiet/silent?)");
+  Serial.println("[CON] Playback: download via WebFM or copy to /music.");
 }
 
 void handleLine(char* line) {
-  // Führende Leerzeichen überspringen.
+  // Skip leading spaces.
   while (*line == ' ') line++;
   if (!*line) return;
 
-  // Konsolen-Befehle zählen als Aktivität — sonst schlägt der Auto-Standby
-  // mitten in seriellen Mesh-Tests zu (passiert am 12.06.2026, zweimal).
+  // Console commands count as activity to prevent auto-standby during serial
+  // mesh tests.
   power::noteActivity();
 
   if (strcmp(line, "help") == 0)            { cmdHelp(); return; }
@@ -725,7 +729,7 @@ void handleLine(char* line) {
   if (strncmp(line, "tz ", 3) == 0) {
     settings::setTzString(line + 3);
     timesync::applyTimezone();
-    Serial.printf("[CON] Zeitzone gesetzt: '%s'\n", line + 3);
+    Serial.printf("[CON] Time zone set: '%s'\n", line + 3);
     cmdTime();
     return;
   }
@@ -733,9 +737,9 @@ void handleLine(char* line) {
     const char* a = line + 8;
     while (*a == ' ') a++;
     if (*a) settings::setEinkHibernate(strcmp(a, "on") == 0 || strcmp(a, "1") == 0);
-    Serial.printf("[CON] E-Ink-Controller-Deep-Sleep: %s%s\n",
-                  settings::einkHibernate() ? "an" : "aus",
-                  display::panelStuck() ? " (Panel-Reset wirkungslos — gesperrt)" : "");
+    Serial.printf("[CON] E-Ink controller deep sleep: %s%s\n",
+                  settings::einkHibernate() ? "on" : "off",
+                  display::panelStuck() ? " (panel reset ineffective — locked)" : "");
     return;
   }
   if (strcmp(line, "mesh init") == 0)       { ensureMesh(); return; }
@@ -744,11 +748,11 @@ void handleLine(char* line) {
     while (*a == ' ') a++;
     if (*a) {
       settings::setMeshEco(strcmp(a, "on") == 0 || strcmp(a, "1") == 0);
-      // Läuft das Radio schon, sofort umschalten (armiert den Empfang neu).
+      // Apply the change immediately if the radio is already running.
       if (mesh_client::ready()) mesh_client::applyRadioParams();
     }
-    Serial.printf("[CON] Mesh RX-Sparmodus (Duty-Cycle): %s\n",
-                  settings::meshEco() ? "an" : "aus");
+    Serial.printf("[CON] Mesh RX duty-cycle power saving: %s\n",
+                  settings::meshEco() ? "on" : "off");
     return;
   }
   if (strcmp(line, "contacts reset") == 0)  {
@@ -771,44 +775,44 @@ void handleLine(char* line) {
   if (strcmp(line, "notes") == 0)           { notes_app::debugSmoke(); return; }
   if (strcmp(line, "wifi list") == 0) {
     int n = settings::wifiCount();
-    if (n == 0) { Serial.println("[CON] Keine WLAN-Profile"); return; }
+    if (n == 0) { Serial.println("[CON] No Wi-Fi profiles"); return; }
     for (int i = 0; i < n; i++) {
       char ssid[33], pass[65];
       settings::wifiSsidAt(i, ssid, sizeof(ssid));
       settings::wifiPassAt(i, pass, sizeof(pass));
-      Serial.printf("[CON]   %d: '%s' (Passwort %s)\n", i, ssid,
-                    pass[0] ? "gesetzt" : "-");
+      Serial.printf("[CON]   %d: '%s' (password %s)\n", i, ssid,
+                    pass[0] ? "set" : "-");
     }
     return;
   }
   if (strncmp(line, "wifi ssid ", 10) == 0) {
     settings::setWifiSsid(line + 10);
-    Serial.printf("[CON] WLAN-SSID (Profil 0) gesetzt: '%s'\n", line + 10);
+    Serial.printf("[CON] Wi-Fi SSID (profile 0) set: '%s'\n", line + 10);
     return;
   }
   if (strncmp(line, "wifi pass ", 10) == 0) {
     settings::setWifiPass(line + 10);
-    Serial.println("[CON] WLAN-Passwort (Profil 0) gesetzt");
+    Serial.println("[CON] Wi-Fi password (profile 0) set");
     return;
   }
   if (strncmp(line, "wifi add ", 9) == 0) {
-    // "wifi add <name> [pw]" — erstes Leerzeichen trennt SSID vom optionalen Passwort.
+    // "wifi add <name> [pw]" — the first space separates the SSID and optional password.
     char arg[130];
     strncpy(arg, line + 9, sizeof(arg) - 1); arg[sizeof(arg) - 1] = '\0';
     char* sp = strchr(arg, ' ');
     const char* pw = "";
     if (sp) { *sp = '\0'; pw = sp + 1; }
-    if (!arg[0]) { Serial.println("[CON] Nutzung: wifi add <name> [pw]"); return; }
+    if (!arg[0]) { Serial.println("[CON] Usage: wifi add <name> [pw]"); return; }
     if (settings::wifiCount() >= settings::kMaxWifiProfiles) {
-      Serial.println("[CON] Maximale Profilzahl erreicht"); return;
+      Serial.println("[CON] Maximum number of profiles reached"); return;
     }
     if (settings::wifiSet(settings::wifiCount(), arg, pw))
-      Serial.printf("[CON] WLAN-Profil angelegt: '%s'\n", arg);
+      Serial.printf("[CON] Wi-Fi profile created: '%s'\n", arg);
     return;
   }
   if (strncmp(line, "wifi del ", 9) == 0) {
     int idx = atoi(line + 9);
-    if (idx < 0 || idx >= settings::wifiCount()) { Serial.println("[CON] Ungueltiger Index"); return; }
+    if (idx < 0 || idx >= settings::wifiCount()) { Serial.println("[CON] Invalid index"); return; }
     settings::wifiRemove(idx);
     Serial.printf("[CON] Wi-Fi profile %d deleted\n", idx);
     return;
@@ -822,21 +826,21 @@ void handleLine(char* line) {
   if (strcmp(line, "wifi stop") == 0)       { webfm::stop(); return; }
   if (strncmp(line, "nav url ", 8) == 0) {
     settings::setNavUrl(line + 8);
-    Serial.printf("[CON] Navidrome-URL gesetzt: '%s'\n", line + 8);
+    Serial.printf("[CON] Navidrome URL set: '%s'\n", line + 8);
     return;
   }
   if (strncmp(line, "nav user ", 9) == 0) {
     settings::setNavUser(line + 9);
-    Serial.printf("[CON] Navidrome-Benutzer gesetzt: '%s'\n", line + 9);
+    Serial.printf("[CON] Navidrome username set: '%s'\n", line + 9);
     return;
   }
   if (strncmp(line, "nav pass ", 9) == 0) {
     settings::setNavPass(line + 9);
-    Serial.println("[CON] Navidrome-Passwort gesetzt");
+    Serial.println("[CON] Navidrome password set");
     return;
   }
-  if (strcmp(line, "nav on") == 0)  { settings::setNavEnabled(true);  Serial.println("[CON] Scrobbeln EIN"); return; }
-  if (strcmp(line, "nav off") == 0) { settings::setNavEnabled(false); Serial.println("[CON] Scrobbeln AUS"); return; }
+  if (strcmp(line, "nav on") == 0)  { settings::setNavEnabled(true);  Serial.println("[CON] Scrobbling on"); return; }
+  if (strcmp(line, "nav off") == 0) { settings::setNavEnabled(false); Serial.println("[CON] Scrobbling off"); return; }
   if (strcmp(line, "nav test") == 0) {
     char msg[64];
     bool ok = scrobble::ping(msg, sizeof(msg));
@@ -844,8 +848,8 @@ void handleLine(char* line) {
     return;
   }
   if (strcmp(line, "scrobble") == 0) {
-    Serial.printf("[CON] %d offene Scrobble(s); Scrobbeln=%s\n",
-                  scrobble::pendingCount(), settings::navEnabled() ? "an" : "aus");
+    Serial.printf("[CON] %d pending scrobble(s); scrobbling=%s\n",
+                  scrobble::pendingCount(), settings::navEnabled() ? "on" : "off");
     return;
   }
   if (strcmp(line, "scrobble flush") == 0) {
@@ -856,16 +860,16 @@ void handleLine(char* line) {
   }
   if (strncmp(line, "ollama url ", 11) == 0) {
     settings::setAiUrl(line + 11);
-    Serial.printf("[CON] Ollama-URL gesetzt: '%s'\n", line + 11);
+    Serial.printf("[CON] Ollama URL set: '%s'\n", line + 11);
     return;
   }
   if (strncmp(line, "ollama model ", 13) == 0) {
     settings::setAiModel(line + 13);
-    Serial.printf("[CON] Ollama-Modell gesetzt: '%s'\n", line + 13);
+    Serial.printf("[CON] Ollama model set: '%s'\n", line + 13);
     return;
   }
-  if (strcmp(line, "ollama on") == 0)  { settings::setAiEnabled(true);  Serial.println("[CON] Notiz-KI EIN"); return; }
-  if (strcmp(line, "ollama off") == 0) { settings::setAiEnabled(false); Serial.println("[CON] Notiz-KI AUS"); return; }
+  if (strcmp(line, "ollama on") == 0)  { settings::setAiEnabled(true);  Serial.println("[CON] Note AI on"); return; }
+  if (strcmp(line, "ollama off") == 0) { settings::setAiEnabled(false); Serial.println("[CON] Note AI off"); return; }
   if (strcmp(line, "ollama test") == 0) {
     char msg[64];
     bool ok = notes_ai::ping(msg, sizeof(msg));
@@ -875,8 +879,8 @@ void handleLine(char* line) {
   if (strcmp(line, "ollama") == 0) {
     char url[128]; settings::aiUrl(url, sizeof(url));
     char mod[48];  settings::aiModel(mod, sizeof(mod));
-    Serial.printf("[CON] Notiz-KI=%s URL='%s' Modell='%s'; %d Notiz(en) offen\n",
-                  settings::aiEnabled() ? "an" : "aus", url, mod, notes_ai::pendingCount());
+    Serial.printf("[CON] Note AI=%s URL='%s' model='%s'; %d pending note(s)\n",
+                  settings::aiEnabled() ? "on" : "off", url, mod, notes_ai::pendingCount());
     return;
   }
   if (strcmp(line, "ollama flush") == 0) {
@@ -895,8 +899,8 @@ void handleLine(char* line) {
     Serial.printf("[CON] Feed %d %s\n", idx, podcast::removeFeed(idx) ? "removed" : "Error");
     return;
   }
-  if (strcmp(line, "podcast on") == 0)  { settings::setPodcastAutoSync(true);  Serial.println("[CON] Podcast-Auto-Sync EIN"); return; }
-  if (strcmp(line, "podcast off") == 0) { settings::setPodcastAutoSync(false); Serial.println("[CON] Podcast-Auto-Sync AUS"); return; }
+  if (strcmp(line, "podcast on") == 0)  { settings::setPodcastAutoSync(true);  Serial.println("[CON] Podcast auto-sync on"); return; }
+  if (strcmp(line, "podcast off") == 0) { settings::setPodcastAutoSync(false); Serial.println("[CON] Podcast auto-sync off"); return; }
   if (strcmp(line, "podcast sync") == 0) {
     char msg[64];
     podcast::syncAll(msg, sizeof(msg), nullptr);
@@ -905,8 +909,8 @@ void handleLine(char* line) {
   }
   if (strcmp(line, "podcast") == 0) {
     int n = podcast::feedCount();
-    Serial.printf("[CON] Podcast Auto-Sync=%s, %d Feed(s):\n",
-                  settings::podcastAutoSync() ? "an" : "aus", n);
+    Serial.printf("[CON] Podcast auto-sync=%s, %d feed(s):\n",
+                  settings::podcastAutoSync() ? "on" : "off", n);
     for (int i = 0; i < n; ++i) {
       podcast::Feed f;
       if (!podcast::feed(i, &f)) continue;
@@ -929,64 +933,64 @@ void handleLine(char* line) {
     return;
   }
   if (strncmp(line, "cal user ", 9) == 0) { settings::setCalDavUser(line + 9); Serial.printf("[CON] CalDAV-User: '%s'\n", line + 9); return; }
-  if (strncmp(line, "cal pass ", 9) == 0) { settings::setCalDavPass(line + 9); Serial.println("[CON] CalDAV-Passwort gesetzt"); return; }
-  if (strcmp(line, "cal on") == 0)  { settings::setCalAutoSync(true);  Serial.println("[CON] Kalender-Auto-Sync EIN"); return; }
-  if (strcmp(line, "cal off") == 0) { settings::setCalAutoSync(false); Serial.println("[CON] Kalender-Auto-Sync AUS"); return; }
+  if (strncmp(line, "cal pass ", 9) == 0) { settings::setCalDavPass(line + 9); Serial.println("[CON] CalDAV password set"); return; }
+  if (strcmp(line, "cal on") == 0)  { settings::setCalAutoSync(true);  Serial.println("[CON] Calendar auto-sync on"); return; }
+  if (strcmp(line, "cal off") == 0) { settings::setCalAutoSync(false); Serial.println("[CON] Calendar auto-sync off"); return; }
   if (strcmp(line, "cal sync") == 0) {
     char msg[64]; calendar::sync(msg, sizeof(msg));
-    Serial.printf("[CON] Kalender-Sync: %s\n", msg);
+    Serial.printf("[CON] Calendar sync: %s\n", msg);
     return;
   }
   if (strcmp(line, "cal") == 0) {
     int n = calendar::feedCount();
-    Serial.printf("[CON] Kalender Auto-Sync=%s, %d Feed(s), %d Termine:\n",
-                  settings::calAutoSync() ? "an" : "aus", n, calendar::count());
+    Serial.printf("[CON] Calendar auto-sync=%s, %d feed(s), %d events:\n",
+                  settings::calAutoSync() ? "on" : "off", n, calendar::count());
     for (int i = 0; i < n; ++i) { char u[160]; if (calendar::feedUrl(i, u, sizeof(u))) Serial.printf("[CON]   [%d] %s\n", i, u); }
     return;
   }
   // --- Todo (Reinschrift via Nextcloud/WebDAV) ---
   if (strncmp(line, "todo url ", 9) == 0)  { settings::setTodoUrl(line + 9);  Serial.printf("[CON] Todo-URL: '%s'\n", line + 9); return; }
   if (strncmp(line, "todo user ", 10) == 0){ settings::setTodoUser(line + 10);Serial.printf("[CON] Todo-User: '%s'\n", line + 10); return; }
-  if (strncmp(line, "todo pass ", 10) == 0){ settings::setTodoPass(line + 10);Serial.println("[CON] Todo-Passwort gesetzt"); return; }
+  if (strncmp(line, "todo pass ", 10) == 0){ settings::setTodoPass(line + 10);Serial.println("[CON] Todo password set"); return; }
   if (strncmp(line, "todo path ", 10) == 0){ settings::setTodoPath(line + 10);Serial.printf("[CON] Todo path: '%s'\n", line + 10); return; }
-  if (strcmp(line, "todo on") == 0)  { settings::setTodoEnabled(true);  Serial.println("[CON] Todo-Sync EIN"); return; }
-  if (strcmp(line, "todo off") == 0) { settings::setTodoEnabled(false); Serial.println("[CON] Todo-Sync AUS"); return; }
+  if (strcmp(line, "todo on") == 0)  { settings::setTodoEnabled(true);  Serial.println("[CON] Todo sync on"); return; }
+  if (strcmp(line, "todo off") == 0) { settings::setTodoEnabled(false); Serial.println("[CON] Todo sync off"); return; }
   if (strcmp(line, "todo sync") == 0) {
     char msg[64]; reinschrift_svc::sync(msg, sizeof(msg));
-    Serial.printf("[CON] Todo-Sync: %s\n", msg);
+    Serial.printf("[CON] Todo sync: %s\n", msg);
     return;
   }
   if (strcmp(line, "todo") == 0) {
     char url[160], path[160]; settings::todoUrl(url, sizeof(url)); settings::todoPath(path, sizeof(path));
     Serial.printf("[CON] Todo=%s URL='%s' path='%s'; %d tasks, %d open\n",
-                  settings::todoEnabled() ? "an" : "aus", url, path,
+                  settings::todoEnabled() ? "on" : "off", url, path,
                   reinschrift_svc::count(), reinschrift_svc::pendingCount());
     return;
   }
-  // --- Calibre (E-Book-Pull-Sync vom Content Server) ---
+  // --- Calibre (e-book pull sync from the content server) ---
   if (strncmp(line, "calibre url ", 12) == 0)   { settings::setCalibreUrl(line + 12);   Serial.printf("[CON] Calibre-URL: '%s'\n", line + 12); return; }
   if (strncmp(line, "calibre user ", 13) == 0)  { settings::setCalibreUser(line + 13);  Serial.printf("[CON] Calibre-User: '%s'\n", line + 13); return; }
-  if (strncmp(line, "calibre pass ", 13) == 0)  { settings::setCalibrePass(line + 13);  Serial.println("[CON] Calibre-Passwort gesetzt"); return; }
-  if (strncmp(line, "calibre shelf ", 14) == 0) { settings::setCalibreShelf(line + 14); Serial.printf("[CON] Calibre-Regal: '%s'\n", line + 14); return; }
-  if (strcmp(line, "calibre on") == 0)  { settings::setCalibreAutoSync(true);  Serial.println("[CON] Calibre-Auto-Sync EIN"); return; }
-  if (strcmp(line, "calibre off") == 0) { settings::setCalibreAutoSync(false); Serial.println("[CON] Calibre-Auto-Sync AUS"); return; }
+  if (strncmp(line, "calibre pass ", 13) == 0)  { settings::setCalibrePass(line + 13);  Serial.println("[CON] Calibre password set"); return; }
+  if (strncmp(line, "calibre shelf ", 14) == 0) { settings::setCalibreShelf(line + 14); Serial.printf("[CON] Calibre shelf: '%s'\n", line + 14); return; }
+  if (strcmp(line, "calibre on") == 0)  { settings::setCalibreAutoSync(true);  Serial.println("[CON] Calibre auto-sync on"); return; }
+  if (strcmp(line, "calibre off") == 0) { settings::setCalibreAutoSync(false); Serial.println("[CON] Calibre auto-sync off"); return; }
   if (strcmp(line, "calibre sync") == 0) {
     char msg[64]; calibre_books::sync(msg, sizeof(msg));
-    Serial.printf("[CON] Calibre-Sync: %s\n", msg);
+    Serial.printf("[CON] Calibre sync: %s\n", msg);
     return;
   }
   if (strcmp(line, "calibre") == 0) {
     char url[160], shelf[64];
     settings::calibreUrl(url, sizeof(url));
     settings::calibreShelf(shelf, sizeof(shelf));
-    Serial.printf("[CON] Calibre Auto-Sync=%s URL='%s' Regal='%s'; %d Buch/Buecher gesynct\n",
-                  settings::calibreAutoSync() ? "an" : "aus", url, shelf,
+    Serial.printf("[CON] Calibre auto-sync=%s URL='%s' shelf='%s'; %d book(s) synced\n",
+                  settings::calibreAutoSync() ? "on" : "off", url, shelf,
                   calibre_books::syncedCount());
     return;
   }
   if (strncmp(line, "ota url ", 8) == 0) {
     settings::setOtaUrl(line + 8);
-    Serial.printf("[CON] OTA-Update-URL gesetzt: '%s'\n", line + 8);
+    Serial.printf("[CON] OTA update URL set: '%s'\n", line + 8);
     return;
   }
   if (strcmp(line, "ota check") == 0)  { ota::consoleCheck();      return; }
@@ -994,8 +998,8 @@ void handleLine(char* line) {
   if (strcmp(line, "ota force") == 0)  { ota::consoleUpdate(true);  return; }
   if (strcmp(line, "ota") == 0) {
     char url[160]; settings::otaUrl(url, sizeof(url));
-    Serial.printf("[CON] OTA: aktuell=%s  URL='%s'\n", FENNEK_VERSION, url);
-    Serial.println("[CON]   'ota check' prueft, 'ota update' flasht (WLAN noetig)");
+    Serial.printf("[CON] OTA: current=%s  URL='%s'\n", FENNEK_VERSION, url);
+    Serial.println("[CON]   'ota check' checks; 'ota update' flashes (Wi-Fi required)");
     return;
   }
   if (strcmp(line, "settings show") == 0)   { cmdSettingsShow(); return; }
@@ -1025,7 +1029,7 @@ void handleLine(char* line) {
   if (strncmp(line, "join ", 5) == 0) {
     if (ensureMesh()) {
       int idx = mesh_client::joinHashChannel(line + 5);
-      Serial.printf("[CON] join: %s (Index %d)\n", idx >= 0 ? "OK" : "FEHLER", idx);
+      Serial.printf("[CON] join: %s (index %d)\n", idx >= 0 ? "OK" : "ERROR", idx);
     }
     return;
   }
@@ -1038,18 +1042,18 @@ void handleLine(char* line) {
       while (*p && *p != ' ' && i < (int)sizeof(name) - 1) name[i++] = *p++;
       name[i] = '\0';
       while (*p == ' ') p++;
-      if (!name[0] || !*p) { Serial.println("[CON] Nutzung: chan <name> <text>"); return; }
+      if (!name[0] || !*p) { Serial.println("[CON] Usage: chan <name> <text>"); return; }
       bool ok = mesh_client::sendHashChannelMsg(name, p);
-      Serial.printf("[CON] chan #%s: %s\n", name, ok ? "gesendet (flood)" : "FEHLER");
+      Serial.printf("[CON] chan #%s: %s\n", name, ok ? "sent (flood)" : "ERROR");
     }
     return;
   }
   if (strcmp(line, "advert") == 0) {
-    if (ensureMesh()) { mesh_client::sendAdvert(); Serial.println("[CON] Advert gesendet (zero hop)"); }
+    if (ensureMesh()) { mesh_client::sendAdvert(); Serial.println("[CON] Advert sent (zero hop)"); }
     return;
   }
   if (strcmp(line, "advert flood") == 0) {
-    if (ensureMesh()) { mesh_client::sendAdvertFlood(); Serial.println("[CON] Advert gesendet (flood)"); }
+    if (ensureMesh()) { mesh_client::sendAdvertFlood(); Serial.println("[CON] Advert sent (flood)"); }
     return;
   }
   if (strcmp(line, "pos") == 0)             { cmdPos(nullptr); return; }
@@ -1059,11 +1063,11 @@ void handleLine(char* line) {
   if (strcmp(line, "gyro") == 0)            { cmdGyro(); return; }
   if (strcmp(line, "rec") == 0)             { cmdRec(nullptr); return; }
   if (strncmp(line, "rec ", 4) == 0)        { cmdRec(line + 4); return; }
-  if (strcmp(line, "recplay") == 0) {       // letzte Aufnahme abspielen (Audio-Restore-Test)
+  if (strcmp(line, "recplay") == 0) {       // Play the last recording (audio restore test).
     audio::queueBegin(audio::Owner::Music);
     audio::queueAdd("/rectest.wav");
     audio::queueCommit(0);
-    Serial.println("[CON] Spiele /rectest.wav ...");
+    Serial.println("[CON] Playing /rectest.wav ...");
     return;
   }
   if (strcmp(line, "alarm") == 0)           { cmdAlarm(""); return; }
@@ -1071,7 +1075,7 @@ void handleLine(char* line) {
   if (strncmp(line, "public ", 7) == 0) {
     if (ensureMesh()) {
       bool ok = mesh_client::sendChannelMsg(line + 7);
-      Serial.printf("[CON] public: %s\n", ok ? "gesendet (flood)" : "FEHLER");
+      Serial.printf("[CON] public: %s\n", ok ? "sent (flood)" : "ERROR");
     }
     return;
   }
@@ -1080,13 +1084,13 @@ void handleLine(char* line) {
       char* end = nullptr;
       long idx = strtol(line + 3, &end, 10);
       while (end && *end == ' ') end++;
-      if (!end || !*end) { Serial.println("[CON] Nutzung: dm <idx> <text>"); return; }
+      if (!end || !*end) { Serial.println("[CON] Usage: dm <idx> <text>"); return; }
       bool ok = mesh_client::sendDirectMsg((int)idx, end);
-      Serial.printf("[CON] dm an [%ld]: %s\n", idx, ok ? "gesendet" : "FEHLER");
+      Serial.printf("[CON] dm to [%ld]: %s\n", idx, ok ? "sent" : "ERROR");
     }
     return;
   }
-  Serial.printf("[CON] Unbekannter Befehl: '%s' ('help' zeigt die Liste)\n", line);
+  Serial.printf("[CON] Unknown command: '%s' (type 'help' to see the list)\n", line);
 }
 
 }  // namespace

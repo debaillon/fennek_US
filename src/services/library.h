@@ -2,11 +2,11 @@
 // Copyright (C) 2026 Dr. Daniel Dumke
 
 // =============================================================================
-// library.h — Track-Liste (MP3-Dateien eines SD-Verzeichnisses).
+// library.h — Track list (MP3 files in an SD directory).
 //
-// Wird vom UI-Thread aufgebaut (SD-Scan) und vom Audio-Task gelesen
-// (Next/Prev/EOF-Advance). Zugriff ist über einen Mutex serialisiert; der
-// Scan läuft unter dem SPI-Mutex (geteilter Bus).
+// Built by the UI thread (SD scan) and read by the audio task
+// (Next/Prev/EOF advance). Access is serialized with a mutex; the scan runs
+// under the SPI mutex (shared bus).
 // =============================================================================
 #pragma once
 
@@ -17,87 +17,87 @@ namespace library {
 
 void begin();
 
-// --- Aufbau der Bibliothek ----------------------------------------------------
-// Normaler Weg beim Boot: loadCache() lädt /.fennek/tracks.bin (Sekunden);
-// ohne Cache startScan() + scanStep()-Häppchen aus dem appmgr-Loop (readdir,
-// UI bleibt bedienbar). Der Abschluss publiziert die Funde, wendet den
-// ID3-Cache an und schreibt den Track-Cache. Fallback auf "/" passiert
-// automatisch, wenn unter dem Startverzeichnis nichts gefunden wird.
+// --- Build the library --------------------------------------------------------
+// Normal boot path: loadCache() loads /.fennek/tracks.bin (fast); without a
+// cache, startScan() + scanStep() run in chunks from the appmgr loop (readdir,
+// keeping the UI responsive). On completion, results are published, the ID3
+// cache is applied, and the track cache is written. Automatically falls back
+// to "/" if nothing is found under the starting directory.
 bool loadCache();
 void startScan(const char* dir);
 bool scanning();
-int  scanFound();                 // bisher gefundene Tracks (nur w. Scan läuft)
+int  scanFound();                 // Tracks found so far (only while a scan is running)
 void scanStep(int maxEntries);
 
-// Blockierender Komplett-Scan (Selbsttests). Gibt die Track-Anzahl zurück.
+// Blocking full scan (self-tests). Returns the track count.
 int scan(const char* dir);
 
 int count();
 
-// Anzeigename (Dateiname) des i-ten Tracks in out kopieren.
+// Copy the display name (filename) of the i-th track to out.
 bool name(int i, char* out, size_t outLen);
 
-// Vollständigen SD-Pfad des i-ten Tracks in out kopieren.
+// Copy the full SD path of the i-th track to out.
 bool path(int i, char* out, size_t outLen);
 
-// Künstler/Album des i-ten Tracks (ID3-Tag oder Ordner-Fallback, UTF-8).
+// Artist/album of the i-th track (ID3 tag or directory fallback, UTF-8).
 bool trackArtist(int i, char* out, size_t outLen);
 bool trackAlbum(int i, char* out, size_t outLen);
 
-// Flat-Index zu einem SD-Pfad (-1 = nicht in der Bibliothek).
+// Flat index for an SD path (-1 = not in the library).
 int indexOfPath(const char* p);
 
-// --- ID3-Tag-Scan (inkrementell) ---------------------------------------------
-// scan() wendet zuerst den Cache (/.fennek/id3.bin) an; Dateien ohne Cache-Treffer
-// werden danach häppchenweise über tagScanStep() geparst (Aufruf aus dem
-// appmgr-Loop), damit die UI bedienbar bleibt. Nach dem letzten Schritt werden
-// die Indizes neu sortiert und der Cache zurückgeschrieben.
+// --- ID3 tag scan (incremental) ----------------------------------------------
+// scan() first applies the cache (/.fennek/id3.bin); files without a cache hit
+// are then parsed in chunks through tagScanStep() (called from the appmgr
+// loop) to keep the UI responsive. After the final step, indices are resorted
+// and the cache is rewritten.
 bool tagScanPending();
 void tagScanStep(int maxFiles);
 void tagScanProgress(int* done, int* total);
 
-// --- Hierarchie-Queries (Künstler/Album/Titel) -----------------------------
-// Künstler/Album werden aus der Ordnerstruktur abgeleitet:
-//   <root>/<Künstler>/<Album>/<Titel>.mp3
-// Die flache Track-Liste ist nach (Künstler, Album, Name) sortiert; daraus
-// sind Künstler- und Album-„Runs" (zusammenhängende Bereiche) vorberechnet.
+// --- Hierarchy queries (artist/album/title) ---------------------------------
+// Artists/albums are derived from the directory structure:
+//   <root>/<artist>/<album>/<title>.mp3
+// The flat track list is sorted by (artist, album, name); artist and album
+// runs (contiguous ranges) are precomputed from it.
 
-// Künstler (alphabetisch).
+// Artists (alphabetical).
 int  artistCount();
 void artistName(int artist, char* out, size_t outLen);
 
-// Alben eines Künstlers -> liefert globale Album-Run-IDs.
+// Albums by an artist -> returns global album run IDs.
 int  artistAlbumCount(int artist);
 int  artistAlbumRun(int artist, int j);
 
-// Alle Alben (nach Albumname sortiert) -> globale Album-Run-IDs.
+// All albums (sorted by album name) -> global album run IDs.
 int  albumCount();
 int  albumRunByName(int j);
 
-// Album-Run (ein konkretes Album).
+// Album run (a specific album).
 void albumLabel(int run, bool withArtist, char* out, size_t outLen);
 int  albumTrackCount(int run);
 void albumTrackName(int run, int k, char* out, size_t outLen);
-int  albumTrackFlatIndex(int run, int k);     // -> Index für audio::playIndex
+int  albumTrackFlatIndex(int run, int k);     // -> index for audio::playIndex
 
-// Alle Titel (nach Titelname sortiert).
+// All titles (sorted by title).
 int  titleCount();
 void titleName(int i, char* out, size_t outLen);
-int  titleFlatIndex(int i);                   // -> Index für audio::playIndex
+int  titleFlatIndex(int i);                   // -> index for audio::playIndex
 
-// --- Echte .m3u/.m3u8-Playlists --------------------------------------------
-// Beim Scan gefundene Playlist-Dateien. Beim Öffnen wird die m3u geparst und
-// jeder Eintrag (relativ zum Playlist-Ordner oder absolut) auf einen Track der
-// Bibliothek aufgelöst (Pfad-, sonst Dateinamen-Abgleich).
+// --- Actual .m3u/.m3u8 playlists --------------------------------------------
+// Playlist files found during the scan. When opened, the m3u is parsed and
+// each entry (relative to the playlist directory or absolute) is resolved to a
+// library track (path match, then filename match).
 int  playlistCount();
 void playlistName(int i, char* out, size_t outLen);   // Dateiname der m3u
 int  playlistOpen(int i);                              // parst, cached; #aufgelöste Tracks
 void playlistTrackName(int k, char* out, size_t outLen);
 int  playlistTrackFlatIndex(int k);                   // -> Index für audio
 
-// Sammelt die Flat-Indizes (in Reihenfolge) für eine Abspiel-Queue.
-// scope: art-/album-/title-/playlist-Funktionen liefern Indizes einzeln; hier
-// ein Helfer, der alle Flat-Indizes eines Album-Runs in out schreibt.
+// Collect flat indices (in order) for a playback queue.
+// scope: artist/album/title/playlist functions return indices individually;
+// this helper writes all flat indices for an album run to out.
 int  albumTrackFlatList(int run, int* out, int maxN);
 
 }  // namespace library

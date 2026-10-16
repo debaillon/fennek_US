@@ -2,19 +2,19 @@
 // Copyright (C) 2026 Dr. Daniel Dumke
 
 // =============================================================================
-// flashcards_core.h — Karteikarten-Logik (Leitner) + Zeilen-Parser,
-// Arduino-frei (host-testbar). Die SD-I/O und der PSRAM-Kartenspeicher liegen
-// in apps/flashcards_app.cpp; hier nur die reine, testbare Logik.
+// flashcards_core.h — flashcard logic (Leitner) and line parser, independent of
+// Arduino (host-testable). SD I/O and PSRAM card storage are in
+// apps/flashcards_app.cpp; this file contains only pure, testable logic.
 //
-// Deck-Format (eine Karte pro Zeile):
-//   Vorderseite<TAB>Rückseite       (TAB bevorzugt)
-//   Vorderseite | Rückseite         (Pipe als Fallback)
-// Zeilen ab '#' und Leerzeilen sind Kommentare/Trenner.
+// Deck format (one card per line):
+//   Front<TAB>Back (preferred)
+//   Front | Back (pipe as fallback)
+// Lines beginning with '#' and blank lines are comments/separators.
 //
-// Lernfortschritt = Leitner-Boxen 0..4. Eine Karte ist fällig, wenn seit dem
-// letzten Sehen ihr Box-Intervall verstrichen ist (Gerät hat eine deep-sleep-
-// feste Systemuhr, s. timesync). Richtige Antwort schiebt eine Box hoch, eine
-// falsche zurück auf Box 0.
+// Learning progress uses Leitner boxes 0..4. A card is due when its box
+// interval has elapsed since it was last seen (the device has a deep-sleep-
+// persistent system clock; see timesync). A correct answer advances one box;
+// an incorrect answer returns it to box 0.
 // =============================================================================
 #pragma once
 
@@ -25,15 +25,15 @@ namespace flashcards {
 
 constexpr int kBoxCount = 5;
 
-// Eine Übung umfasst maximal so viele (verschiedene) Karten. Falsch beantwortete
-// werden innerhalb der Sitzung wiederholt, zählen aber nicht als neue Karte.
+// A study session includes at most this many distinct cards. Incorrect answers
+// are repeated during the session, but do not count as new cards.
 constexpr int kSessionLimit = 10;
 
-// --- Auswahl: mischen + "bereits gelernte seltener" --------------------------
-// Beide Funktionen arbeiten auf einer Index-Liste (idx[0..n)), nicht auf den
-// Karten selbst — so bleibt der Core frei von der App-Kartenstruktur.
+// --- Selection: shuffle + "learned cards less often" --------------------------
+// Both functions operate on an index list (idx[0..n)), not on the cards
+// themselves, keeping the core independent of the app's card structure.
 
-// Fisher-Yates-Shuffle in-place. `rnd(m)` liefert eine Zahl in [0, m).
+// In-place Fisher-Yates shuffle. `rnd(m)` returns a number in [0, m).
 inline void shuffle(int* idx, int n, uint32_t (*rnd)(uint32_t)) {
   for (int i = n - 1; i > 0; i--) {
     int j = (int)rnd((uint32_t)(i + 1));
@@ -41,10 +41,10 @@ inline void shuffle(int* idx, int n, uint32_t (*rnd)(uint32_t)) {
   }
 }
 
-// Stabile Sortierung nach Leitner-Box aufsteigend (niedrige Box zuerst =
-// weniger Gelerntes bevorzugt). Insertion-Sort: stabil, hält die zufällige
-// Order within the same box -> "shuffle within the same priority".
-// `boxOf(i)` liefert die Box des Karten-Index i (Lambda/Funktor in der App).
+// Stable ascending sort by Leitner box (lower boxes first = less-learned cards
+// are preferred). Insertion sort preserves the shuffled order within each box,
+// so cards of the same priority remain shuffled.
+// `boxOf(i)` returns the box for card index i (a lambda/functor in the app).
 template <typename BoxFn>
 inline void stableSortByBox(int* idx, int n, BoxFn boxOf) {
   for (int i = 1; i < n; i++) {
@@ -56,11 +56,11 @@ inline void stableSortByBox(int* idx, int n, BoxFn boxOf) {
   }
 }
 
-// Intervall (Sekunden) bis eine Karte in Box `box` wieder fällig wird.
+// Seconds until a card in box `box` becomes due again.
 inline uint32_t boxInterval(uint8_t box) {
   constexpr uint32_t kDay = 86400u;
   switch (box) {
-    case 0:  return 0;          // sofort (gleiche Lernsitzung)
+    case 0:  return 0;          // Immediately (same study session)
     case 1:  return 1 * kDay;
     case 2:  return 3 * kDay;
     case 3:  return 7 * kDay;
@@ -68,14 +68,14 @@ inline uint32_t boxInterval(uint8_t box) {
   }
 }
 
-// Box-Übergang nach einer Bewertung.
+// Box transition after an answer is graded.
 inline uint8_t nextBox(uint8_t box, bool correct) {
   if (!correct) return 0;
   if (box + 1 >= kBoxCount) return (uint8_t)(kBoxCount - 1);
   return (uint8_t)(box + 1);
 }
 
-// Fälligkeit. Neue Karte (lastSeen==0) ist immer fällig.
+// Check whether a card is due. New cards (lastSeen==0) are always due.
 inline bool isDue(uint8_t box, uint32_t lastSeen, uint32_t nowEpoch) {
   if (lastSeen == 0) return true;
   return nowEpoch >= lastSeen + boxInterval(box);
@@ -92,7 +92,7 @@ inline const char* skipWs(const char* s) {
   while (*s == ' ' || *s == '\t') s++;
   return s;
 }
-// Bereich [s, end) getrimmt nach dst kopieren (max cap inkl. NUL).
+// Copy the trimmed range [s, end) to dst (at most cap bytes, including NUL).
 inline void copyTrim(char* dst, size_t cap, const char* s, const char* end) {
   while (end > s && (end[-1] == ' ' || end[-1] == '\t' ||
                      end[-1] == '\r' || end[-1] == '\n'))
@@ -104,12 +104,13 @@ inline void copyTrim(char* dst, size_t cap, const char* s, const char* end) {
 }
 }  // namespace detail
 
-// Eine Zeile parsen. false bei Kommentar/leer/ohne Trenner/leerer Seite.
+// Parse one line. Return false for comments, blank lines, missing separators,
+// or an empty side.
 inline bool parseLine(const char* line, Card* out) {
   const char* p = detail::skipWs(line);
   if (*p == 0 || *p == '#' || *p == '\r' || *p == '\n') return false;
 
-  // Zeilenende bestimmen, damit ein '|' der Folgezeile nicht hereinrutscht.
+  // Find the line ending so a '|' from the next line is not included.
   const char* eol = line;
   while (*eol && *eol != '\n') eol++;
 
@@ -126,8 +127,8 @@ inline bool parseLine(const char* line, Card* out) {
   return out->front[0] != 0 && out->back[0] != 0;
 }
 
-// Stabiler Karten-Schlüssel über die Vorderseite (überlebt Umsortieren des
-// Decks; gleiche Polynom-Variante wie settings::crc32).
+// Stable card key derived from the front (survives deck reordering; uses the
+// same polynomial variant as settings::crc32).
 inline uint32_t cardKey(const char* front) {
   uint32_t crc = 0xFFFFFFFFu;
   for (const char* s = front; *s; ++s) {

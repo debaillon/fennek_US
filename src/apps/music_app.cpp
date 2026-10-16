@@ -266,7 +266,7 @@ void selectItem(Level lv, int ctx, int idx) {
   }
 }
 
-// SD erneut mounten und Bibliothek neu scannen ("Erneut suchen").
+// Remount the SD card and rescan the library ("Search again").
 // Der Scan läuft im Hintergrund (appmgr-Häppchen); die UI bleibt bedienbar.
 void retrySD() {
   if (board::initSD()) {

@@ -355,7 +355,7 @@ void rowValue(int row, char* v, size_t n) {
       }
       break;
     case ROW_WPASS:
-      // Klartext nur während der Eingabe; sonst nur "gesetzt"-Indikator.
+      // Show plaintext only while editing; otherwise show only a "set" indicator.
       if (s_edit == ROW_WPASS) snprintf(v, n, "%s_", s_editBuf);
       else {
         char pw[65];

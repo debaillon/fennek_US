@@ -26,7 +26,7 @@ int   s_len = 0;
 
 // --- NMEA-Helfer ----------------------------------------------------------------
 
-// Hex-Ziffer -> Wert (-1 = ungültig).
+// Hex digit -> value (-1 = invalid).
 int hexVal(char c) {
   if (c >= '0' && c <= '9') return c - '0';
   if (c >= 'A' && c <= 'F') return c - 'A' + 10;
@@ -34,20 +34,22 @@ int hexVal(char c) {
   return -1;
 }
 
-// Prüft "$...*hh" und liefert den Zeiger auf das erste Feld (hinter dem '$')
-// in einen Arbeitspuffer kopiert, mit '\0' an Stelle des '*'. nullptr = ungültig.
+// Check "$...*hh" and return a pointer to the first field (after '$').
+// The caller copies the line into a work buffer and replaces '*' with '\0'.
+// Returns nullptr if invalid.
 bool checksumOk(const char* line) {
   if (line[0] != '$') return false;
   uint8_t sum = 0;
   const char* p = line + 1;
   while (*p && *p != '*') { sum ^= (uint8_t)*p; p++; }
-  if (*p != '*') return false;                 // keine Checksumme angehängt
+  if (*p != '*') return false;                 // No checksum appended
   int hi = hexVal(p[1]), lo = hexVal(p[2]);
   if (hi < 0 || lo < 0) return false;
   return sum == (uint8_t)((hi << 4) | lo);
 }
 
-// NMEA-Breite/-Länge "ddmm.mmmm" + Hemisphäre -> Dezimalgrad. 0 bei leer.
+// Convert NMEA latitude/longitude "ddmm.mmmm" + hemisphere to decimal degrees.
+// Returns 0 for an empty field.
 double parseLatLon(const char* field, char hemi, int degDigits) {
   if (!field || !*field) return 0.0;
   double v = atof(field);                      // ddmm.mmmm bzw. dddmm.mmmm
@@ -59,7 +61,7 @@ double parseLatLon(const char* field, char hemi, int degDigits) {
   return dec;
 }
 
-// Tage seit 1970-01-01 für ein UTC-Datum (Howard Hinnant, proleptisch).
+// Days since 1970-01-01 for a UTC date (Howard Hinnant, proleptic calendar).
 long daysFromCivil(int y, int m, int d) {
   y -= m <= 2;
   long era = (y >= 0 ? y : y - 399) / 400;
@@ -82,8 +84,8 @@ uint32_t parseEpoch(const char* timeF, const char* dateF) {
   return (uint32_t)(days * 86400L + hh * 3600 + mm * 60 + ss);
 }
 
-// Zeile an ',' in bis zu maxF Felder zerlegen (Zeiger in buf, der zerstückelt
-// wird). Liefert die Feldzahl.
+// Split a line at ',' into up to maxF fields (pointers into buf, which is
+// modified in place). Returns the number of fields.
 int splitFields(char* buf, char** fields, int maxF) {
   int n = 0;
   char* p = buf;
@@ -97,9 +99,10 @@ int splitFields(char* buf, char** fields, int maxF) {
 }
 
 // --- UBX-Hilfsdaten-Injektion (schnellerer Fix) ---------------------------------
-// u-blox M10 (MIA-M10Q): bekannte Uhrzeit + grobe Position als UBX-MGA-INI senden,
-// damit der Empfänger gezielt nach sichtbaren Satelliten sucht statt blind kalt zu
-// starten. Best-effort — kennt das Modul die Nachricht nicht, ignoriert es sie.
+// u-blox M10 (MIA-M10Q): send the known time and approximate position as
+// UBX-MGA-INI so the receiver can search for visible satellites instead of
+// starting cold. Best effort: if the module does not recognize the message,
+// it ignores it.
 void sendUbx(uint8_t cls, uint8_t id, const uint8_t* payload, uint16_t len) {
   uint8_t hdr[6] = {0xB5, 0x62, cls, id, (uint8_t)(len & 0xFF), (uint8_t)(len >> 8)};
   uint8_t ckA = 0, ckB = 0;
@@ -226,7 +229,7 @@ void poll() {
     } else if (s_len < kLineMax - 1) {
       s_line[s_len++] = c;
     } else {
-      s_len = 0;   // Überlauf (Müll/falsche Baudrate) — Zeile verwerfen
+      s_len = 0;   // Overflow (garbage/wrong baud rate): discard the line
     }
   }
 }

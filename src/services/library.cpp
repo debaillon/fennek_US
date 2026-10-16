@@ -159,7 +159,7 @@ const char* baseName(const char* p) {
 
 // Künstler/Album aus dem Verzeichnis (relativ zur Scan-Wurzel) ableiten.
 void deriveArtistAlbum(const char* dir, char* artist, size_t aLen, char* album, size_t bLen) {
-  strncpy(artist, "(unbekannt)", aLen - 1); artist[aLen - 1] = '\0';
+  strncpy(artist, "(unknown)", aLen - 1); artist[aLen - 1] = '\0';
   strncpy(album,  "(No album)", bLen - 1); album[bLen - 1] = '\0';
 
   const char* rel = dir;
@@ -241,7 +241,7 @@ void addTrackPath(const char* full) {
     if (!s_limitWarned) {
       s_limitWarned = true;
       Serial.printf("[FENNEK] Library: reached the limit of %d tracks (%s) — remaining files will be ignored\n",
-                    s_scanCount, s_scanCount >= TRACKS_HARD_MAX ? "Hard-Max" : "Speicher voll");
+                    s_scanCount, s_scanCount >= TRACKS_HARD_MAX ? "Hard max" : "Storage full");
     }
     return;
   }

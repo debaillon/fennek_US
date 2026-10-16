@@ -23,11 +23,11 @@ const int8_t kKingD[8][2]   = {{1,0},{1,1},{0,1},{-1,1},{-1,0},{-1,-1},{0,-1},{1
 int findKing(const Pos& p, int8_t side) {
   for (int sq = 0; sq < 64; sq++)
     if (p.board[sq] == side * KING) return sq;
-  return -1;   // kommt in legalen Stellungen nicht vor
+  return -1;   // Cannot occur in a legal position
 }
 
 // Bauernzug eintragen; auf der Grundreihe des Gegners als 4 Umwandlungen
-// (Dame zuerst — gut für die Zugsortierung der Suche).
+// Queen first, which helps order moves during search.
 void addPawnMove(Move* out, int& n, int from, int to, bool promo) {
   if (promo) {
     out[n++] = {(uint8_t)from, (uint8_t)to, QUEEN};
@@ -39,7 +39,7 @@ void addPawnMove(Move* out, int& n, int from, int to, bool promo) {
   }
 }
 
-// Pseudo-legale Züge (Königssicherheit prüft genMoves per Probezug).
+// Pseudo-legal moves (genMoves checks king safety using a trial move).
 int genPseudo(const Pos& p, Move* out) {
   int n = 0;
   const int8_t s = p.stm;
@@ -76,7 +76,7 @@ int genPseudo(const Pos& p, Move* out) {
           out[n++] = {(uint8_t)sq, (uint8_t)sqAt(rr, ff), 0};
       }
     } else {
-      // Schieber: Läufer = diagonale Richtungen, Turm = orthogonale, Dame = alle.
+      // Sliding pieces: bishop = diagonal directions, rook = orthogonal, queen = all.
       int step = (t == QUEEN) ? 1 : 2;
       int first = (t == BISHOP) ? 1 : 0;
       for (int i = first; i < 8; i += step) {
@@ -96,8 +96,8 @@ int genPseudo(const Pos& p, Move* out) {
     }
   }
 
-  // Rochade: Rechte-Bits garantieren, dass König/Turm noch nie gezogen haben
-  // (makeMove löscht sie bei jedem Zug von/auf die relevanten Felder).
+  // Castling: rights bits guarantee that the king/rook have never moved
+  // (makeMove clears them whenever a piece moves from or to a relevant square).
   const int8_t e = -s;   // Gegner
   if (s > 0) {
     if ((p.castle & CASTLE_WK) && !p.board[5] && !p.board[6] &&
@@ -136,7 +136,7 @@ void startPos(Pos& p) {
 
 bool attacked(const Pos& p, int sq, int8_t by) {
   int r = rankOf(sq), f = fileOf(sq);
-  // Bauer: steht eine Reihe "hinter" dem Feld (aus Sicht von `by`).
+  // Pawn: one rank "behind" the square from the perspective of `by`.
   int pr = r - by;
   if (pr >= 0 && pr < 8) {
     if (f > 0 && p.board[sqAt(pr, f - 1)] == by * PAWN) return true;
@@ -150,7 +150,7 @@ bool attacked(const Pos& p, int sq, int8_t by) {
     int rr = r + kKingD[i][0], ff = f + kKingD[i][1];
     if (onBoard(rr, ff) && p.board[sqAt(rr, ff)] == by * KING) return true;
   }
-  // Schieber-Strahlen: erste Figur auf dem Strahl entscheidet.
+  // Sliding rays: the first piece on the ray determines the result.
   for (int i = 0; i < 8; i++) {
     bool diag = (i & 1) != 0;
     int rr = r + kKingD[i][0], ff = f + kKingD[i][1];
@@ -193,7 +193,7 @@ void makeMove(Pos& p, const Move& m) {
     p.board[sqAt(rankOf(m.from), fileOf(m.to))] = EMPTY;
     capture = true;
   }
-  // Rochade: König springt zwei Spalten -> Turm zieht mit.
+  // Castling: the king moves two files and the rook moves with it.
   if (t == KING && fileOf(m.to) - fileOf(m.from) == 2) {        // kurz
     p.board[m.to - 1] = p.board[m.to + 1];
     p.board[m.to + 1] = EMPTY;
@@ -205,12 +205,12 @@ void makeMove(Pos& p, const Move& m) {
   p.board[m.to] = m.promo ? (int8_t)(m.promo * s) : pc;
   p.board[m.from] = EMPTY;
 
-  // En-passant-Feld nur direkt nach einem Doppelschritt.
+  // En passant square exists only immediately after a double pawn move.
   p.ep = -1;
   if (t == PAWN && (m.to > m.from ? m.to - m.from : m.from - m.to) == 16)
     p.ep = (int8_t)((m.from + m.to) / 2);
 
-  // Rochade-Rechte verfallen, wenn König/Turm zieht oder der Turm fällt.
+  // Castling rights expire when the king/rook moves or the rook is captured.
   auto clearRights = [&p](int sq) {
     switch (sq) {
       case 0:  p.castle &= (uint8_t)~CASTLE_WQ; break;
@@ -269,7 +269,7 @@ constexpr int MATE_SCORE = 100000;
 const int kPieceVal[7] = {0, 100, 320, 330, 500, 900, 20000};
 
 // Piece-Square-Tables ("Simplified Evaluation Function", chessprogramming.org).
-// Zeile 0 = 8. Reihe; für Weiß wird gespiegelt indiziert.
+// Row 0 = rank 8; for White, ranks are indexed in reverse.
 const int8_t kPstPawn[64] = {
    0,  0,  0,  0,  0,  0,  0,  0,
   50, 50, 50, 50, 50, 50, 50, 50,
@@ -335,12 +335,12 @@ const int8_t* kPst[7] = {nullptr, kPstPawn, kPstKnight, kPstBishop,
 
 // Statische Bewertung aus Sicht der Seite am Zug.
 int evaluate(const Pos& p) {
-  int score = 0;   // aus Weiß-Sicht
+  int score = 0;   // From White's perspective
   for (int sq = 0; sq < 64; sq++) {
     int8_t pc = p.board[sq];
     if (!pc) continue;
     int t = pc > 0 ? pc : -pc;
-    // PST-Zeile 0 = 8. Reihe -> Weiß spiegelt den Rang.
+    // PST row 0 = rank 8; White's ranks are mirrored.
     int idx = (pc > 0) ? (7 - rankOf(sq)) * 8 + fileOf(sq) : sq;
     int v = kPieceVal[t] + kPst[t][idx];
     score += (pc > 0) ? v : -v;
@@ -354,7 +354,7 @@ struct SearchCtx {
   bool     aborted;
 };
 
-// Zugsortierung: Schlagzüge nach Opferwert zuerst, Umwandlungen hoch.
+// Move ordering: captures by victim value first, promotions near the top.
 int moveScore(const Pos& p, const Move& m) {
   int sc = 0;
   int8_t cap = p.board[m.to];
@@ -382,7 +382,7 @@ void sortMoves(const Pos& p, Move* mv, int n, const Move* pv) {
   }
 }
 
-// Capture-Quiescence: nur Schlagzüge weiterrechnen (gegen Horizont-Effekt).
+// Capture quiescence: continue searching captures only (to reduce the horizon effect).
 int qsearch(const Pos& p, int alpha, int beta, SearchCtx& ctx) {
   ctx.nodes++;
   if (ctx.nodeLimit && ctx.nodes >= ctx.nodeLimit) ctx.aborted = true;
@@ -395,7 +395,7 @@ int qsearch(const Pos& p, int alpha, int beta, SearchCtx& ctx) {
   sortMoves(p, mv, n, nullptr);
   for (int i = 0; i < n; i++) {
     bool isEp = (p.board[mv[i].from] * p.stm == PAWN) && (int)mv[i].to == p.ep;
-    if (!p.board[mv[i].to] && !isEp) continue;   // nur Schlagzüge
+    if (!p.board[mv[i].to] && !isEp) continue;   // Captures only
     Pos c = p;
     makeMove(c, mv[i]);
     int sc = -qsearch(c, -beta, -alpha, ctx);
@@ -457,7 +457,7 @@ bool search(const Pos& p, int maxDepth, uint32_t nodeLimit, Move* best,
       if (sc > iterScore) { iterScore = sc; iterBest = mv[i]; }
       if (sc > alpha) alpha = sc;
     }
-    // Abgebrochene Iterationen zählen nur, wenn noch gar keine fertig ist.
+    // Count aborted iterations only when none has completed yet.
     if (complete || depth == 1) {
       bestMove = iterBest;
       bestScore = iterScore;
@@ -473,14 +473,15 @@ bool search(const Pos& p, int maxDepth, uint32_t nodeLimit, Move* best,
 
 bool analyzeMove(const Pos& before, const Move& played, int maxDepth,
                  uint32_t nodeLimit, MoveEval* out) {
-  // 1) Bester Zug + Bewertung in der Ausgangsstellung (Schülersicht).
+  // 1) Best move and evaluation in the starting position (player's perspective).
   Move best;
   int sBest = 0;
   if (!search(before, maxDepth, nodeLimit, &best, &sBest)) return false;
   const bool isBest = (played.from == best.from && played.to == best.to &&
                        played.promo == best.promo);
 
-  // War der Schülerzug ein Schlag? (auch en passant: Bauer diagonal auf leer)
+  // Was the player's move a capture? (including en passant: pawn moves
+  // diagonally to an empty square)
   const bool isCapture =
       before.board[played.to] != EMPTY ||
       (before.board[played.from] == (int8_t)(PAWN * before.stm) &&
@@ -496,10 +497,10 @@ bool analyzeMove(const Pos& before, const Move& played, int maxDepth,
   int scoreAfter;
   int sOpp = 0;
   if (search(after, maxDepth, nodeLimit, &reply, &sOpp)) {
-    scoreAfter = -sOpp;          // Gegnersicht -> Schülersicht
+    scoreAfter = -sOpp;          // Opponent's perspective -> player's perspective
     hasReply = true;
   } else {
-    // Partie endete mit dem Schülerzug: Gegner matt (Schüler gab Matt) oder Patt.
+    // The game ended on the player's move: opponent checkmated or stalemated.
     scoreAfter = inCheck(after, after.stm) ? MATE_SCORE : 0;
   }
 
@@ -517,12 +518,12 @@ bool analyzeMove(const Pos& before, const Move& played, int maxDepth,
   else                        cls = MC_BLUNDER;
   if (getsMated)              cls = MC_BLUNDER;
 
-  // Hängt die gezogene Figur? (vom Gegner angegriffen, von uns ungedeckt)
+  // Is the moved piece hanging? (attacked by the opponent and undefended)
   const int8_t opp = after.stm;
   const bool hangs = after.board[played.to] != EMPTY &&
                      attacked(after, played.to, opp) &&
                      !attacked(after, played.to, (int8_t)-opp);
-  // Empfehlung war ein Schlag, den der Schüler ausließ?
+  // Was the recommendation a capture that the player missed?
   const bool missedCapture =
       !isBest && before.board[best.to] != EMPTY && before.board[played.to] == EMPTY;
 

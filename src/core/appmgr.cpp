@@ -337,7 +337,7 @@ void loop() {
     } else if (s_wasTagging) {
       s_wasTagging = false;
       int d, t; library::tagScanProgress(&d, &t);
-      Serial.printf("[APP] ID3-Scan fertig (%d/%d) — Indizes neu sortiert\n", d, t);
+      Serial.printf("[APP] ID3 scan complete (%d/%d) — indices resorted\n", d, t);
       s_dirty = true;   // Listen zeigen jetzt Tag-Daten
     }
   }

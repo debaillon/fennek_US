@@ -1,11 +1,11 @@
 // =============================================================================
-// host_test_games.cpp — Host-Tests für die Spiele-Cores (nicht Teil des
-// Firmware-Builds; liegt bewusst außerhalb von src/).
+// host_test_games.cpp — host tests for the game cores (not part of the
+// firmware build; intentionally kept outside src/).
 //
 //   g++ -std=c++17 -O2 -I src tools/host_test_games.cpp src/apps/chess_core.cpp \
 //       -o /tmp/games_test && /tmp/games_test
 //
-// Präzedenzfall: textdoc-Paginierer wurde genauso host-getestet (CLAUDE.md).
+// Precedent: the textdoc paginator was also host-tested (see CLAUDE.md).
 // =============================================================================
 #include <cassert>
 #include <cctype>
@@ -16,9 +16,9 @@
 #include "apps/mines_core.h"
 #include "apps/ttt_core.h"
 #include "apps/chess_core.h"
-#include "apps/sudoku_core.h"   // header-only, kein zusätzliches .cpp im g++-Aufruf
+#include "apps/sudoku_core.h"   // header-only; no additional .cpp in the g++ command
 
-// --- Deterministischer Zufall (LCG) ------------------------------------------
+// --- Deterministic random numbers (LCG) --------------------------------------
 static uint32_t s_seed = 12345;
 static uint32_t testRnd(uint32_t n) {
   s_seed = s_seed * 1664525u + 1013904223u;
@@ -28,7 +28,7 @@ static uint32_t zeroRnd(uint32_t) { return 0; }
 
 static int s_checks = 0;
 #define CHECK(cond) do { \
-  if (!(cond)) { printf("FEHLER %s:%d: %s\n", __FILE__, __LINE__, #cond); return 1; } \
+  if (!(cond)) { printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond); return 1; } \
   s_checks++; \
 } while (0)
 
@@ -45,21 +45,21 @@ static int test2048() {
   Board b;
   uint32_t gain;
 
-  // [2,2,2,2] -> [4,4] (kein Dreifach-Merge), Gewinn 8
+  // [2,2,2,2] -> [4,4] (no triple merge), score 8
   setLine(b, 1, 1, 1, 1);
   gain = 0;
   CHECK(slide(b, LEFT, &gain));
   CHECK(b.cell[0] == 2 && b.cell[1] == 2 && b.cell[2] == 0 && b.cell[3] == 0);
   CHECK(gain == 8);
 
-  // [4,2,2,_] -> [4,4]: hintere Zweier mergen, Vierer bleiben getrennt
+  // [4,2,2,_] -> [4,4]: merge the trailing twos; the fours remain separate
   setLine(b, 2, 1, 1, 0);
   gain = 0;
   CHECK(slide(b, LEFT, &gain));
   CHECK(b.cell[0] == 2 && b.cell[1] == 2 && b.cell[2] == 0);
   CHECK(gain == 4);
 
-  // [2,2,4,_] -> [4,4], NICHT [8]: frisch gemergte Kachel merged nicht weiter
+  // [2,2,4,_] -> [4,4], NOT [8]: a newly merged tile cannot merge again
   setLine(b, 1, 1, 2, 0);
   gain = 0;
   CHECK(slide(b, LEFT, &gain));
@@ -71,13 +71,13 @@ static int test2048() {
   CHECK(slide(b, RIGHT, nullptr));
   CHECK(b.cell[3] == 2 && b.cell[0] == 0 && b.cell[1] == 0 && b.cell[2] == 0);
 
-  // UP: Spalte 0 mit [2,2] oben -> merged nach oben
+  // UP: column 0 contains [2,2] at the top, so it merges upward
   for (int i = 0; i < 16; i++) b.cell[i] = 0;
   b.cell[0] = 1; b.cell[4] = 1;
   CHECK(slide(b, UP, nullptr));
   CHECK(b.cell[0] == 2 && b.cell[4] == 0);
 
-  // Kein Zug möglich: Schachbrettmuster voll
+  // No moves are possible on a full checkerboard pattern.
   for (int r = 0; r < 4; r++)
     for (int c = 0; c < 4; c++)
       b.cell[r * 4 + c] = (uint8_t)(((r + c) % 2) ? 1 : 2);
@@ -85,11 +85,11 @@ static int test2048() {
   CHECK(!slide(b, LEFT, nullptr) && !slide(b, RIGHT, nullptr));
   CHECK(!slide(b, UP, nullptr) && !slide(b, DOWN, nullptr));
 
-  // Zug ohne Bewegung zählt nicht: [2,_,_,_] LEFT
+  // A move that changes nothing does not count: [2,_,_,_] LEFT
   setLine(b, 1, 0, 0, 0);
   CHECK(!slide(b, LEFT, nullptr));
 
-  // Spawn trifft nur leere Zellen (15 belegt -> die eine Lücke)
+  // Spawn uses only empty cells (15 occupied, one empty).
   for (int i = 0; i < 16; i++) b.cell[i] = 1;
   b.cell[9] = 0;
   spawn(b, zeroRnd);
@@ -112,7 +112,8 @@ static int testMines() {
   using namespace mines;
   Field f;
 
-  // firstReveal: nie auf Erstzelle/Nachbarn, exakt 15 Minen, Zahlen stimmen
+  // firstReveal: never place mines on the first cell or its neighbors; exactly
+  // 15 mines and correct adjacent-mine counts.
   for (int trial = 0; trial < 20; trial++) {
     init(f, 10, 11, 15);
     int start = (trial * 37) % 110;
@@ -136,7 +137,7 @@ static int testMines() {
       CHECK((f.cell[i] & NUM_MASK) == cnt);
     }
     CHECK(f.state == RUNNING || f.state == WON);
-    // Erstzelle hat Zahl 0 (Nachbarn sicher) -> sie + alle Nachbarn sind offen.
+    // First cell is a zero (neighbors are safe) -> it and all neighbors are open.
     int nbCount = 0;
     for (int k = 0; k < 8; k++) {
       int nb;
@@ -148,8 +149,8 @@ static int testMines() {
     CHECK((f.cell[start] & OPEN) && f.revealed >= 1 + nbCount);
   }
 
-  // Flood-Fill auf festem 5x5-Brett: eine Mine in Ecke 0, Aufdecken bei 24
-  // öffnet alles außer der Mine -> sofort gewonnen.
+  // Flood fill on a fixed 5x5 board: one mine at corner 0; revealing cell 24
+  // opens every other cell, so the game is won immediately.
   init(f, 5, 5, 1);
   f.placed = true;
   f.cell[0] |= MINE;
@@ -174,7 +175,7 @@ static int testMines() {
   CHECK(!reveal(f, 12));
   CHECK(f.state == LOST);
 
-  // Flagge blockt Aufdecken und Flood-Fill
+  // A flag blocks revealing and flood fill.
   init(f, 5, 5, 1);
   f.placed = true;
   f.cell[0] |= MINE;
@@ -188,13 +189,13 @@ static int testMines() {
   }
   toggleFlag(f, 24);
   CHECK(f.flags == 1);
-  CHECK(reveal(f, 24));            // ignoriert (geflaggt)
+  CHECK(reveal(f, 24));            // ignored (flagged)
   CHECK(f.revealed == 0);
   toggleFlag(f, 24);
   CHECK(f.flags == 0);
-  toggleFlag(f, 7);                // Flagge mitten in der Nullfläche
+  toggleFlag(f, 7);                // flag a cell in the zero region
   CHECK(reveal(f, 24));
-  CHECK(f.state == RUNNING);       // 7 bleibt zu -> noch nicht gewonnen
+  CHECK(f.state == RUNNING);       // cell 7 remains closed, so not won yet
   CHECK(!(f.cell[7] & OPEN));
 
   printf("Minesweeper: ok\n");
@@ -206,12 +207,12 @@ static int testMines() {
 // =============================================================================
 static int s_tttGames = 0;
 
-// Gegner (human) probiert alle Züge, KI (ai) antwortet mit bestMove.
+// Opponent (human) tries every move; the AI responds with bestMove.
 static bool tttNeverLoses(ttt::Board b, uint8_t ai, uint8_t turn) {
   int w = ttt::winner(b);
   if (w) {
     s_tttGames++;
-    return w != (3 - ai);   // alles außer Gegner-Sieg ist ok
+    return w != (3 - ai);   // any result except an opponent win is acceptable
   }
   if (turn == ai) {
     int m = ttt::bestMove(b, ai);
@@ -249,19 +250,19 @@ static int testTtt() {
   b.c[0] = b.c[1] = 1;            // X droht 0-1-2
   CHECK(bestMove(b, 2) == 2);
 
-  // KI verliert nie — als Nachziehender und als Anziehender
+  // The AI never loses, whether moving first or second.
   reset(b);
   CHECK(tttNeverLoses(b, 2, 1));
   CHECK(tttNeverLoses(b, 1, 1));
-  printf("TTT: ok (%d Endstellungen)\n", s_tttGames);
+  printf("TTT: ok (%d terminal positions)\n", s_tttGames);
   return 0;
 }
 
 // =============================================================================
-// Schach: Perft + Matt/Patt + Suche
+// Chess: perft + checkmate/stalemate + search
 // =============================================================================
 
-// Mini-FEN-Parser nur für die Tests (Core braucht keinen).
+// Minimal FEN parser for tests only (the core does not need one).
 static void fromFen(chess::Pos& p, const char* fen) {
   for (int i = 0; i < 64; i++) p.board[i] = 0;
   int r = 7, f = 0;
@@ -308,7 +309,7 @@ static int testChess() {
   using namespace chess;
   Pos p;
 
-  // Perft: Startstellung (Referenzwerte chessprogramming.org)
+  // Perft: starting position (reference values from chessprogramming.org).
   startPos(p);
   CHECK(perft(p, 1) == 20);
   CHECK(perft(p, 2) == 400);
@@ -334,7 +335,7 @@ static int testChess() {
   CHECK(perft(p, 2) == 264);
   CHECK(perft(p, 3) == 9467);
 
-  // Matt erkannt: Hinterreihen-Matt steht auf dem Brett
+  // Checkmate detected: back-rank mate on the board.
   fromFen(p, "R5k1/5ppp/8/8/8/8/8/6K1 b - -");
   CHECK(result(p) == MATE);
 
@@ -352,7 +353,7 @@ static int testChess() {
   makeMove(after, best);
   CHECK(result(after) == MATE);
 
-  // Suche liefert aus der Startstellung einen legalen Zug (Tiefe 3)
+  // Search returns a legal move from the starting position (depth 3).
   startPos(p);
   uint32_t nodes = 0;
   CHECK(search(p, 3, 0, &best, nullptr, &nodes));
@@ -362,9 +363,9 @@ static int testChess() {
   for (int i = 0; i < n; i++)
     if (legal[i].from == best.from && legal[i].to == best.to) found = true;
   CHECK(found);
-  printf("Schach: ok (Suche Startstellung Tiefe 3: %u Knoten)\n", nodes);
+  printf("Chess: ok (starting-position depth-3 search: %u nodes)\n", nodes);
 
-  // Umwandlung: Bauer auf der 7. wird zur Dame und gibt Schach
+  // Promotion: a pawn on the 7th rank becomes a queen and gives check.
   fromFen(p, "8/P6k/8/8/8/8/8/K7 w - -");
   n = genMoves(p, legal);
   int promos = 0;
@@ -372,7 +373,7 @@ static int testChess() {
     if (legal[i].promo) promos++;
   CHECK(promos == 4);
 
-  // 50-Züge-Regel
+  // 50-move rule.
   startPos(p);
   p.halfmove = 100;
   CHECK(result(p) == DRAW50);
@@ -384,7 +385,7 @@ static int testChess() {
   CHECK(hashPos(p) != h1);
 
   // --- Trainer-Analyse ---
-  // Hängende Figur: Ta1-c1 stellt den Turm ungedeckt ins Bauern-Feuer (b2).
+  // Hanging piece: Ra1-c1 leaves the rook undefended to the b2 pawn.
   fromFen(p, "4k3/8/8/8/8/8/1p6/R3K3 w - -");
   MoveEval ev;
   Move hang = {0, 2, 0};                 // a1 -> c1
@@ -399,14 +400,14 @@ static int testChess() {
   CHECK(analyzeMove(p, mate, 2, 0, &ev));
   CHECK(ev.playedIsBest);
   CHECK(ev.cls == MC_BEST);
-  CHECK(!ev.hasReply);                    // Matt -> keine Trainer-Antwort
+  CHECK(!ev.hasReply);                    // checkmate -> no trainer response
 
-  // ... und wer das Matt auslässt (Kg1-h1), bekommt „Patzer" + missedMate.
+  // ... and missing mate (Kg1-h1) results in "blunder" + missedMate.
   Move quiet = {6, 7, 0};                // g1 -> h1
   CHECK(analyzeMove(p, quiet, 2, 0, &ev));
   CHECK(ev.missedMate);
   CHECK(ev.cls == MC_BLUNDER);
-  CHECK(ev.hasReply);                    // Partie läuft weiter
+  CHECK(ev.hasReply);                    // the game continues
 
   return 0;
 }
@@ -417,12 +418,12 @@ static int testChess() {
 static int testSudoku() {
   using namespace sudoku;
 
-  // solveFill: leeres Gitter -> vollständige, konfliktfreie Lösung.
+  // solveFill: empty grid -> complete, conflict-free solution.
   uint8_t g[81];
   for (int i = 0; i < 81; i++) g[i] = 0;
   CHECK(solveFill(g, testRnd));
   for (int i = 0; i < 81; i++) CHECK(g[i] >= 1 && g[i] <= 9);
-  // Konfliktfreiheit: jede Ziffer passt, wenn man sie testweise herausnimmt.
+  // No conflicts: each digit fits when temporarily removed.
   for (int i = 0; i < 81; i++) {
     uint8_t v = g[i];
     g[i] = 0;
@@ -430,11 +431,11 @@ static int testSudoku() {
     g[i] = v;
   }
 
-  // countSolutions auf einem vollständigen Gitter == 1.
+  // A complete grid has exactly one solution.
   CHECK(countSolutions(g, 5) == 1);
 
-  // generate: alle Schwierigkeiten -> eindeutige Lösung, plausible Vorgabenzahl,
-  // sol[] gültig, given/cell konsistent.
+  // generate: every difficulty has a unique solution, a plausible clue count,
+  // a valid sol[], and consistent given/cell values.
   const int diffs[3] = {EASY, MEDIUM, HARD};
   for (int d = 0; d < 3; d++) {
     Puzzle p;
@@ -442,35 +443,35 @@ static int testSudoku() {
 
     int given = 0;
     for (int i = 0; i < 81; i++) {
-      CHECK(p.given[i] == (p.cell[i] != 0));   // given <-> belegt
-      if (p.given[i]) { CHECK(p.cell[i] == p.sol[i]); given++; }  // Vorgabe stimmt
+      CHECK(p.given[i] == (p.cell[i] != 0));   // given <-> filled
+      if (p.given[i]) { CHECK(p.cell[i] == p.sol[i]); given++; }  // clue is correct
       CHECK(p.sol[i] >= 1 && p.sol[i] <= 9);
     }
-    CHECK(given >= cluesFor((uint8_t)diffs[d]));   // nie unter dem Ziel
+    CHECK(given >= cluesFor((uint8_t)diffs[d]));   // never below the target
     CHECK(given <= 81);
 
-    // Eindeutigkeit: das ausgegrabene Rätsel hat genau eine Lösung.
+    // Uniqueness: the generated puzzle has exactly one solution.
     CHECK(countSolutions(p.cell, 2) == 1);
 
-    // isSolved: leeres Rätsel nicht gelöst; vollständige Lösung eingetragen -> gelöst.
+    // isSolved: an empty puzzle is unsolved; filling in the solution solves it.
     CHECK(!isSolved(p));
     Puzzle full = p;
     for (int i = 0; i < 81; i++) full.cell[i] = full.sol[i];
     CHECK(isSolved(full));
   }
 
-  // conflict: Dublette in Zeile/Spalte/Box wird erkannt.
+  // conflict: detect duplicates in a row, column, or box.
   {
     Puzzle p;
     for (int i = 0; i < 81; i++) { p.cell[i] = 0; p.given[i] = false; }
-    p.cell[0] = 5; p.cell[1] = 5;        // gleiche Zeile
+    p.cell[0] = 5; p.cell[1] = 5;        // same row
     CHECK(conflict(p, 0) && conflict(p, 1));
-    p.cell[1] = 0; p.cell[9] = 5;        // gleiche Spalte
+    p.cell[1] = 0; p.cell[9] = 5;        // same column
     CHECK(conflict(p, 0) && conflict(p, 9));
-    p.cell[9] = 0; p.cell[10] = 5;       // gleiche Box (0 und 10)
+    p.cell[9] = 0; p.cell[10] = 5;       // same box (cells 0 and 10)
     CHECK(conflict(p, 0) && conflict(p, 10));
     p.cell[10] = 0;
-    CHECK(!conflict(p, 0));              // allein -> kein Konflikt
+    CHECK(!conflict(p, 0));              // alone -> no conflict
   }
 
   printf("Sudoku: ok\n");
@@ -483,6 +484,6 @@ int main() {
   if (testTtt()) return 1;
   if (testChess()) return 1;
   if (testSudoku()) return 1;
-  printf("Alle Tests bestanden (%d Checks).\n", s_checks);
+  printf("All tests passed (%d checks).\n", s_checks);
   return 0;
 }

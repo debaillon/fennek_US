@@ -106,7 +106,7 @@ void handleNtpSynced() {
       if (ema > kMaxPpm) ema = kMaxPpm;
       s_driftPpm = (uint16_t)ema;
       settings::setClockPpm(s_driftPpm);
-      Serial.printf("[TIME] Drift gelernt: %ld s / %lu s ⇒ %u ppm\n",
+      Serial.printf("[TIME] Learned drift: %ld s / %lu s ⇒ %u ppm\n",
                     (long)errSecs, (unsigned long)interval, (unsigned)s_driftPpm);
     }
   }
@@ -165,7 +165,7 @@ void begin() {
     // übernehmen, sondern aus NVS wiederherstellen — und einen impliziten
     // Müll-Systemwert auf 0 zurücksetzen, damit poll()/Wecker ihn nicht nutzen.
     if (sys >= kMaxSaneEpoch) {
-      Serial.printf("[TIME] Implausible Systemzeit %lu (>=2038) verworfen\n", (unsigned long)sys);
+      Serial.printf("[TIME] Implausible system time %lu (>=2038) discarded\n", (unsigned long)sys);
       struct timeval tv = { (time_t)0, 0 };
       settimeofday(&tv, nullptr);
     }

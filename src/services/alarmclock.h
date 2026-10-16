@@ -2,19 +2,20 @@
 // Copyright (C) 2026 Dr. Daniel Dumke
 
 // =============================================================================
-// alarmclock.h — Wecker-Engine (Standortunabhängig vom UI; Konsole + App).
+// alarmclock.h — Alarm engine (independent of UI; console + app).
 //
-// Das Gerät hat keinen Hardware-RTC, aber die ESP32-Systemzeit übersteht den
-// Deep Sleep (services/timesync). Der Wecker nutzt das: power::enterStandby()
-// fragt nextDueEpoch() und stellt den Timer-Wake auf den nächsten Weckzeitpunkt
-// (statt starr 1 h); power::handleTimerWake() erkennt den Wecker-Wake und fährt
-// dann VOLL hoch (SD + Audio), damit poll() klingeln kann.
+// The device has no hardware RTC, but ESP32 system time survives deep sleep
+// (services/timesync). The alarm uses this: power::enterStandby() queries
+// nextDueEpoch() and sets a timer wake for the next alarm time (instead of a
+// fixed 1 h); power::handleTimerWake() detects the alarm wake and fully boots
+// (SD + audio) so poll() can ring.
 //
-// Klingeln läuft über die normale Audio-Queue (Owner Music, Repeat One). Ohne
-// gesetzten Klingelton-Pfad wird der erste Bibliothekstitel gespielt.
+// Ringing uses the normal audio queue (Owner Music, Repeat One). If no ringtone
+// path is set, the first library track plays.
 //
-// Persistenz: eigenes NVS-Namespace "alarm" (interner Flash, nie SPI). Wecker
-// sind feste Slots; dowMask = 0 bedeutet täglich, sonst Wochentage (bit0=Mo).
+// Persistence: dedicated NVS namespace "alarm" (internal flash, never SPI).
+// Alarms use fixed slots; dowMask = 0 means daily, otherwise weekdays
+// (bit0=Mon).
 // =============================================================================
 #pragma once
 
@@ -25,41 +26,41 @@ namespace alarmclock {
 
 constexpr int kMaxAlarms = 4;
 
-// Signal-Modus beim Klingeln: Bitmaske Ton/Blinken/Vibration (pro Wecker, 3 Bit).
+// Signal mode when ringing: bitmask for tone/blink/vibration (3 bits per alarm).
 constexpr uint8_t SIG_TONE  = 1;
 constexpr uint8_t SIG_BLINK = 2;
 constexpr uint8_t SIG_VIBRA = 4;
-constexpr uint8_t SIG_BOTH  = 3;   // Ton+Blinken (Default)
+constexpr uint8_t SIG_BOTH  = 3;   // Tone + blink (default)
 
 struct Alarm {
   bool    enabled;
-  uint8_t hour;      // 0..23 (lokale Zeit)
+  uint8_t hour;      // 0..23 (local time)
   uint8_t minute;    // 0..59
-  uint8_t dowMask;   // bit0=Mo .. bit6=So; 0 = täglich
-  uint8_t signal;    // SIG_TONE/BLINK/BOTH (1..3); 0 wird als BOTH gelesen
-  bool    once;      // einmalig: feuert am nächsten hh:mm (Tage egal) und schaltet sich danach selbst aus
+  uint8_t dowMask;   // bit0=Mon .. bit6=Sun; 0 = daily
+  uint8_t signal;    // SIG_TONE/BLINK/BOTH (1..3); 0 is read as BOTH
+  bool    once;      // One-time: fires at the next hh:mm (any day) then disables itself
 };
 
-void begin();        // lädt Wecker aus NVS
-void poll();         // im loop(): Fälligkeit prüfen, klingeln, Auto-Quittung
+void begin();        // Load alarms from NVS
+void poll();         // In loop(): check due time, ring, auto-dismiss
 
-int   count();                       // = kMaxAlarms (feste Slots)
+int   count();                       // = kMaxAlarms (fixed slots)
 Alarm get(int i);
-void  set(int i, const Alarm& a);    // persistiert sofort
-void  clear(int i);                  // Slot deaktivieren
+void  set(int i, const Alarm& a);    // Persist immediately
+void  clear(int i);                  // Disable slot
 
-// Nächster Auslöse-Zeitpunkt (UTC-Epoche) >= fromEpoch über alle aktiven Wecker
-// (inkl. laufendem Schlummer); 0 wenn keiner aktiv. Für die Wake-Berechnung in
-// power.cpp. Nutzt mktime/localtime → setzt eine gültige Zeitzone voraus.
+// Next trigger time (UTC epoch) >= fromEpoch across all active alarms
+// (including ongoing snooze); 0 if none are active. Used for wake calculation
+// in power.cpp. Uses mktime/localtime, so a valid time zone is required.
 uint32_t nextDueEpoch(uint32_t fromEpoch);
 
 bool ringing();
-uint32_t snoozeMinutes();   // Schlummer-Dauer (für die Button-Beschriftung)
-void fireNow();      // sofort klingeln (Konsolentest „alarm test")
-void snooze();       // schlummern (+kSnoozeMinutes), Klingeln stoppen
-void dismiss();      // quittieren, Klingeln stoppen
+uint32_t snoozeMinutes();   // Snooze duration (for button label)
+void fireNow();      // Ring immediately (console test "alarm test")
+void snooze();       // Snooze (+kSnoozeMinutes), stop ringing
+void dismiss();      // Dismiss, stop ringing
 
-void soundPath(char* out, size_t n);  // "" = erster Bibliothekstitel
+void soundPath(char* out, size_t n);  // "" = first library track
 void setSoundPath(const char* p);
 
 }  // namespace alarmclock

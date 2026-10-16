@@ -43,7 +43,7 @@ def render(xc, y0, k, size, preview_path, ss=4, write=False):
     out.resize((W*2,H*2), Image.NEAREST).save(preview_path)
     if write:
         write_header(from_image(out), "src/core/sleep_img.h")
-        print("sleep_img.h geschrieben")
+        print("Wrote sleep_img.h")
     return out
 
 if __name__ == "__main__":

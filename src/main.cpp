@@ -318,7 +318,7 @@ void setup() {
   // TEMP: verify radio bring-up without UI interaction (serial log).
   Serial.println("[FENNEK] MESH_SMOKE_TEST: initializing Mesh ...");
   bool meshOk = mesh_client::begin();
-  Serial.printf("[FENNEK] MESH_SMOKE_TEST: %s (freier Heap: %u KB)\n",
+  Serial.printf("[FENNEK] MESH_SMOKE_TEST: %s (free heap: %u KB)\n",
                 meshOk ? "OK" : "FAILED",
                 (unsigned)(ESP.getFreeHeap() / 1024));
 #endif

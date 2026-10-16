@@ -4,13 +4,13 @@
 // =============================================================================
 // chess_core.h — Schach-Spiellogik + KI, Arduino-frei (host-testbar).
 //
-// Vollständige Regeln: Rochade, en passant, Umwandlung, Schach/Matt/Patt,
-// 50-Züge-Regel. Stellungswiederholung prüft die UI über hashPos().
+// Full rules: castling, en passant, promotion, check/checkmate/stalemate, and
+// the 50-move rule. The UI checks repeated positions via hashPos().
 // Zuggenerator ist perft-verifiziert (tools/host_test_games.cpp).
 //
 // KI: Negamax mit Alpha-Beta, Capture-Quiescence und iterativer Vertiefung;
-// Bewertung = Material + Piece-Square-Tables. Reine CPU-Arbeit ohne jede
-// Hardware-Berührung — läuft auf dem Gerät in einem eigenen Task.
+// Evaluation = material + piece-square tables. Pure CPU work with no hardware
+// access; runs on the device in its own task.
 // =============================================================================
 #pragma once
 
@@ -18,7 +18,7 @@
 
 namespace chess {
 
-// Figuren: positiver Wert = Weiß, negativer = Schwarz; Betrag = Typ.
+// Pieces: positive value = White, negative = Black; magnitude = piece type.
 enum : int8_t { EMPTY = 0, PAWN = 1, KNIGHT = 2, BISHOP = 3, ROOK = 4, QUEEN = 5, KING = 6 };
 
 // Rochade-Rechte als Bits.
@@ -27,10 +27,10 @@ enum : uint8_t { CASTLE_WK = 1, CASTLE_WQ = 2, CASTLE_BK = 4, CASTLE_BQ = 8 };
 // Feld-Index: a1 = 0 … h8 = 63 (rank*8 + file).
 struct Pos {
   int8_t  board[64];
-  int8_t  stm;        // Seite am Zug: 1 = Weiß, -1 = Schwarz
+  int8_t  stm;        // Side to move: 1 = White, -1 = Black
   uint8_t castle;
   int8_t  ep;         // En-passant-Zielfeld, -1 = keins
-  uint8_t halfmove;   // Halbzüge seit Bauernzug/Schlag (50-Züge-Regel)
+  uint8_t halfmove;   // Half-moves since a pawn move or capture (50-move rule)
 };
 
 struct Move {
@@ -42,11 +42,11 @@ constexpr int MAX_MOVES = 218;
 
 void startPos(Pos& p);
 
-// Wird `sq` von Seite `by` (1/-1) angegriffen?
+// Is `sq` attacked by side `by` (1/-1)?
 bool attacked(const Pos& p, int sq, int8_t by);
 bool inCheck(const Pos& p, int8_t side);
 
-// Nur legale Züge; Rückgabe = Anzahl (out braucht MAX_MOVES Plätze).
+// Legal moves only; returns the count (out needs MAX_MOVES slots).
 int genMoves(const Pos& p, Move* out);
 
 void makeMove(Pos& p, const Move& m);
@@ -54,20 +54,22 @@ void makeMove(Pos& p, const Move& m);
 enum Result : uint8_t { ONGOING, MATE, STALEMATE, DRAW50 };
 Result result(const Pos& p);   // MATE/STALEMATE betrifft die Seite am Zug
 
-// FNV-1a über Brett + Zugrecht + Rochade + ep (für Stellungswiederholung).
+// FNV-1a over the board + side to move + castling + en passant
+// (for repeated-position detection).
 uint32_t hashPos(const Pos& p);
 
-// Knotenzähler für den Zuggenerator-Test.
+// Node counter for move-generator tests.
 uint64_t perft(const Pos& p, int depth);
 
 // Besten Zug suchen: iterative Vertiefung bis maxDepth; bricht weich ab,
-// sobald nodeLimit überschritten ist (letzte fertige Tiefe zählt).
-// false = kein legaler Zug (Matt/Patt). score optional (Sicht: Seite am Zug).
+// once nodeLimit is exceeded (the last completed depth still counts).
+// false = no legal move (checkmate/stalemate). score is optional and from the
+// side-to-move perspective.
 bool search(const Pos& p, int maxDepth, uint32_t nodeLimit, Move* best,
             int* score = nullptr, uint32_t* nodesOut = nullptr);
 
 // --- Trainer-Analyse ---------------------------------------------------------
-// Einstufung eines Schülerzugs relativ zum Engine-Bestzug.
+// Classify a player's move relative to the engine's best move.
 enum MoveClass : uint8_t { MC_BEST, MC_GOOD, MC_INACCURACY, MC_MISTAKE, MC_BLUNDER };
 
 struct MoveEval {

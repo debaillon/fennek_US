@@ -2,50 +2,52 @@
 // Copyright (C) 2026 Dr. Daniel Dumke
 
 // =============================================================================
-// battlog.h — Debug-Akku-/Aktivitäts-Logger (NUR mit -D BATTLOG).
+// battlog.h — Debug battery/activity logger (only with -D BATTLOG).
 //
-// Zweck: den Batterieverbrauch verstehen. Schreibt eine Zeile pro Ereignis und
-// alle 60 s eine periodische Akku-Probe — jeweils mit Zeitstempel, Akkustand
-// (%, mV, mAh, Strom-Quelle) und dem Systemkontext (WLAN an/aus, Mesh-Chip
-// an/aus) sowie einer Kategorie + Notiz (App-Wechsel, Audio-Track, Standby/Wake,
-// …). Der Ring liegt im PSRAM; geschrieben wird gedrosselt und spätestens kurz
-// vor dem Standby nach /.fennek/battery.log (über WebFM herunterladbar).
+// Purpose: understand battery consumption. Writes one line per event and a
+// periodic battery sample every 60 s, each with a timestamp, battery level
+// (%, mV, mAh, power source), system context (Wi-Fi on/off, mesh chip on/off),
+// and a category + note (app switch, audio track, standby/wake, etc.). The ring
+// buffer resides in PSRAM; writes are throttled and flushed to
+// /.fennek/battery.log shortly before standby at the latest (downloadable via WebFM).
 //
-// Auswertung — zwei Regeln, an denen sich schon eine Analyse verschluckt hat:
-//  1. NUR Zeilen mit „-" in der Strom-Spalte sind echte Akku-Messungen. „Kabel"
-//     heißt: hängt am USB, Akku voll, Lader terminiert — sieht wie traumhaft
-//     sparsamer Betrieb aus und ist in Wahrheit gar keine Messung.
-//  2. Für den Verbrauch die mAh-Spalte nehmen, nicht % oder mV: das ist der
-//     Coulomb-Counter des Gauge (echte Ladungsintegration), während percent()
-//     nur aus der Spannungskurve geschätzt ist. mA = Δ mAh * 3600 / Δ Sekunden.
-//     Den Deep-Sleep-Strom liefern die „Schlaf"-Zeilen aus power::logSleepDebug().
+// Analysis — two rules that have tripped up previous analysis:
+//  1. ONLY lines with "-" in the power-source column are real battery
+//     measurements. "Cable" means USB is connected, the battery is full, and
+//     charging has stopped; it may look like exceptionally low consumption
+//     but is not a battery measurement.
+//  2. Use the mAh column for consumption, not % or mV: it is the gauge's
+//     Coulomb counter (actual charge integration), while percent() is only
+//     estimated from the voltage curve. mA = Δ mAh * 3600 / Δ seconds.
+//     Deep-sleep current is reported by the "sleep" lines from
+//     power::logSleepDebug().
 //
-// Bewusst als abschaltbares Debug-Feature gebaut: ohne das Compile-Flag BATTLOG
-// kompilieren alle BATTLOG_*-Aufrufe zu Nichts (die .cpp ist komplett gegatet).
-// Zum endgültigen Ausbau: Flag entfernen, dann diese zwei Dateien + die
-// BATTLOG_*-Aufrufe an den Einhängepunkten löschen.
+// Intentionally built as an optional debug feature: without the BATTLOG
+// compile flag, all BATTLOG_* calls compile to no-ops (the .cpp is entirely
+// gated). To remove it permanently, remove the flag, then delete these two
+// files and the BATTLOG_* calls at their call sites.
 //
-// Threading: event() ist aus JEDEM Task aufrufbar (auch dem Audio-Task) — es
-// liest nur gecachte Akku-Werte + Flags + Zeit und schreibt unter Mutex in den
-// Ring, kein I2C/SPI. poll()/flush() laufen NUR im Arduino-loop (Core 1) und
-// machen das SD-I/O unter spiLock.
+// Threading: event() can be called from ANY task (including the audio task): it
+// reads only cached battery values, flags, and time, then writes to the ring
+// under a mutex; it performs no I2C/SPI access. poll()/flush() run ONLY in the
+// Arduino loop (Core 1) and perform SD I/O under spiLock.
 // =============================================================================
 #pragma once
 
 #ifdef BATTLOG
 namespace battlog {
 
-// PSRAM-Ring anlegen, erste Akku-Probe ziehen, Boot-Zeile schreiben.
+// Allocate the PSRAM ring, take the first battery sample, and write the boot line.
 void begin();
 
-// Im Arduino-loop() aufrufen: alle 60 s Akku sampeln, gedrosselt nach SD.
+// Call in Arduino-loop(): sample the battery every 60 s and write to SD, throttled.
 void poll();
 
-// Ereignis mit Zeitstempel + aktuellem Akku-/System-Snapshot vormerken.
-// fmt/... wie printf (z. B. event("App", "%s", id)).
+// Queue an event with a timestamp and current battery/system snapshot.
+// fmt/... follows printf conventions (e.g. event("App", "%s", id)).
 void event(const char* cat, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
 
-// Ring sofort nach SD schreiben (vor dem Standby). reason landet als Zeile.
+// Flush the ring to SD immediately (before standby). reason is written as a line.
 void flush(const char* reason);
 
 }  // namespace battlog

@@ -42,6 +42,5 @@ front side, so progress survives deck reordering or additions.
 
 ## Included decks
 
-- `schwedisch.txt` — a complete Swedish deck (~700 cards) covering basic
-  vocabulary, numbers and time, daily life, travel, verbs, adjectives, useful
-  phrases, and conversation, all mixed in one deck.
+- `schwedisch.txt` — an English-to-English vocabulary deck (~700 cards)
+  covering everyday topics. The legacy filename is retained for compatibility.

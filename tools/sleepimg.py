@@ -5,20 +5,20 @@ W, H = 240, 320
 
 def parse_array(path):
     txt = open(path).read()
-    # nur den Block zwischen { und } nehmen
+    # Use only the block between { and }.
     blk = txt[txt.index('{')+1: txt.rindex('}')]
     vals = re.findall(r'0x[0-9a-fA-F]+', blk)
     return [int(v,16) for v in vals]
 
 def to_image(bytes_):
-    img = Image.new('1', (W,H), 1)  # 1=weiß
+    img = Image.new('1', (W,H), 1)  # 1 = white
     px = img.load()
     stride = (W+7)//8
     for y in range(H):
         for x in range(W):
             byte = bytes_[y*stride + (x>>3)]
             bit = (byte >> (7-(x&7))) & 1  # MSB-first
-            px[x,y] = 0 if bit else 1      # gesetztes Bit = schwarz
+            px[x,y] = 0 if bit else 1      # set bit = black
     return img
 
 def from_image(img):
@@ -35,8 +35,8 @@ def from_image(img):
 
 def write_header(bytes_, path):
     stride=(W+7)//8
-    lines=["// sleep_img.h — Standby-Bild: schlafender Fennek (1-Bit, Floyd-Steinberg).",
-           "// 240x320, MSB-first, gesetztes Bit = schwarzes Pixel.",
+    lines=["// sleep_img.h — Standby image: sleeping fennec (1-bit, Floyd–Steinberg).",
+           "// 240x320, MSB first, set bit = black pixel.",
            "#pragma once","#include <stdint.h>","#include <pgmspace.h>","",
            "constexpr int kSleepImgW = 240;","constexpr int kSleepImgH = 320;",
            f"const uint8_t kSleepImg[{stride*H}] PROGMEM = {{"]
@@ -51,8 +51,8 @@ if __name__=="__main__":
     if cmd=="export":
         b=parse_array("src/core/sleep_img.h")
         to_image(b).save(sys.argv[2])
-        print("geschrieben:", sys.argv[2], "bytes:", len(b))
+        print("Wrote:", sys.argv[2], "bytes:", len(b))
     elif cmd=="import":
         img=Image.open(sys.argv[2])
         write_header(from_image(img), "src/core/sleep_img.h")
-        print("sleep_img.h aktualisiert aus", sys.argv[2])
+        print("Updated sleep_img.h from", sys.argv[2])

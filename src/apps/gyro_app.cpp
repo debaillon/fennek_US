@@ -19,8 +19,8 @@ constexpr int TOP = appmgr::CONTENT_Y;
 
 const Rect kBack{6, 270, 104, 42};
 
-// Lade-Ablauf: erst „Laden"-Screen zeichnen (eigener tick), dann den ~10 s
-// blockierenden Firmware-Upload — sonst friert das Bild ohne Hinweis ein.
+// Loading flow: draw the "Loading" screen in its own tick, then perform the
+// blocking ~10 s firmware upload; otherwise the display freezes without notice.
 enum Phase { NEED_LOAD, LOADING, RUNNING, FAILED };
 Phase    s_phase = NEED_LOAD;
 uint32_t s_lastDraw = 0;
@@ -42,18 +42,19 @@ class GyroApp : public App {
 
   void tick() override {
     if (s_phase == NEED_LOAD) { s_phase = LOADING; appmgr::markDirty(); return; }
-    if (s_phase == LOADING) {            // blockt beim ersten Mal ~10 s
+    if (s_phase == LOADING) {            // Blocks for ~10 s the first time
       s_phase = gyro::begin() ? RUNNING : FAILED;
       appmgr::markDirty();
       return;
     }
     if (s_phase == RUNNING) {
       gyro::poll();
-      // Bewusst träge (1,5 s): ein voller E-Ink-Refresh blockt ~650 ms und der
-      // appmgr verwirft danach 250 ms lang aufgelaufene Taps (Anti-Doppeltap).
-      // Bei 400 ms lief Refresh an Refresh — der Zurück-Knopf (und jeder Tap)
-      // fiel immer in dieses Sperrfenster und kam nie an. 1,5 s lassen ~600 ms
-      // Tap-Fenster pro Zyklus und schonen das Display (Invariante 7).
+      // Intentionally slow (1.5 s): a full E-Ink refresh blocks for ~650 ms, and
+      // appmgr then discards taps accumulated over 250 ms (double-tap prevention).
+      // At 400 ms, refreshes ran back-to-back, and the Back button (and every tap)
+      // always landed in this lockout window and were lost. A 1.5 s interval
+      // leaves a ~600 ms tap window per cycle and is easier on the display
+      // (invariant 7).
       if (millis() - s_lastDraw >= 1500) { s_lastDraw = millis(); appmgr::markDirty(); }
     }
   }
@@ -66,18 +67,18 @@ class GyroApp : public App {
 
   void draw(Adafruit_GFX& g) override {
     g.setTextColor(GxEPD_BLACK);
-    gui::printAt(g, 10, TOP + 6, "IMU / Lage", 3);
+    gui::printAt(g, 10, TOP + 6, "IMU / Orientation", 3);
 
     if (s_phase == NEED_LOAD || s_phase == LOADING) {
-      drawCentered(g, TOP + 90, "BHI260 Firmware laedt", 2);
-      drawCentered(g, TOP + 118, "(~10 s, einmalig)", 1);
+      drawCentered(g, TOP + 90, "Loading BHI260 firmware", 2);
+      drawCentered(g, TOP + 118, "(~10 s, one-time)", 1);
     } else if (s_phase == FAILED) {
       drawCentered(g, TOP + 100, "Sensor unavailable", 2);
     } else {
       const gyro::Data& d = gyro::current();
       char l[40];
       g.setTextSize(1);
-      g.setCursor(14, TOP + 44);  gui::print(g, "Beschleunigung (g)");
+      g.setCursor(14, TOP + 44);  gui::print(g, "Acceleration (g)");
       g.setTextSize(2);
       snprintf(l, sizeof(l), "X %+6.2f", d.ax); g.setCursor(20, TOP + 58);  gui::print(g, l);
       snprintf(l, sizeof(l), "Y %+6.2f", d.ay); g.setCursor(20, TOP + 80);  gui::print(g, l);

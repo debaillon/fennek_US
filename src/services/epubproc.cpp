@@ -554,7 +554,7 @@ bool convertBegin(const char* epubPath, const char* txtPath) {
   }
   spiUnlock();
 
-  Serial.printf("[EPUB] '%s': %d Kapitel\n", title, s_cv.chapterCount);
+  Serial.printf("[EPUB] '%s': %d chapters\n", title, s_cv.chapterCount);
   s_cv.active = true;
   power::boostLock();   // XHTML-Strippen ist CPU-Arbeit — voller Takt bis cleanup()
   return true;

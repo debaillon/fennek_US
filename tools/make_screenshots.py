@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# make_screenshots.py — wandelt die vom Host-Renderer erzeugten PGMs in
-# hochskalierte PNGs mit dezentem Rahmen um (für die README).
+# make_screenshots.py — convert PGMs from the host renderer to upscaled PNGs
+# with a subtle border (for the README).
 #
 #   python3 tools/make_screenshots.py <pgm-dir> <png-dir> [scale]
 import sys

@@ -2,20 +2,20 @@
 // Copyright (C) 2026 Dr. Daniel Dumke
 
 // =============================================================================
-// timesync.h — Zeit-Koordinator (das Gerät hat keinen gepufferten Hardware-RTC).
+// timesync.h — Time coordinator (the device has no battery-backed hardware RTC).
 //
-// Kanonische Uhr = ESP32-Systemzeit (settimeofday/gettimeofday). Diese überlebt
-// den Deep Sleep (der RTC-Zähler läuft im Schlaf weiter) und wird aus zwei
-// Quellen frisch gehalten:
-//   1. NTP über WLAN — opportunistisch, wenn WLAN (webfm) ohnehin läuft, und
-//      einmalig kurz vor dem Auto-Standby, falls die geschätzte Qualität schlecht
-//      ist und WLAN-Zugangsdaten gesetzt sind.
-//   2. Mesh-Adverts — gemeldet von mesh_client über onExternalSync().
+// The canonical clock is the ESP32 system time (settimeofday/gettimeofday).
+// It survives deep sleep because the RTC counter keeps running, and is updated
+// from two sources:
+//   1. NTP over Wi-Fi — opportunistically while Wi-Fi (webfm) is already on,
+//      and once before automatic standby if estimated quality is poor and
+//      Wi-Fi credentials are configured.
+//   2. Mesh advertisements — reported by mesh_client through onExternalSync().
 //
-// Die Sync-Häufigkeit ist an die geschätzte Uhr-Qualität geknüpft (geschätzter
-// Fehler = gelernte Oszillator-Drift × Zeit seit letztem Sync), nicht an einen
-// festen Takt. NVS speichert die letzte Uhrzeit + gelernte Drift nur als
-// Kaltstart-Fallback (Stromausfall/Reset/Reflash).
+// Sync frequency depends on estimated clock quality (estimated error equals
+// learned oscillator drift multiplied by time since the last sync), not a fixed
+// interval. NVS stores the last time and learned drift only as a cold-start
+// fallback after power loss, reset, or reflashing.
 // =============================================================================
 #pragma once
 
@@ -23,52 +23,56 @@
 
 namespace timesync {
 
-// Beim Boot (nach settings::begin()): Uhr aus NVS wiederherstellen, falls die
-// Systemzeit noch im Kaltstart-Zustand ist; gelernte Drift laden.
+// At boot (after settings::begin()), restore the clock from NVS if the system
+// time is still in its cold-start state, and load the learned drift.
 void begin();
 
-// Pro Loop-Durchlauf (neben webfm::poll()): opportunistische NTP-Sync, wenn WLAN
-// läuft; gedrosselte NVS-Sicherung.
+// Per loop iteration (alongside webfm::poll()), sync opportunistically over NTP
+// while Wi-Fi is on and save to NVS at a limited rate.
 void poll();
 
-// Blockierend, nur aus dem Auto-Standby-Pfad (power::poll), bevor das Gerät
-// schlafen geht: bei schlechter Qualität + vorhandenen WLAN-Daten + ohne aktives
-// webfm kurz selbst WLAN hochfahren, NTP holen, wieder aus. No-op sonst.
+// Blocking; called only from the automatic-standby path (power::poll) before
+// sleep. If quality is poor, Wi-Fi credentials are configured, and webfm is
+// inactive, briefly turn on Wi-Fi, sync over NTP, and turn it back off.
+// Otherwise this does nothing.
 void syncBeforeStandby();
 
-// Ebenfalls nur aus dem Auto-Standby-Pfad, VOR syncBeforeStandby(): bei veralteter
-// Uhr kurz das GPS hochfahren (mit Aiding), auf einen echten Positionsfix warten
-// (Timeout ~30 s, RTC-Back-off bei Misserfolg) und die satellitengenaue UTC
-// übernehmen — kein WLAN nötig. Gelingt das, ist der nachfolgende NTP-Sync via
-// gpsFresh() ein No-op. true = GPS-Zeit übernommen. No-op wenn Uhr schon gut.
+// Also called only from the automatic-standby path, before syncBeforeStandby().
+// If the clock is stale, briefly start GPS (with aiding), wait for a valid
+// position fix (about a 30-second timeout, with RTC back-off on failure), and
+// adopt satellite-accurate UTC without Wi-Fi. If successful, the following NTP
+// sync is a no-op through gpsFresh(). Returns true if GPS time was adopted.
+// Does nothing if the clock is already good.
 bool gpsSyncBeforeStandby();
 
-// Von mesh_client gemeldet, wenn ein Advert die Uhr gesetzt hat (Freshness).
+// Called by mesh_client when an advertisement sets the clock (freshness).
 void onExternalSync(uint32_t epoch, const char* src);
 
-// GPS-UTC (aus der Maps-App, RMC) melden — HÖCHSTE Priorität: setzt die Uhr und
-// schaltet NTP/Mesh als Quelle für ~10 min stumm (satellitengenau). No-op bei
-// unplausibler Epoche oder Abweichung <=2 s (dann nur Freshness-Stempel).
+// Report GPS UTC (RMC from the Maps app). Highest priority: sets the clock and
+// suppresses NTP/mesh as a source for about 10 minutes. Does nothing for an
+// implausible epoch or a difference of <=2 seconds (only updates freshness).
 void gpsSync(uint32_t epochUtc);
 
-// Zeitzone (settings::tzString) auf die libc anwenden (setenv TZ + tzset), damit
-// localtime_r() lokale Zeit liefert. In begin() und nach Settings-Änderung rufen.
+// Apply the time zone (settings::tzString) to libc (setenv TZ + tzset) so
+// localtime_r() returns local time. Call from begin() and after settings change.
 void applyTimezone();
 
-// Uhr manuell setzen (UTC-Epoche) — bestätigter Sync, markiert die Uhr als gut.
-// Für die Settings-App / Konsole, wenn nie WLAN/Mesh erreichbar ist.
+// Set the clock manually (UTC epoch). This is a confirmed sync and marks the
+// clock as good. Used by the Settings app/console when Wi-Fi and mesh are
+// unavailable.
 void setManualTime(uint32_t epochUtc);
 
-// Sofort einen NTP-Sync erzwingen (blockierend, eigenes WLAN) — Konsole `time sync`.
-// Ignoriert die Qualitäts-/Back-off-Logik. false = kein WLAN/keine Daten/Fehler.
+// Force an immediate NTP sync (blocking, starts its own Wi-Fi connection);
+// console command: `time sync`. Ignores quality and back-off logic.
+// Returns false if Wi-Fi or credentials are unavailable, or if sync fails.
 bool forceSyncNow();
 
-// --- Abfragen ----------------------------------------------------------------
-uint32_t    now();              // aktuelle Uhrzeit (Unix-Epoche, UTC)
-uint32_t    estErrSeconds();    // geschätzter Fehler in Sekunden
-bool        isStale();          // estErrSeconds() über der Schwelle (~5 min)?
+// --- Queries -----------------------------------------------------------------
+uint32_t    now();              // current time (Unix epoch, UTC)
+uint32_t    estErrSeconds();    // estimated error in seconds
+bool        isStale();          // estErrSeconds() over the threshold (~5 min)?
 const char* source();           // "NTP" / "Mesh" / "NVS" / "—"
 const char* qualityStr();       // "good" / "fair" / "poor"
-uint16_t    driftPpm();         // gelernte Oszillator-Drift
+uint16_t    driftPpm();         // learned oscillator drift
 
 }  // namespace timesync

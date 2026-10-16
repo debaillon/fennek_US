@@ -359,7 +359,7 @@ bool deviceApply(const char* downloadUrl, ProgressFn progress, char* errOut, siz
   s_uiCb = nullptr;
   if (!ok) { wifiDown(); return fail(err); }
 
-  if (progress) progress("Neustart", 100);
+  if (progress) progress("Restarting", 100);
   delay(800);
   ESP.restart();                     // kehrt nicht zurück
   return true;                       // unerreichbar

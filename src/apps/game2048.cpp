@@ -27,12 +27,12 @@ constexpr int kTile = 54, kGap = 4;
 constexpr int kGridX = 6, kGridY = 64;            // 4*54 + 3*4 = 228 px
 constexpr int kHeaderY = appmgr::CONTENT_Y + 4;   // y 28
 
-// --- Zustand ---------------------------------------------------------------------
+// --- State -----------------------------------------------------------------------
 game2048::Board s_board;
 uint32_t s_score = 0;
 bool s_inited = false;
 bool s_over = false;
-bool s_wonShown = false;   // 2048-Overlay nur einmal pro Partie
+bool s_wonShown = false;   // Show the 2048 overlay only once per game
 bool s_winOverlay = false; // Overlay sichtbar (Enter = weiterspielen)
 
 uint32_t rnd(uint32_t n) { return esp_random() % n; }
@@ -47,23 +47,23 @@ void newGame() {
 void doMove(game2048::Dir d) {
   if (s_over || s_winOverlay) return;
   uint32_t gain = 0;
-  if (!game2048::slide(s_board, d, &gain)) return;   // nichts bewegt -> kein Refresh
+  if (!game2048::slide(s_board, d, &gain)) return;   // No movement -> no refresh
   s_score += gain;
   game2048::spawn(s_board, rnd);
   if (!s_wonShown && game2048::hasTile(s_board, 11)) {
     s_wonShown = s_winOverlay = true;
-    Serial.printf("[GAME] 2048 erreicht! Punkte=%lu\n", (unsigned long)s_score);
+    Serial.printf("[GAME] 2048 reached! Score=%lu\n", (unsigned long)s_score);
   }
   if (!game2048::canMove(s_board)) {
     s_over = true;
-    settings::setBest2048(s_score);   // schreibt nur bei neuem Rekord
-    Serial.printf("[GAME] 2048: vorbei, Punkte=%lu (Best=%lu)\n",
+    settings::setBest2048(s_score);   // Writes only for a new high score
+    Serial.printf("[GAME] 2048: game over, score=%lu (best=%lu)\n",
                   (unsigned long)s_score, (unsigned long)settings::best2048());
   }
   appmgr::markDirty();
 }
 
-// Zentriertes Overlay über dem Grid.
+// Centered overlay over the grid.
 void drawOverlay(Adafruit_GFX& g, const char* line1, const char* line2) {
   const int w = 200, h = 80;
   const int x = (EINK_W - w) / 2, y = kGridY + (4 * kTile + 3 * kGap - h) / 2;
@@ -93,7 +93,7 @@ void drawTile(Adafruit_GFX& g, int r, int c) {
 
   char num[8];
   snprintf(num, sizeof(num), "%lu", (unsigned long)1 << e);
-  uint8_t size = (e >= 7) ? 1 : 2;   // 3-/4-stellig kleiner, sonst groß
+  uint8_t size = (e >= 7) ? 1 : 2;   // Smaller for 3-4 digits; otherwise large
   if (e >= 10) size = 2;             // invertierte Kacheln: 4-stellig passt bei 2
   g.setTextSize(size);
   g.setTextColor(inverted ? GxEPD_WHITE : GxEPD_BLACK);
@@ -130,7 +130,7 @@ void handleInput(const InputEvent& e) {
     case 'n': case 'N': newGame(); break;
     case '\b':
     case 'q': case 'Q':
-      settings::setBest2048(s_score);   // laufenden Rekord nicht verlieren
+      settings::setBest2048(s_score);   // Do not lose the current high score
       games_app::showMenu();
       break;
     default: break;

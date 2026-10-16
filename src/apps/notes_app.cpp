@@ -295,7 +295,7 @@ void saveCurrent() {
     s_lastSave = millis();
   }
   Serial.printf("[NOTES] %s saved (%s, %d B)\n",
-                s_curFile, ok ? "ok" : "FEHLER", s_len);
+                s_curFile, ok ? "ok" : "ERROR", s_len);
 }
 
 // --- Navigation --------------------------------------------------------------
@@ -330,7 +330,7 @@ void retrySD() {
   markDirty();
 }
 
-// s_sel: 0 = "+ Heute", 1 = "Aufnahme", ab 2 die Einträge.
+// s_sel: 0 = "+ Today", 1 = "Recording", 2+ = entries.
 int rowCount() { return (s_count > 0 ? s_count : 0) + kSpecialRows; }
 
 // --- Audionotizen ------------------------------------------------------------
@@ -347,7 +347,7 @@ void startRecord() {
   if (!mic::startRecording(path)) { audio::endMic(); s_recFile[0] = '\0'; return; }
   s_recStartMs = millis();
   s_screen = RECORD;
-  Serial.printf("[NOTES] Aufnahme gestartet: %s\n", s_recFile);
+  Serial.printf("[NOTES] Recording started: %s\n", s_recFile);
   markDirty();
 }
 
@@ -913,7 +913,7 @@ void debugSmoke() {
   loadCurrent();
   bool roundtrip = (strcmp(s_buf, kBody) == 0);
   Serial.printf("[NOTES] SMOKE: round trip %s (%d B read back)\n",
-                roundtrip ? "OK" : "FEHLER", s_len);
+                roundtrip ? "OK" : "ERROR", s_len);
 
   scanNotes();
   bool found = false;

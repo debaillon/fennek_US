@@ -267,7 +267,7 @@ void snooze() {
   s_ringing = false;
   uint32_t now = (uint32_t)time(nullptr);
   s_snoozeEpoch = now + kSnoozeMinutes * 60;
-  Serial.printf("[ALARM] Schlummer %lu min\n", (unsigned long)kSnoozeMinutes);
+  Serial.printf("[ALARM] Snooze for %lu min\n", (unsigned long)kSnoozeMinutes);
 }
 
 void dismiss() {
@@ -301,7 +301,7 @@ void poll() {
   // Schlummer-Ziel erreicht?
   if (s_snoozeEpoch && now >= s_snoozeEpoch && now - s_snoozeEpoch < 90) {
     s_snoozeEpoch = 0;
-    startRing("Schlummer", s_ringSignal);
+    startRing("Snooze", s_ringSignal);
     return;
   }
   if (s_snoozeEpoch && now >= s_snoozeEpoch) s_snoozeEpoch = 0;  // verpasst → verfallen

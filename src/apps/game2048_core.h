@@ -5,7 +5,7 @@
 // game2048_core.h — 2048-Spiellogik, Arduino-frei (host-testbar).
 //
 // Zellen als Exponenten: 0 = leer, 1 = "2", 2 = "4", … 11 = "2048".
-// Zufall wird als Callback injiziert (Gerät: esp_random()%n, Host: Stub).
+// Randomness is injected as a callback (device: esp_random()%n; host: stub).
 // =============================================================================
 #pragma once
 
@@ -24,7 +24,7 @@ using RndFn = uint32_t (*)(uint32_t);   // liefert 0..n-1
 namespace detail {
 
 // Eine Linie (4 Zellen) Richtung Index 0 schieben + mergen.
-// Standard-Regel: jede Kachel merged pro Zug höchstens einmal.
+// Standard rule: each tile can merge at most once per move.
 inline bool slideLine(uint8_t c[4], uint32_t* gain) {
   uint8_t out[4] = {0, 0, 0, 0};
   int n = 0;
@@ -76,7 +76,7 @@ inline int countEmpty(const Board& b) {
   return n;
 }
 
-// Neue Kachel auf zufälliger leerer Zelle: 90 % "2", 10 % "4".
+// Add a new tile to a random empty cell: 90% "2", 10% "4".
 inline void spawn(Board& b, RndFn rnd) {
   int empty = countEmpty(b);
   if (!empty) return;

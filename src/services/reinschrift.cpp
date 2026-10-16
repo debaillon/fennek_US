@@ -300,7 +300,7 @@ void rebuildView() {
 bool syncCore(bool useBackoff, char* log, size_t logN) {
   auto setLog = [&](const char* m) { if (log && logN) { strncpy(log, m, logN - 1); log[logN - 1] = '\0'; } };
 
-  if (!settings::todoEnabled()) { setLog("Todo-Sync aus"); return true; }
+  if (!settings::todoEnabled()) { setLog("Todo sync off"); return true; }
 
   char user[64], pass[65], base[160];
   settings::todoUrl(base, sizeof(base));

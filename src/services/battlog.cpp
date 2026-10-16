@@ -3,8 +3,8 @@
 
 #include "battlog.h"
 
-// Die gesamte Übersetzungseinheit ist gegatet — ohne -D BATTLOG entsteht keine
-// einzige Funktion/Symbol (die Aufrufer expandieren ohnehin zu ((void)0)).
+// The entire translation unit is gated. Without -D BATTLOG, no functions or
+// symbols are created (callers expand to ((void)0)).
 #ifdef BATTLOG
 
 #include "config.h"
@@ -24,20 +24,20 @@
 
 namespace {
 
-constexpr int      kRingMax     = 256;            // PSRAM-Ring (FIFO)
+constexpr int      kRingMax     = 256;            // PSRAM ring (FIFO)
 const char*        kFile        = "/.fennek/battery.log";
 const char*        kFileOld     = "/.fennek/battery.old";
-constexpr uint32_t kSampleMs    = 60000;          // periodische Akku-Probe
-constexpr uint32_t kFlushMs     = 120000;         // spätestens alle 2 min nach SD
-constexpr int      kFlushAt     = 200;            // oder wenn so viele Zeilen offen
-constexpr uint32_t kMaxFileSize = 256UL * 1024;   // Rotation (wie das Mesh-Log)
-constexpr uint32_t kSaneEpoch   = 1500000000UL;   // darunter Uhr ungültig
+constexpr uint32_t kSampleMs    = 60000;          // periodic battery sample
+constexpr uint32_t kFlushMs     = 120000;         // flush to SD at least every 2 min
+constexpr int      kFlushAt     = 200;            // or when this many lines are pending
+constexpr uint32_t kMaxFileSize = 256UL * 1024;   // rotation (like the mesh log)
+constexpr uint32_t kSaneEpoch   = 1500000000UL;   // clock is invalid below this value
 
-// Flag-Bits im Entry.flags-Feld.
-constexpr uint8_t F_CHG  = 1;   // lädt aktiv (Mittelstrom > 0)
-constexpr uint8_t F_WIFI = 2;   // WLAN (webfm) an
-constexpr uint8_t F_MESH = 4;   // Mesh-Radio initialisiert (Chip an)
-constexpr uint8_t F_EXT  = 8;   // am Kabel (lädt ODER voll am Kabel), s.u.
+// Flag bits in the Entry.flags field.
+constexpr uint8_t F_CHG  = 1;   // actively charging (average current > 0)
+constexpr uint8_t F_WIFI = 2;   // Wi-Fi (webfm) on
+constexpr uint8_t F_MESH = 4;   // mesh radio initialized (chip on)
+constexpr uint8_t F_EXT  = 8;   // connected to external power, see below
 
 struct Entry {
   uint32_t epoch;     // UTC; 0/ungültig = Uhr noch nicht gesetzt
@@ -45,8 +45,8 @@ struct Entry {
   uint16_t rm;        // RemainingCapacity (mAh, Coulomb-Counter)
   uint8_t  pct;       // Ladestand %
   uint8_t  flags;     // F_CHG | F_WIFI | F_MESH | F_EXT
-  char     cat[12];   // Kategorie (Boot/App/Audio/Mesh/WLAN/Standby/Wake/Akku/…)
-  char     text[64];  // Notiz
+  char     cat[12];   // category (Boot/App/Audio/Mesh/Wi-Fi/Standby/Wake/Battery/...)
+  char     text[64];  // note
 };
 
 Entry*            s_ring   = nullptr;   // PSRAM
@@ -55,15 +55,15 @@ SemaphoreHandle_t s_mutex  = nullptr;
 uint32_t          s_lastSampleMs = 0;
 uint32_t          s_lastFlushMs  = 0;
 
-// Gecachte Akku-Werte: nur poll() (Core 1) liest den I2C-Gauge; event() nutzt
-// den Cache, damit es aus jedem Task — auch dem Audio-Task — ohne I2C-Konkurrenz
-// auf dem Wire-Bus aufrufbar bleibt.
+// Cached battery values: only poll() (Core 1) reads the I2C gauge; event() uses
+// the cache so it can be called from any task, including the audio task, without
+// competing for the I2C bus.
 volatile uint16_t s_cMv  = 0;
 volatile uint8_t  s_cPct = 0;
 volatile uint16_t s_cRm  = 0;
 volatile bool     s_cChg = false;
 volatile bool     s_cExt = false;
-bool              s_haveCharge = false;   // schon mal Lade-Status gesehen?
+bool              s_haveCharge = false;   // whether charging status has been seen
 
 uint8_t sysFlags(bool chg, bool ext) {
   uint8_t f = 0;
@@ -74,7 +74,7 @@ uint8_t sysFlags(bool chg, bool ext) {
   return f;
 }
 
-// Eintrag in den Ring legen (FIFO; voll → ältesten verwerfen). Task-sicher.
+// Add an entry to the ring (FIFO; discard the oldest entry when full). Task-safe.
 void append(const char* cat, const char* text) {
   if (!s_ring) return;
   xSemaphoreTake(s_mutex, portMAX_DELAY);
@@ -93,17 +93,16 @@ void append(const char* cat, const char* text) {
   xSemaphoreGive(s_mutex);
 }
 
-// Eine Zeile (Tab-getrennt) für die SD bauen. Spalten:
-//   Zeit | % | mV | mAh | Strom-Quelle | W: | M: | Kategorie | Notiz
+// Build one tab-separated SD row. Columns:
+//   time | % | mV | mAh | power source | W: | M: | category | note
 //
-// Die Strom-Quelle ist DREIwertig, und das ist wichtig: früher stand hier nur
-// charging() (Mittelstrom > 0) als „laedt"/„-". Bei vollem Akku am Kabel
-// terminiert der Lader, der Strom fällt auf ~0 -> die Spalte zeigte „-", obwohl
-// USB steckte und gar nicht aus dem Akku gezogen wurde. Solche Phasen sahen im
-// Log wie ein perfekter Standby aus (0,1 mV/h über 21 h) und haben die Analyse
-// vom 15.07.26 lange in die Irre geführt — zwei „Power-Fixes" wurden gegen
-// genau diese Phantom-Messungen „verifiziert". „Kabel" (external(), DSG-Bit)
-// macht den Fall jetzt explizit: nur Zeilen mit „-" sind echte Akku-Messungen.
+// The power-source field has three possible values. Previously it only recorded
+// charging() (average current > 0) as "charging" or "-". When the battery is
+// full while plugged in, the charger stops and current falls to about zero, so
+// the field showed "-" even though USB was connected and the battery was not
+// being drained. Those periods looked like perfect standby in the log and
+// skewed analysis. "external()" (the DSG bit) now makes this explicit: only rows
+// marked "-" are true battery measurements.
 void formatLine(const Entry& e, char* out, size_t n) {
   char ts[24];
   if (e.epoch >= kSaneEpoch) {
@@ -117,17 +116,17 @@ void formatLine(const Entry& e, char* out, size_t n) {
   }
   snprintf(out, n, "%s\t%u%%\t%umV\t%umAh\t%s\tW:%s\tM:%s\t%s\t%s\n",
            ts, (unsigned)e.pct, (unsigned)e.mv, (unsigned)e.rm,
-           (e.flags & F_CHG)  ? "laedt" : (e.flags & F_EXT) ? "Kabel" : "-",
-           (e.flags & F_WIFI) ? "an"    : "aus",
-           (e.flags & F_MESH) ? "an"    : "aus",
+           (e.flags & F_CHG)  ? "charging" : (e.flags & F_EXT) ? "external" : "-",
+           (e.flags & F_WIFI) ? "on"       : "off",
+           (e.flags & F_MESH) ? "on"       : "off",
            e.cat, e.text);
 }
 
-// Ring nach SD anhängen und leeren. NUR aus Core 1 (poll/flush), unter spiLock.
+// Append the ring to SD and clear it. Only called on Core 1 (poll/flush), under spiLock.
 void writeOut() {
   if (!s_ring || !board::sdReady()) return;
 
-  // Snapshot unter Mutex, danach SD-I/O ohne den Ring-Mutex zu halten.
+  // Take a snapshot under the mutex, then perform SD I/O without holding it.
   xSemaphoreTake(s_mutex, portMAX_DELAY);
   int n = s_count;
   Entry* snap = nullptr;
@@ -136,13 +135,13 @@ void writeOut() {
     if (snap) memcpy(snap, s_ring, sizeof(Entry) * n);
     else n = 0;
   }
-  s_count = 0;   // Ring geleert (Append-Modus auf SD)
+  s_count = 0;   // ring cleared (append to SD)
   xSemaphoreGive(s_mutex);
   if (n == 0) return;
 
   spiLock();
   SD.mkdir("/.fennek");
-  // Rotation: zu groß → in .old umbenennen, frisch weiterschreiben.
+  // Rotate an oversized file to .old, then start a fresh log.
   File chk = SD.open(kFile, FILE_READ);
   uint32_t sz = chk ? chk.size() : 0;
   if (chk) chk.close();
@@ -161,7 +160,7 @@ void writeOut() {
   }
   spiUnlock();
   free(snap);
-  Serial.printf("[BATTLOG] %d Zeilen nach %s\n", n, kFile);
+  Serial.printf("[BATTLOG] Wrote %d lines to %s\n", n, kFile);
 }
 
 }  // namespace
@@ -173,7 +172,7 @@ void begin() {
   s_ring  = (Entry*)heap_caps_malloc(sizeof(Entry) * kRingMax, MALLOC_CAP_SPIRAM);
   if (!s_ring) s_ring = (Entry*)malloc(sizeof(Entry) * kRingMax);
   s_count = 0;
-  // Erst-Probe, damit schon die Boot-Zeile einen echten Akkustand trägt.
+  // Sample first so the boot row includes the actual battery level.
   s_cMv  = battery::milliVolts();
   s_cPct = battery::percent();
   s_cRm  = battery::remainingCapacity();
@@ -182,7 +181,7 @@ void begin() {
   s_haveCharge   = true;
   s_lastSampleMs = s_lastFlushMs = millis();
   append("Boot", "Fennek " FENNEK_VERSION);
-  Serial.printf("[BATTLOG] aktiv (Debug) -> %s\n", kFile);
+  Serial.printf("[BATTLOG] active (debug) -> %s\n", kFile);
 }
 
 void event(const char* cat, const char* fmt, ...) {
@@ -199,7 +198,7 @@ void poll() {
   if (!s_ring) return;
   uint32_t now = millis();
 
-  // Periodische Akku-Probe (liest I2C — nur hier, auf Core 1).
+  // Periodic battery sample (reads I2C, only here on Core 1).
   if (now - s_lastSampleMs >= kSampleMs) {
     s_lastSampleMs = now;
     s_cMv  = battery::milliVolts();
@@ -212,14 +211,13 @@ void poll() {
     s_cChg = chg;
     s_cExt = ext;
     if (s_haveCharge && chg != prevChg) append("Charging", chg ? "started" : "stopped");
-    // Das Kabel getrennt/gesteckt ist die Grenze zwischen echter Akku-Messung
-    // und Phantom-Phase — als eigenes Ereignis markieren, nicht nur als Spalte.
+    // Mark external power transitions as events, not just as a column value.
     if (s_haveCharge && ext != prevExt) append("External power", ext ? "connected" : "disconnected");
     s_haveCharge = true;
-    append("Akku", "Probe");
+    append("Battery", "Sample");
   }
 
-  // Gedrosselt nach SD schreiben (oder wenn der Ring zu voll wird).
+  // Write to SD periodically (or when the ring is nearly full).
   xSemaphoreTake(s_mutex, portMAX_DELAY);
   int cnt = s_count;
   xSemaphoreGive(s_mutex);

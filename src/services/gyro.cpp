@@ -45,7 +45,7 @@ bool begin() {
     s_bhy.onResultEvent(SENSOR_ID_ACC_PASS,  accelCb);
     s_bhy.onResultEvent(SENSOR_ID_GYRO_PASS, gyroCb);
     s_inited = true;
-    Serial.println("[GYRO] BHI260 bereit");
+    Serial.println("[GYRO] BHI260 ready");
   }
   s_bhy.configure(SENSOR_ID_ACC_PASS,  50.0f, 0);   // 50 Hz
   s_bhy.configure(SENSOR_ID_GYRO_PASS, 50.0f, 0);

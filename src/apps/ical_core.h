@@ -2,21 +2,21 @@
 // Copyright (C) 2026 Dr. Daniel Dumke
 
 // =============================================================================
-// ical_core.h — Arduino-freier iCalendar-Parser (RFC-5545-Subset) für die
-// Kalender-App.
+// ical_core.h — Arduino-independent iCalendar parser (RFC 5545 subset) for the
+// calendar app.
 //
-// Read-only: wir abonnieren eine/mehrere .ics-Feeds (Nextcloud-Share / webcal)
-// und zeigen anstehende Termine. „Sparse": der Service streamt die (oft große)
-// Datei zeilenweise herein und behält über den onEvent-Callback nur Termine im
-// Vorwärtsfenster — der Parser hält immer nur EIN Event im RAM.
+// Read-only: subscribe to one or more .ics feeds (Nextcloud share/webcal) and
+// show upcoming events. Sparse parsing: the service streams the (often large)
+// file line by line and uses the onEvent callback to keep only events in the
+// lookahead window; the parser holds only ONE event in RAM at a time.
 //
-// Unterstützt: Line-Unfolding (Fortsetzung mit führendem Space/Tab), VEVENT mit
-// UID/SUMMARY/LOCATION/DTSTART/DTEND (Datum + Datum-Zeit, all-day VALUE=DATE)
-// und eine einfache RRULE-Expansion (FREQ=DAILY/WEEKLY/MONTHLY mit INTERVAL/
-// COUNT/UNTIL) — bewusst innerhalb des Fensters (expand()).
+// Supports line unfolding (continuation lines beginning with space/tab), VEVENT
+// with UID/SUMMARY/LOCATION/DTSTART/DTEND (date and date-time, all-day
+// VALUE=DATE), and simple RRULE expansion (FREQ=DAILY/WEEKLY/MONTHLY with
+// INTERVAL/COUNT/UNTIL), limited to the window in expand().
 //
-// Vereinfachung: Zeitzonen (TZID) werden ignoriert, Zeiten als UTC gelesen
-// (für eine Agenda-Übersicht ausreichend; Z-suffixierte Zeiten sind ohnehin UTC).
+// Simplification: ignore time zones (TZID) and read times as UTC (sufficient
+// for an agenda overview; times with a Z suffix are UTC anyway).
 //
 // Header-only, host-testbar (tools/host_test_apps.cpp).
 // =============================================================================
@@ -35,17 +35,17 @@ constexpr int kSummaryLen = 96;
 constexpr int kLocLen     = 64;
 constexpr int kUidLen     = 64;
 constexpr int kRRuleLen   = 96;
-constexpr int kLogicalLen = 256;   // entfaltete logische Zeile
+constexpr int kLogicalLen = 256;   // Unfolded logical line
 
 struct Event {
   char     uid[kUidLen];
   char     summary[kSummaryLen];
   char     location[kLocLen];
-  uint32_t start;        // UTC-Epoche
-  uint32_t end;          // UTC-Epoche (0 = unbekannt)
+  uint32_t start;        // UTC epoch
+  uint32_t end;          // UTC epoch (0 = unknown)
   bool     allDay;
   char     rrule[kRRuleLen];   // "" = einmalig
-  bool     valid;        // DTSTART + SUMMARY vorhanden?
+  bool     valid;        // DTSTART + SUMMARY present?
 };
 
 namespace detail {
@@ -59,7 +59,7 @@ inline long daysFromCivil(int y, unsigned m, unsigned d) {
   return era * 146097 + (long)doe - 719468;
 }
 
-// Epoche → (Jahr, Monat, Tag) (UTC).
+// Epoch -> (year, month, day) (UTC).
 inline void civilFromEpoch(uint32_t epoch, int* y, unsigned* m, unsigned* d) {
   long z = (long)(epoch / 86400) + 719468;
   long era = (z >= 0 ? z : z - 146096) / 146097;
@@ -73,7 +73,7 @@ inline void civilFromEpoch(uint32_t epoch, int* y, unsigned* m, unsigned* d) {
   *y = (int)(yy + (*m <= 2));
 }
 
-// "YYYYMMDD" oder "YYYYMMDDTHHMMSS[Z]" → UTC-Epoche. *isDate = reines Datum.
+// "YYYYMMDD" or "YYYYMMDDTHHMMSS[Z]" -> UTC epoch. *isDate = date only.
 inline uint32_t parseDateTime(const char* s, bool* isDate) {
   int y = 0, mo = 0, d = 0, hh = 0, mi = 0, se = 0;
   if (strlen(s) < 8) { *isDate = true; return 0; }
@@ -94,8 +94,8 @@ inline uint32_t parseDateTime(const char* s, bool* isDate) {
   return e < 0 ? 0 : (uint32_t)e;
 }
 
-// Property-Wert nach ':' (überspringt ;PARAM=…). Gibt Zeiger auf Wert; *name
-// bekommt den Namensteil ohne Parameter (z. B. "DTSTART").
+// Get the property value after ':' (skip ;PARAM=...). Return a pointer to the
+// value; *name receives the name without parameters (e.g. "DTSTART").
 inline const char* propValue(const char* line, char* name, size_t nameCap) {
   const char* colon = line;
   const char* semi = nullptr;
@@ -107,7 +107,7 @@ inline const char* propValue(const char* line, char* name, size_t nameCap) {
   return (*colon == ':') ? colon + 1 : colon;
 }
 
-// iCal-TEXT entescapen (\n \, \; \\) → out.
+// Unescape iCal TEXT (\n \, \; \\) into out.
 inline void unescapeText(const char* s, char* out, size_t cap) {
   size_t o = 0;
   for (const char* p = s; *p && *p != '\r' && *p != '\n' && o + 1 < cap; p++) {
@@ -123,8 +123,8 @@ inline void unescapeText(const char* s, char* out, size_t cap) {
 
 }  // namespace detail
 
-// Inkrementeller Parser: rohe (physische) Zeilen füttern; bei jedem komplett
-// gelesenen VEVENT liefert feedLine()/finish() true und füllt *out.
+// Incremental parser: feed raw (physical) lines; feedLine()/finish() returns
+// true and fills *out whenever a complete VEVENT has been read.
 class Parser {
  public:
   Parser() { reset(); }
@@ -133,22 +133,23 @@ class Parser {
     memset(&s_ev, 0, sizeof(s_ev));
   }
 
-  // Eine physische Zeile (ohne Zeilenende) übergeben. true = Event fertig.
+  // Pass one physical line (without its line ending). true = event complete.
   bool feedLine(const char* line, Event* out) {
-    // Fortsetzungszeile (Folding): führendes Space/Tab → an logische anhängen.
+    // Continuation line (folding): append to the logical line after removing
+    // the leading space/tab.
     if (line[0] == ' ' || line[0] == '\t') {
       append(line + 1);
       return false;
     }
-    bool done = flush(out);          // bisher gepufferte logische Zeile abschließen
-    // neue logische Zeile beginnen
+    bool done = flush(out);          // Finish the previously buffered logical line
+    // Start a new logical line.
     strncpy(s_logical, line, sizeof(s_logical) - 1);
     s_logical[sizeof(s_logical) - 1] = '\0';
     s_have = true;
     return done;
   }
 
-  // Letzte gepufferte Zeile am Stream-Ende abschließen.
+  // Finish the last buffered line at the end of the stream.
   bool finish(Event* out) { return flush(out); }
 
  private:
@@ -163,7 +164,7 @@ class Parser {
     s_logical[sizeof(s_logical) - 1] = '\0';
   }
 
-  // Gepufferte logische Zeile auswerten. true = ein Event wurde abgeschlossen.
+  // Process a buffered logical line. true = an event was completed.
   bool flush(Event* out) {
     if (!s_have) return false;
     s_have = false;
@@ -195,14 +196,14 @@ class Parser {
     } else if (strcmp(name, "RRULE") == 0) {
       strncpy(s_ev.rrule, val, sizeof(s_ev.rrule) - 1);
       s_ev.rrule[sizeof(s_ev.rrule) - 1] = '\0';
-      // evtl. \r am Ende kappen
+      // Remove a trailing \r, if present.
       for (char* q = s_ev.rrule; *q; q++) if (*q == '\r') { *q = '\0'; break; }
     }
     return false;
   }
 };
 
-// RRULE-Feld auslesen (z. B. "FREQ", "INTERVAL"). false = nicht vorhanden.
+// Read an RRULE field (e.g. "FREQ", "INTERVAL"). false = not present.
 inline bool rruleField(const char* rr, const char* key, char* out, size_t cap) {
   out[0] = '\0';
   size_t kl = strlen(key);
@@ -220,13 +221,13 @@ inline bool rruleField(const char* rr, const char* key, char* out, size_t cap) {
   return false;
 }
 
-// Vorkommen eines (ggf. wiederkehrenden) Events im Fenster [winStart, winEnd)
-// aufzählen. cb(occStart, occEnd) je Vorkommen. Einmalige Events: max. eines.
+// Enumerate occurrences of an event (possibly recurring) in [winStart, winEnd).
+// Call cb(occStart, occEnd) for each occurrence. One-time events have at most one.
 template <typename CB>
 inline void expand(const Event& ev, uint32_t winStart, uint32_t winEnd, CB cb) {
   uint32_t dur = (ev.end > ev.start) ? (ev.end - ev.start) : (ev.allDay ? 86400u : 0u);
   auto overlaps = [&](uint32_t s) {
-    // Zeitpunkt-Events (Dauer 0): zählen, wenn der Start im Fenster liegt.
+    // Zero-duration events count when their start is in the window.
     if (dur == 0) return s >= winStart && s < winEnd;
     return (s + dur) > winStart && s < winEnd;
   };
@@ -243,7 +244,7 @@ inline void expand(const Event& ev, uint32_t winStart, uint32_t winEnd, CB cb) {
   }
   int interval = 1;
   if (rruleField(ev.rrule, "INTERVAL", buf, sizeof(buf))) { interval = atoi(buf); if (interval < 1) interval = 1; }
-  long count = 100000;   // praktisch unbegrenzt
+  long count = 100000;   // Effectively unlimited
   if (rruleField(ev.rrule, "COUNT", buf, sizeof(buf))) count = atol(buf);
   uint32_t until = 0;
   if (rruleField(ev.rrule, "UNTIL", buf, sizeof(buf))) { bool d; until = detail::parseDateTime(buf, &d); }

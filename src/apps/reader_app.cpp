@@ -106,7 +106,7 @@ int cmpFile(const void* a, const void* b) {
 //    zwischen den Häppchen.
 // 3. Das Ergebnis liegt als /.fennek/books.bin auf der SD und wird beim
 //    nächsten Boot von dort geladen. Neu gescannt wird nur ohne Cache, per
-//    'R' in der Liste oder über "Erneut suchen".
+//    'R' in the list or through "Search again".
 constexpr int kMaxStack  = 256;
 constexpr int kScanChunk = 6;
 constexpr const char* kBookCache    = "/.fennek/books.bin";

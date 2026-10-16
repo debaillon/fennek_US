@@ -8,7 +8,7 @@
 // "+ Heute" öffnet immer die heutige Notiz — legt sie an, falls noch nicht da,
 // sonst schreibt man unten weiter. Liste zeigt alle Tage (neueste oben);
 // Editor im Anhänge-Modus (tippen / Backspace / Enter). Ohne SD-Karte erscheint
-// "Keine SD-Karte" + "Erneut suchen" wie in Musik/Lesen. Datum kommt aus der
+// "No SD card" + "Search again", as in Music/Reader. The date comes from the
 // lokalen Systemzeit (timesync), Speicher gechunkt unter spiLock auf der SD.
 // =============================================================================
 #pragma once

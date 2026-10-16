@@ -1,18 +1,16 @@
 // =============================================================================
-// screenshot.cpp — Host-Renderer für README-Screenshots (kein Firmware-Build).
+// screenshot.cpp — host renderer for README screenshots (not a firmware build).
 //
-// Rendert fünf Bildschirme von Fennek mit Beispiel-Daten in einen 1-Bit-
-// GFXcanvas1 (240x320) — exakt derselbe Adafruit-GFX-Zeichencode + dieselben
-// CP437-Fonts wie auf dem E-Ink, also pixelgenau. Da die echten draw()-Methoden
-// in anonymen Namespaces / hinter Geräte-Zustand liegen, sind die Zeichen-
-// Bodies hier 1:1 aus den Quellen gespiegelt (Quellenangabe je Funktion);
-// gemeinsame Helfer (gui::, Fonts, das Sleep-Bitmap) werden direkt verlinkt.
+// Renders five Fennek screens with sample data into a 1-bit GFXcanvas1
+// (240x320), using the same Adafruit-GFX drawing code and CP437 fonts as the
+// E-Ink display for pixel accuracy. Since the real draw() methods are in
+// anonymous namespaces or depend on device state, their drawing bodies are
+// mirrored here from the source (source noted at each function); shared
+// helpers (gui::, fonts, and the sleep bitmap) are linked directly.
 //
-// Alle UI-Texte kommen aus derselben i18n-Tabelle wie die Firmware (FENNEK_STRS
-// in core/i18n.h) — die Sprache wählt das 2. Argument (de/it/sv/en/es). So sind
-// die Screenshots pro Sprache echt übersetzt, nicht handgepflegt.
+// All UI text comes from the same English string catalog as the firmware.
 //
-//   Bauen/Ausführen über tools/screenshots.sh
+//   Build/run with tools/screenshots.sh
 // =============================================================================
 #include <cstdint>
 #include <cstdio>
@@ -26,53 +24,28 @@
 
 #include "config.h"            // EINK_W / EINK_H / FENNEK_VERSION (host-sicher)
 #include "core/gui.h"
-#include "core/i18n.h"         // FENNEK_STRS / i18n::Str (nur Header, kein .cpp)
+#include "core/i18n.h"         // FENNEK_STRS / i18n::Str (header only; no .cpp)
 #include "core/sleep_img.h"    // kSleepImg / kSleepImgW / kSleepImgH
 
 using gui::Rect;
 using i18n::Str;
 
-// --- Host-Lokalisierung ------------------------------------------------------
-// i18n.cpp wird bewusst NICHT gelinkt (zieht settings/NVS/Arduino). Stattdessen
-// bauen wir die Tabellen direkt aus der X-Macro-Liste — exakt dieselben Texte.
+// i18n.cpp is intentionally not linked because it depends on settings/NVS/Arduino.
+// Build the English lookup table directly from the X-macro list instead.
 namespace {
-const char* const kDE[] = { "",
-#define X(id, de, it, sv, en, es) de,
+const char* const kEnglish[] = { "",
+#define X(id, en) en,
   FENNEK_STRS(X)
 #undef X
 };
-const char* const kIT[] = { "",
-#define X(id, de, it, sv, en, es) it,
-  FENNEK_STRS(X)
-#undef X
-};
-const char* const kSV[] = { "",
-#define X(id, de, it, sv, en, es) sv,
-  FENNEK_STRS(X)
-#undef X
-};
-const char* const kEN[] = { "",
-#define X(id, de, it, sv, en, es) en,
-  FENNEK_STRS(X)
-#undef X
-};
-const char* const kES[] = { "",
-#define X(id, de, it, sv, en, es) es,
-  FENNEK_STRS(X)
-#undef X
-};
-const char* const* const kTab[] = { kDE, kIT, kSV, kEN, kES };           // Lang-Index
-const char* const kEndonym[]    = { "Deutsch", "Italiano", "Svenska", "English", "Español" };
-
-int g_lang = (int)i18n::Lang::EN;   // Default = Englisch (README-Default)
 
 const char* T(Str id) {
-  const char* s = kTab[g_lang][(uint16_t)id];
-  return (s && s[0]) ? s : kDE[(uint16_t)id];   // leerer Eintrag -> Deutsch
+  const uint16_t index = (uint16_t)id;
+  return index < sizeof(kEnglish) / sizeof(kEnglish[0]) ? kEnglish[index] : "";
 }
 }  // namespace
 
-// appmgr-Konstanten (aus core/appmgr.h, ohne den Arduino-Header zu ziehen).
+// appmgr constants (from core/appmgr.h, without pulling in the Arduino header).
 static constexpr int STATUS_H  = 22;
 static constexpr int CONTENT_Y = STATUS_H + 2;   // 24
 
@@ -82,11 +55,11 @@ static void savePgm(GFXcanvas1& c, const std::string& path) {
   const uint8_t* buf = c.getBuffer();
   const int stride = (w + 7) / 8;
   FILE* f = fopen(path.c_str(), "wb");
-  if (!f) { fprintf(stderr, "kann %s nicht schreiben\n", path.c_str()); return; }
+  if (!f) { fprintf(stderr, "cannot write %s\n", path.c_str()); return; }
   fprintf(f, "P5\n%d %d\n255\n", w, h);
   for (int y = 0; y < h; y++) {
     for (int x = 0; x < w; x++) {
-      int bit = (buf[y * stride + (x >> 3)] >> (7 - (x & 7))) & 1;  // gesetzt = weiß
+      int bit = (buf[y * stride + (x >> 3)] >> (7 - (x & 7))) & 1;  // set = white
       uint8_t px = bit ? 255 : 0;
       fwrite(&px, 1, 1, f);
     }
@@ -136,7 +109,7 @@ static void screenLauncher(Adafruit_GFX& g) {
     Str::TileAlarm, Str::TileMaps
   };
   const int cursor = 0;
-  const char* nowPlaying = "Nuvole Bianche";   // Titel — nicht übersetzen
+  const char* nowPlaying = "Nuvole Bianche";   // Track title — do not translate
 
   drawStatusBar(g, T(Str::AppLauncher), 87, false, 1);
 
@@ -159,7 +132,7 @@ static void screenLauncher(Adafruit_GFX& g) {
   g.setTextSize(1);
   g.setCursor(8, kHintY);
   char line[80];
-  snprintf(line, sizeof(line), "%c %s", 0x0E, nowPlaying);   // ♫ Titel
+  snprintf(line, sizeof(line), "%c %s", 0x0E, nowPlaying);   // ♫ track title
   gui::print(g, line);
 }
 
@@ -226,7 +199,7 @@ static void screenMusic(Adafruit_GFX& g) {
   const int volume = 18;
   const bool playing = true, paused = false, shuffle = false;
   const bool repeatOn = false;
-  const char* nm = "Nuvole Bianche";      // Titel/Künstler — nicht übersetzen
+  const char* nm = "Nuvole Bianche";      // Track/artist name — do not translate
   const char* artist = "Ludovico Einaudi";
 
   drawStatusBar(g, T(Str::AppMusic), 87, false, 1);
@@ -324,9 +297,8 @@ static void screenSettings(Adafruit_GFX& g) {
   static constexpr int SYS_Y = SYS_HDR_Y + SEC_H;  // 222
   const Rect kHome{6, 274, 110, 40};
   static constexpr int FOOT_X = 120;
-  // Fixture: EU-Narrow-Preset, Frequenz ausgewählt, Name "T-Deck".
-  // "Preset"/"Spreading" + die Werte sind LoRa-Jargon und werden nicht übersetzt;
-  // der Sprach-Wert zeigt das Endonym der gerade gerenderten Sprache.
+  // Fixture: EU Narrow preset, frequency selected, name "T-Deck".
+  // "Preset"/"Spreading" and the values are LoRa terminology.
   struct { const char* label; const char* value; } rows[] = {
     {"Preset",              "EU Narrow"},
     {T(Str::LblFreq),       "869.618 MHz"},
@@ -335,8 +307,8 @@ static void screenSettings(Adafruit_GFX& g) {
     {T(Str::LblCodingRate), "4/5"},
     {T(Str::LblTxPower),    "22 dBm"},
     {T(Str::LblName),       "T-Deck"},
-    {T(Str::SettingsLang),  kEndonym[g_lang]},
     {T(Str::LblStandby),    "5 min"},
+    {T(Str::LblFontSize),   T(Str::FontSmall)},
   };
   const int sel = 1;
 
@@ -378,8 +350,8 @@ static void screenSleep(Adafruit_GFX& g) {
   g.fillRect(0, bannerY, kSleepImgW, kSleepImgH - bannerY, GxEPD_BLACK);
   g.drawFastHLine(0, bannerY, kSleepImgW, GxEPD_WHITE);
   g.setTextColor(GxEPD_WHITE);
-  gui::printAt(g, 120 - 53, bannerY + 6, "Fennek", 3);   // Name — nicht übersetzen
-  // Aufweck-Hinweis sprachabhängig zentrieren (Länge variiert pro Sprache).
+  gui::printAt(g, 120 - 53, bannerY + 6, "Fennek", 3);   // Name — do not translate
+  // Center the wake-up hint per language (text length varies).
   const char* hint = T(Str::SleepWakeHint);
   g.setTextSize(1);
   uint16_t hw, hh;
@@ -389,10 +361,10 @@ static void screenSleep(Adafruit_GFX& g) {
 }
 
 // =============================================================================
-// Karten — gespiegelt aus apps/maps_app.cpp (draw + drawMarker/drawFooter) und
-// services/maps_tiles.cpp (Slippy-Math + blitViewport). Lädt echte 1-bit-Kacheln
-// aus einem lokalen /maps-Baum (FENNEK_TILES, Default /tmp/fennek_sd/maps), damit
-// das Bild pixelgenau dem Gerät entspricht; fehlt eine Kachel -> Punktraster.
+// Maps — mirrored from apps/maps_app.cpp (draw + drawMarker/drawFooter) and
+// services/maps_tiles.cpp (Slippy math + blitViewport). Loads real 1-bit tiles
+// from a local /maps tree (FENNEK_TILES, default /tmp/fennek_sd/maps) so the
+// image matches the device pixel for pixel; missing tiles appear as a dotted grid.
 // =============================================================================
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -406,7 +378,7 @@ static double latToTileYf(double lat, int z) {
 static void screenMaps(Adafruit_GFX& g) {
   static constexpr int OX = 0, OY = CONTENT_Y, VW = EINK_W, VH = EINK_H - CONTENT_Y;
   static constexpr int FOOT_H = 28, TILE = 256;
-  const double cLat = 51.4818, cLon = 7.2162;   // Dortmund (am Gerät verifiziert)
+  const double cLat = 51.4818, cLon = 7.2162;   // Dortmund (verified on device)
   const int z = 15;
   const int sats = 9; const double hdop = 0.8;
 
@@ -415,7 +387,7 @@ static void screenMaps(Adafruit_GFX& g) {
 
   drawStatusBar(g, T(Str::AppMaps), 87, false, 1);
 
-  // --- Kacheln blitten (mirror maps_tiles::blitViewport) ---
+  // --- Blit tiles (mirror maps_tiles::blitViewport) ---
   double cpx = lonToTileXf(cLon, z) * TILE, cpy = latToTileYf(cLat, z) * TILE;
   double leftPx = cpx - VW / 2.0, topPx = cpy - VH / 2.0;
   int tx0 = (int)floor(leftPx / TILE), ty0 = (int)floor(topPx / TILE);
@@ -452,7 +424,7 @@ static void screenMaps(Adafruit_GFX& g) {
   g.setTextColor(GxEPD_BLACK);
   g.setTextSize(1);
   char l1[40], l2[48];
-  snprintf(l1, sizeof(l1), "Z%d  Folgt GPS", z);
+  snprintf(l1, sizeof(l1), "Z%d  Following GPS", z);
   g.setCursor(4, fy + 5); gui::print(g, l1);
   snprintf(l2, sizeof(l2), "%.5f, %.5f  Sat %d", cLat, cLon, sats);
   (void)hdop;
@@ -462,16 +434,6 @@ static void screenMaps(Adafruit_GFX& g) {
 // =============================================================================
 int main(int argc, char** argv) {
   std::string outdir = (argc > 1) ? argv[1] : ".";
-  if (argc > 2) {
-    std::string l = argv[2];
-    if      (l == "de") g_lang = (int)i18n::Lang::DE;
-    else if (l == "it") g_lang = (int)i18n::Lang::IT;
-    else if (l == "sv") g_lang = (int)i18n::Lang::SV;
-    else if (l == "en") g_lang = (int)i18n::Lang::EN;
-    else if (l == "es") g_lang = (int)i18n::Lang::ES;
-    else fprintf(stderr, "unbekannte Sprache '%s' — nutze Englisch\n", l.c_str());
-  }
-
   struct { const char* file; void (*fn)(Adafruit_GFX&); } screens[] = {
     {"launcher.pgm", screenLauncher},
     {"games-ttt.pgm", screenTtt},
@@ -489,7 +451,7 @@ int main(int argc, char** argv) {
     canvas.fillScreen(GxEPD_WHITE);
     s.fn(canvas);
     savePgm(canvas, outdir + "/" + s.file);
-    printf("gerendert: %s\n", s.file);
+    printf("rendered: %s\n", s.file);
   }
   return 0;
 }

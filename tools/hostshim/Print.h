@@ -1,4 +1,4 @@
-// Print.h — Host-Shim der Arduino-Print-Basisklasse (genug für Adafruit-GFX).
+// Print.h — host shim for Arduino's Print base class (enough for Adafruit-GFX).
 #pragma once
 #include <cstddef>
 #include <cstdint>

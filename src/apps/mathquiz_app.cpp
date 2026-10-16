@@ -2,13 +2,13 @@
 // Copyright (C) 2026 Dr. Daniel Dumke
 
 // =============================================================================
-// mathquiz_app.cpp — "Kopfrechnen": Menü (Operation + Stufe) und Quiz-Screen.
-// Logik/Generierung liegt Arduino-frei in mathquiz_core.h (host-getestet).
+// mathquiz_app.cpp — "Mental Math": menu (operation + level) and quiz screen.
+// Logic and generation are Arduino-independent in mathquiz_core.h (host-tested).
 //
-// Bedienung: Menü W/S = Modus, A/D = Stufe, Enter/Tap = Start. Quiz: Ziffern
-// tippen, Backspace löscht, Enter prüft (Enter erneut = nächste Aufgabe),
-// Q/Zurück = zurück. Ziffern-Tippen aktualisiert nur den Antwort-Streifen
-// (renderRegion) — kein Vollbild-Blitzen pro Taste (vgl. Reader/Notizen).
+// Controls: menu W/S = mode, A/D = level, Enter/tap = start. Quiz: type digits,
+// Backspace deletes, Enter checks (press Enter again for the next problem),
+// Q/Back = return. Typing digits updates only the answer strip (renderRegion),
+// avoiding a full-screen flash on every key (see Reader/Notes).
 // =============================================================================
 #include "mathquiz_app.h"
 
@@ -33,22 +33,22 @@ constexpr int W = EINK_W;
 
 uint32_t rnd(uint32_t n) { return n ? esp_random() % n : 0; }
 
-// --- Modi ---------------------------------------------------------------------
+// --- Modes ---------------------------------------------------------------------
 struct Mode { const char* label; uint16_t mask; };
 const Mode kModes[] = {
   {"Plus",     opBit(ADD)},
   {"Minus",    opBit(SUB)},
-  {"Mal",      opBit(MUL)},
-  {"Geteilt",  opBit(DIV)},
-  {"Gemischt", (uint16_t)(opBit(ADD) | opBit(SUB) | opBit(MUL) | opBit(DIV))},
-  // CFO: Anteil/Marge, Wachstum (YoY), MwSt-Aufschlag, Rabatt, %-von, Rule of 72.
+  {"Multiply", opBit(MUL)},
+  {"Divide",   opBit(DIV)},
+  {"Mixed",    (uint16_t)(opBit(ADD) | opBit(SUB) | opBit(MUL) | opBit(DIV))},
+  // CFO: share/margin, year-over-year growth, tax markup, discount, percent of, Rule of 72.
   {"CFO",      (uint16_t)(opBit(SHARE) | opBit(GROWTH) | opBit(MARKUP) |
                           opBit(DISCOUNT) | opBit(PCT) | opBit(RULE72))},
 };
 constexpr int kNumModes = sizeof(kModes) / sizeof(kModes[0]);
-const char* const kLevels[3] = {"Leicht", "Mittel", "Schwer"};
+const char* const kLevels[3] = {"Easy", "Medium", "Hard"};
 
-// --- Layout: Menü (Stufenzeile + 6 Modus-Knöpfe, kompakt für 320 px Höhe) -----
+// --- Layout: menu (level row + 6 mode buttons, compact for 320 px height) -----
 const Rect kLevelBtn{10, 64, 220, 30};
 Rect modeBtn(int i) { return Rect{10, 100 + i * 35, 220, 30}; }
 
@@ -56,22 +56,22 @@ Rect modeBtn(int i) { return Rect{10, 100 + i * 35, 220, 30}; }
 constexpr int ANSW_Y = 132;   // Streifen Aufgabe-Ergebnis (Region-Refresh)
 constexpr int ANSW_H = 108;
 
-// --- Zustand ------------------------------------------------------------------
+// --- State ---------------------------------------------------------------------
 enum Screen { MENU, QUIZ };
 Screen  s_screen = MENU;
-int     s_sel = 4;            // Menü-Auswahl (Default: Gemischt)
-uint8_t s_level = 1;          // 0..2 (angezeigte/aktive Stufe des Modus)
+int     s_sel = 4;            // Menu selection (default: Mixed)
+uint8_t s_level = 1;          // 0..2 (displayed/active level for the mode)
 
-// Adaptive Schwierigkeit: ein kontinuierlicher Skill-Zähler (0..3*kBand-1)
-// bewegt sich pro Antwort und bestimmt die Stufe (= s_skill / kBand). Richtige
-// Antworten heben langsam (~7 in Folge je Stufe), Fehler senken schneller
-// (~3 in Folge). Bei einem Stufenwechsel springt der Zähler in die Bandmitte
-// der neuen Stufe — das gibt Hysterese und verhindert Hin-und-Her an der Grenze.
+// Adaptive difficulty: a continuous skill counter (0..3*kBand-1) moves with
+// each answer and determines the level (= s_skill / kBand). Correct answers
+// raise it slowly (~7 in a row per level); errors lower it faster (~3 in a row).
+// When the level changes, the counter moves to the middle of the new band to
+// provide hysteresis and prevent toggling around a boundary.
 constexpr int kBand    = 100;   // Skill-Punkte pro Stufe
 constexpr int kStepUp  = 7;     // pro richtiger Antwort
-constexpr int kStepDn  = 18;    // pro falscher Antwort (Fehler wiegen schwerer)
-int  s_skill = 150;             // Start: Bandmitte Stufe 1
-bool s_levelChanged = false;    // kurzes "Stufe: …"-Feedback nach Wechsel
+constexpr int kStepDn  = 18;    // Per incorrect answer (errors weigh more)
+int  s_skill = 150;             // Start at the middle of level 1
+bool s_levelChanged = false;    // Brief "Level: ..." feedback after a change
 
 uint16_t s_mask = 0;          // aktive Operationsmaske im Quiz
 Problem s_problem{};
@@ -79,45 +79,44 @@ char    s_input[10] = "";
 int     s_inputLen = 0;
 bool    s_answered = false;
 bool    s_lastCorrect = false;
-uint8_t s_lastVerdict = WRONG;   // exakt / geschätzt / falsch (Feedback-Text)
+uint8_t s_lastVerdict = WRONG;   // Exact / estimate / incorrect (feedback text)
 
-// Zeit-Ziel: jede Aufgabe in <= 20 s. Wir stoppen die Zeit pro Aufgabe und
-// zeigen die Sekunden im Feedback (kein Live-Countdown -> kein E-Ink-Geflacker).
+// Time target: solve each problem in <= 20 s. Time each problem and show the
+// elapsed seconds in the feedback (no live countdown, avoiding E-Ink flicker).
 constexpr uint32_t kTargetSecs = 20;
-uint32_t s_qStartMs = 0;      // Startzeitpunkt der aktuellen Aufgabe
-uint32_t s_lastSecs = 0;      // gebrauchte Sekunden der letzten Antwort
+uint32_t s_qStartMs = 0;      // Start time for the current problem
+uint32_t s_lastSecs = 0;      // Seconds used for the last answer
 
 int s_total = 0, s_correct = 0, s_streak = 0;
 
-// Stufe aus dem Skill-Zähler ableiten (auf 0..2 geklemmt).
+// Derive the level from the skill counter (clamped to 0..2).
 int levelFromSkill(int skill) {
   int lv = skill / kBand;
   return lv < 0 ? 0 : (lv > 2 ? 2 : lv);
 }
 
-// Persistierte adaptive Stufe des aktuell gewählten Modus laden; Zähler in die
-// Bandmitte setzen (so muss man erst eine halbe Stufe „erarbeiten“, bevor sie
-// kippt).
+// Load the saved adaptive level for the selected mode and put the counter in
+// the middle of its band, so half a level must be earned before it changes.
 void loadLevelForMode() {
   s_level = settings::mathLevel((uint8_t)s_sel);
   s_skill = s_level * kBand + kBand / 2;
 }
 
 // =============================================================================
-// Menü
+// Menu
 // =============================================================================
 void menuDraw(Adafruit_GFX& g) {
   g.setTextColor(GxEPD_BLACK);
   gui::printAt(g, 10, 28, i18n::tr(i18n::Str::AppMath), 2);
 
   char sub[40];
-  snprintf(sub, sizeof(sub), "Rekord-Serie: %u", settings::mathBestStreak());
+  snprintf(sub, sizeof(sub), "Best streak: %u", settings::mathBestStreak());
   gui::printAt(g, 10, 52, sub, 1);
 
-  // Stufen-Zeile.
+  // Level row.
   g.drawRoundRect(kLevelBtn.x, kLevelBtn.y, kLevelBtn.w, kLevelBtn.h, 6, GxEPD_BLACK);
   char lvl[32];
-  snprintf(lvl, sizeof(lvl), "Stufe: %s", kLevels[s_level]);
+  snprintf(lvl, sizeof(lvl), "Level: %s", kLevels[s_level]);
   gui::printAt(g, kLevelBtn.x + 10, kLevelBtn.y + 7, lvl, 2);
   gui::printAt(g, kLevelBtn.x + kLevelBtn.w - 40, kLevelBtn.y + 11, "A/D", 1);
 
@@ -128,12 +127,12 @@ void menuDraw(Adafruit_GFX& g) {
       g.drawRoundRect(r.x + 1, r.y + 1, r.w - 2, r.h - 2, 5, GxEPD_BLACK);
     gui::printAt(g, r.x + 12, r.y + 7, kModes[i].label, 2);
   }
-  gui::printAt(g, 10, 309, "W/S Modus  A/D Stufe (passt sich an)  Enter", 1);
+  gui::printAt(g, 10, 309, "W/S mode  A/D level (adaptive)  Enter", 1);
 }
 
 void startQuiz() {
   s_mask = kModes[s_sel].mask;
-  loadLevelForMode();          // adaptive Stufe des Modus übernehmen
+  loadLevelForMode();          // Use this mode's adaptive level
   s_total = s_correct = s_streak = 0;
   s_input[0] = '\0';
   s_inputLen = 0;
@@ -146,8 +145,8 @@ void startQuiz() {
   appmgr::markDirty();
 }
 
-// Manuelle Stufen-Übersteuerung (A/D bzw. Tap): überschreibt die adaptive Stufe
-// des Modus und merkt sie. Der Skill-Zähler startet dann in der Bandmitte.
+// Manual level override (A/D or tap): override and save this mode's adaptive
+// level. The skill counter then starts in the middle of the band.
 void setLevelManual(uint8_t level) {
   s_level = level > 2 ? 2 : level;
   s_skill = s_level * kBand + kBand / 2;
@@ -177,7 +176,7 @@ void menuInput(const InputEvent& e) {
 // =============================================================================
 // Quiz
 // =============================================================================
-// Aufgabe + Antwort + Feedback (mittlerer Streifen) — auch als Region gezeichnet.
+// Problem, answer, and feedback (middle strip), also drawn as a region.
 void quizMid(Adafruit_GFX& g) {
   g.fillRect(0, ANSW_Y, W, ANSW_H, GxEPD_WHITE);
   g.setTextColor(GxEPD_BLACK);
@@ -193,16 +192,16 @@ void quizMid(Adafruit_GFX& g) {
     case DISCOUNT:
       snprintf(q, sizeof(q), "%ld - %ld%% =", (long)s_problem.a, (long)s_problem.b);
       break;
-    case SHARE:   // a = Anteil, b = Basis; gefragt ist der Prozentsatz
+    case SHARE:   // a = part, b = base; find the percentage
       snprintf(q, sizeof(q), "%ld/%ld = ?%%", (long)s_problem.a, (long)s_problem.b);
       break;
-    case GROWTH: {   // a -> end; gefragt ist das Wachstum in %
+    case GROWTH: {   // a -> end; find the growth percentage
       long end = (long)s_problem.a + (long)s_problem.a / 100 * (long)s_problem.b;
       snprintf(q, sizeof(q), "%ld>%ld = ?%%", (long)s_problem.a, end);
       break;
     }
-    case RULE72:   // Verdopplungszeit in Jahren bei b% (Rule of 72)
-      snprintf(q, sizeof(q), "2x bei %ld%% = ?J", (long)s_problem.b);
+    case RULE72:   // Doubling time in years at b% (Rule of 72)
+      snprintf(q, sizeof(q), "2x at %ld%% = ?y", (long)s_problem.b);
       break;
     default:
       snprintf(q, sizeof(q), "%ld %c %ld =", (long)s_problem.a,
@@ -213,8 +212,8 @@ void quizMid(Adafruit_GFX& g) {
   const int maxW = W - 2 * kMargin;
   uint16_t bw, bh;
 
-  // Größte Schriftgröße (maxSize..1), bei der `text` in maxW passt. textBounds
-  // misst bei der aktuell gesetzten TextSize -> vor jeder Messung setTextSize.
+  // Largest font size (maxSize..1) at which `text` fits in maxW. textBounds
+  // uses the current TextSize, so setTextSize before each measurement.
   auto fitSize = [&](const char* text, uint8_t maxSize) -> uint8_t {
     for (uint8_t s = maxSize; s > 1; s--) {
       g.setTextSize(s);
@@ -223,7 +222,7 @@ void quizMid(Adafruit_GFX& g) {
     }
     return 1;
   };
-  // Eine zentrierte Zeile bei Größe `size` setzen (misst neu bei dieser Größe).
+  // Draw a centered line at `size` (remeasure at this size).
   auto drawCentered = [&](int y, const char* text, uint8_t size) {
     g.setTextSize(size);
     gui::textBounds(g, text, &bw, &bh);
@@ -232,8 +231,8 @@ void quizMid(Adafruit_GFX& g) {
     gui::printAt(g, x, y, text, size);
   };
 
-  // Aufgabe und Antwort werden auto-skaliert (lange CFO-Aufgaben/Eingaben
-  // schrumpfen 3->2->1, statt über den Rand zu laufen).
+  // Auto-scale the problem and answer (long CFO problems/answers shrink from
+  // 3->2->1 instead of overflowing the edge).
   uint8_t qsize = fitSize(q, 3);
 
   char ans[16];
@@ -245,21 +244,21 @@ void quizMid(Adafruit_GFX& g) {
   if (s_answered) {
     char base[40];
     if (s_lastVerdict == EXACT)
-      snprintf(base, sizeof(base), "Richtig! (%lus)", (unsigned long)s_lastSecs);
-    else if (s_lastVerdict == CLOSE)   // gute Schätzung: exakten Wert mit zeigen
+      snprintf(base, sizeof(base), "Correct! (%lus)", (unsigned long)s_lastSecs);
+    else if (s_lastVerdict == CLOSE)   // Good estimate: also show the exact value
       snprintf(base, sizeof(base), "Good estimate! %ld (%lus)",
                (long)s_problem.answer, (unsigned long)s_lastSecs);
     else
-      snprintf(base, sizeof(base), "Falsch: %ld (%lus)",
+      snprintf(base, sizeof(base), "Incorrect: %ld (%lus)",
                (long)s_problem.answer, (unsigned long)s_lastSecs);
-    // Nach einem adaptiven Stufenwechsel kurz die neue Stufe anzeigen.
-    if (s_levelChanged) snprintf(fb, sizeof(fb), "%s  Stufe: %s", base, kLevels[s_level]);
+    // Briefly show the new level after an adaptive change.
+    if (s_levelChanged) snprintf(fb, sizeof(fb), "%s  Level: %s", base, kLevels[s_level]);
     else snprintf(fb, sizeof(fb), "%s", base);
   }
   uint8_t fsize = s_answered ? fitSize(fb, 2) : 0;
 
-  // Vertikal mittig im Streifen: Blockhöhe aus den gewählten Größen rechnen
-  // (9 px/Zeile pro Größe, vgl. drawWrapped), gap zwischen den Zeilen.
+  // Center vertically in the strip: calculate block height from the selected
+  // sizes (9 px/line per size, as in drawWrapped), with gaps between lines.
   constexpr int gap = 12;
   int hQ = 9 * qsize, hA = 9 * asize, hF = s_answered ? 9 * fsize : 0;
   int blockH = hQ + gap + hA + (s_answered ? gap + hF : 0);
@@ -268,7 +267,7 @@ void quizMid(Adafruit_GFX& g) {
 
   drawCentered(y, q, qsize);
   y += hQ + gap;
-  drawCentered(y, ans, asize);   // ans ohne Cursor ist nie leer-zentriert nötig
+  drawCentered(y, ans, asize);   // ans without a cursor is never empty
   if (s_answered) {
     y += hA + gap;
     drawCentered(y, fb, fsize);
@@ -284,13 +283,13 @@ void quizDraw(Adafruit_GFX& g) {
   quizMid(g);
 
   char stat[48];
-  snprintf(stat, sizeof(stat), "Serie: %d   Richtig: %d/%d", s_streak, s_correct, s_total);
+  snprintf(stat, sizeof(stat), "Streak: %d   Correct: %d/%d", s_streak, s_correct, s_total);
   gui::printAt(g, 10, 286, stat, 1);
-  // Schätz-Aufgaben (tol>0) erlauben gute Näherungen; Ziel-Zeit nennen.
+  // Estimation problems (tol>0) accept close answers; show the time target.
   if (s_problem.tol > 0)
     gui::printAt(g, 10, 304, "Estimate it  Target <20s  Q=back", 1);
   else
-    gui::printAt(g, 10, 304, "Ziffern + Enter  Ziel <20s  Q=zurueck", 1);
+    gui::printAt(g, 10, 304, "Digits + Enter  Target <20s  Q=back", 1);
 }
 
 void nextProblem() {
@@ -303,9 +302,9 @@ void nextProblem() {
   appmgr::markDirty();
 }
 
-// Adaptive Stufe nach jeder Antwort nachführen: Zähler bewegen, ggf. Stufe
-// wechseln und merken. Bewusst „langsam“ — ein Stufenaufstieg braucht mehrere
-// richtige Antworten in Folge.
+// Update adaptive difficulty after each answer: move the counter, change the
+// level if needed, and save it. Intentionally gradual: leveling up requires
+// several correct answers in a row.
 void adaptDifficulty() {
   s_skill += s_lastCorrect ? kStepUp : -kStepDn;
   if (s_skill < 0) s_skill = 0;
@@ -313,7 +312,7 @@ void adaptDifficulty() {
   int nl = levelFromSkill(s_skill);
   if (nl != s_level) {
     s_level = (uint8_t)nl;
-    s_skill = nl * kBand + kBand / 2;     // Hysterese: Bandmitte der neuen Stufe
+    s_skill = nl * kBand + kBand / 2;     // Hysteresis: middle of the new level band
     settings::setMathLevel((uint8_t)s_sel, s_level);
     s_levelChanged = true;
     Serial.printf("[MATH] Level changed: %s\n", kLevels[s_level]);
@@ -326,7 +325,7 @@ void submit() {
   s_lastSecs = (millis() - s_qStartMs) / 1000;
   Verdict v = accept(s_problem, (int32_t)given);
   s_lastVerdict = v;
-  s_lastCorrect = (v != WRONG);   // gute Schätzung zählt wie richtig
+  s_lastCorrect = (v != WRONG);   // A good estimate counts as correct
   s_total++;
   if (s_lastCorrect) {
     s_correct++;
@@ -337,7 +336,7 @@ void submit() {
   }
   adaptDifficulty();
   s_answered = true;
-  appmgr::markDirty();   // Feedback + Statistik (Voll-Refresh, 1x pro Aufgabe)
+  appmgr::markDirty();   // Feedback + statistics (full refresh, once per problem)
 }
 
 char mapKeyToDigit(char k) {
@@ -351,21 +350,21 @@ char mapKeyToDigit(char k) {
     case 'z': case 'Z': return '7';
     case 'x': case 'X': return '8';
     case 'c': case 'C': return '9';
-    case 0x02:          return '0'; // Mikrofontaste ohne Alt/Sym
+    case 0x02:          return '0'; // Microphone key without Alt/Sym
     default:            return k;
   }
 }
 
 void quizInput(const InputEvent& e) {
   if (e.type == InputEvent::TAP) {
-    if (s_answered) nextProblem();   // Tap nach Bewertung = weiter
+    if (s_answered) nextProblem();   // Tap after grading = continue
     return;
   }
   char key = mapKeyToDigit(e.key);
   if (key == 'q' || key == 'Q') { s_screen = MENU; appmgr::markDirty(); return; }
   if (key == '\b') {
     if (s_answered || s_inputLen == 0) { s_screen = MENU; appmgr::markDirty(); return; }
-    s_input[--s_inputLen] = '\0';   // letzte Ziffer löschen
+    s_input[--s_inputLen] = '\0';   // Delete the last digit
     display::renderRegion(quizMid, ANSW_Y, ANSW_H);
     return;
   }

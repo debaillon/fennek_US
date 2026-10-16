@@ -135,10 +135,10 @@ void requestSync() {
 // Kurzes Fälligkeits-Label für die Zeile.
 void dueLabel(const Task& t, uint32_t now, char* out, size_t n) {
   if (t.dueEpoch == 0) { out[0] = '\0'; return; }
-  if (reinschrift::isSomeday(t.dueEpoch)) { snprintf(out, n, "irg."); return; }
+  if (reinschrift::isSomeday(t.dueEpoch)) { snprintf(out, n, "someday"); return; }
   uint32_t d = t.dueEpoch / 86400u, today = now / 86400u;
-  if (d < today)       snprintf(out, n, "!ueberf.");
-  else if (d == today) snprintf(out, n, "heute");
+  if (d < today)       snprintf(out, n, "!overdue");
+  else if (d == today) snprintf(out, n, "Today");
   else if (d == today + 1) snprintf(out, n, "Tomorrow");
   else {
     time_t tt = (time_t)t.dueEpoch; struct tm lt; localtime_r(&tt, &lt);
@@ -151,7 +151,7 @@ void drawSyncing(Adafruit_GFX& g) {
   g.setTextColor(GxEPD_BLACK);
   gui::printAt(g, 8, TOP + 4, i18n::tr(i18n::Str::AppTodo), 2);
   g.drawLine(0, HEADER_H, W, HEADER_H, GxEPD_BLACK);
-  gui::printAt(g, 10, 120, "Synchronisiere ...", 2);
+  gui::printAt(g, 10, 120, "Syncing...", 2);
   gui::printAt(g, 10, 150, "Wi-Fi active (audio off)", 1);
 }
 
@@ -209,8 +209,8 @@ void drawAdd(Adafruit_GFX& g) {
   size_t l = strlen(shown); shown[l] = '_'; shown[l + 1] = '\0';
   gui::printAt(g, 12, LIST_Y + 32, shown, 2);
   gui::printAt(g, 8, LIST_Y + 100, "Enter = add, Esc/Q = back", 1);
-  gui::printAt(g, 8, LIST_Y + 116, "Thema sonst: Inbox", 1);
-  gui::drawButton(g, Rect{20, 256, 90, 48}, "Abbruch", false);
+  gui::printAt(g, 8, LIST_Y + 116, "Otherwise, topic: Inbox", 1);
+  gui::drawButton(g, Rect{20, 256, 90, 48}, "Cancel", false);
   gui::drawButton(g, Rect{130, 256, 90, 48}, "Add", true);
 }
 

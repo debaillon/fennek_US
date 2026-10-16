@@ -18,9 +18,9 @@ bool pickBest(char* ssid, size_t ns, char* pass, size_t np) {
   int cnt = settings::wifiCount();
   if (cnt == 0) return false;
 
-  WiFi.persistent(false);          // WiFi-Lib nicht selbst ins NVS schreiben lassen
+  WiFi.persistent(false);          // Do not let the Wi-Fi library write to NVS
   WiFi.mode(WIFI_STA);
-  int found = WiFi.scanNetworks();  // blockierend (~1-3 s); Audio/Mesh ruhen bereits
+  int found = WiFi.scanNetworks();  // Blocking (~1-3 s); audio and mesh are already idle
 
   int best = -1, bestRssi = -1000;
   for (int i = 0; i < found; i++) {
@@ -38,9 +38,8 @@ bool pickBest(char* ssid, size_t ns, char* pass, size_t np) {
   if (found > 0) WiFi.scanDelete();
 
   if (best < 0) {
-    // Kein Scan-Treffer (Netz gerade nicht sichtbar, versteckte SSID oder
-    // Scan-Fehler) → Slot 0 als Rückfall, damit ein einzelnes bekanntes Netz
-    // weiter funktioniert.
+    // No scan match (network not visible, hidden SSID, or scan error): fall
+    // back to slot 0 so a single known network continues to work.
     best = 0;
     Serial.println("[WIFI] No scan match; using slot 0");
   } else {
@@ -74,9 +73,9 @@ bool connect(uint32_t timeoutMs) {
     disconnect();
     return false;
   }
-  // Modem-Sleep aus: sonst schläft das WiFi zwischen den DTIM-Beacons und
-  // Downloads (Calibre/Podcast) brechen auf ~15 KB/s ein. Fenster ist kurz und
-  // Audio ruht bereits.
+  // Disable modem sleep; otherwise Wi-Fi sleeps between DTIM beacons and
+  // downloads (Calibre/podcasts) drop to ~15 KB/s. This window is brief, and
+  // audio is already idle.
   WiFi.setSleep(false);
   return true;
 }

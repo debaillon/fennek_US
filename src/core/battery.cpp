@@ -128,13 +128,13 @@ void dumpGauge() {
   uint16_t ctrl = read16(REG_CONTROL);
 
   Serial.printf("[CON] Gauge BQ27220:\n");
-  Serial.printf("[CON]   Spannung      = %u mV\n", mv);
-  Serial.printf("[CON]   Strom         = %d mA (avg %d)\n", cur, avg);
+  Serial.printf("[CON] Voltage = %u mV\n", mv);
+  Serial.printf("[CON] Current = %d mA (avg %d)\n", cur, avg);
   Serial.printf("[CON]   RemainingCap  = %u mAh\n", rm);
   Serial.printf("[CON]   FullChargeCap = %u mAh   <- SoC = RM/FCC\n", fcc);
   Serial.printf("[CON]   DesignCap     = %u mAh\n", dcap);
   Serial.printf("[CON]   StateOfCharge = %u %% (Gauge, ungenutzt)\n", soc);
-  Serial.printf("[CON]   -> Anzeige    = %u %% (spannungsbasiert)\n",
+  Serial.printf("[CON] -> Display = %u%% (voltage-based)\n",
                 percentFromMilliVolts(mv));
   Serial.printf("[CON]   StateOfHealth = %u %% (0x%04X)\n", soh & 0xFF, soh);
   Serial.printf("[CON]   BatteryStatus = 0x%04X\n", bst);
@@ -142,7 +142,7 @@ void dumpGauge() {
                 (unsigned)((ctrl >> 13) & 0x3),
                 ((ctrl >> 13) & 0x3) == 0x3 ? "sealed" : "unsealed/full");
   if (fcc > 0)
-    Serial.printf("[CON]   -> rechnerisch SoC = %u%%\n",
+    Serial.printf("[CON]   -> calculated SoC = %u%%\n",
                   (unsigned)((uint32_t)rm * 100 / fcc));
 }
 

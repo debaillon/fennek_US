@@ -399,7 +399,7 @@ bool syncCore(bool useBackoff, char* log, size_t logN) {
         if (newEtag[0]) writeEtag(etagPath, newEtag);
         for (int k = 0; k < fn && s_eventN < kMaxEvents; k++) s_events[s_eventN++] = feedEv[k];
         fetched++;
-        Serial.printf("[CAL] %s: %d Termine\n", urls[i], fn);
+        Serial.printf("[CAL] %s: %d events\n", urls[i], fn);
       } else {
         // 304 oder Fehler → vorhandenen Cache behalten.
         appendFromBin(bin);

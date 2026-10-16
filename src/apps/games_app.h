@@ -2,12 +2,12 @@
 // Copyright (C) 2026 Dr. Daniel Dumke
 
 // =============================================================================
-// games_app.h — "Spiele": Menü-Hülle für 2048, Minensucher, Schach, Tic-Tac-Toe.
+// games_app.h — "Games": menu wrapper for 2048, Minesweeper, chess, and Tic-Tac-Toe.
 //
-// Eine registrierte App mit internen Screens (Muster wie music_app/mesh_app);
-// die Spiel-Module (game2048.*, mines.*, chess.*, ttt.*) liefern enter/
-// handleInput/draw und werden von hier dispatcht. Spielstände leben in
-// Statics und überleben App-Wechsel; Schach persistiert zusätzlich ins NVS.
+// One registered app with internal screens (like music_app/mesh_app);
+// game modules (game2048.*, mines.*, chess.*, ttt.*) provide enter/
+// handleInput/draw are dispatched from here. Game state lives in static
+// variables and survives app switches; chess is also persisted to NVS.
 // =============================================================================
 #pragma once
 
@@ -17,7 +17,7 @@ namespace games_app {
 
 App* get();
 
-// Zurück ins Spiele-Menü (rufen die Spiele bei Backspace auf).
+// Return to the games menu (called by games when Backspace is pressed).
 void showMenu();
 
 }  // namespace games_app

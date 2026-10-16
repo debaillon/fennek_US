@@ -231,7 +231,7 @@ void handleUploadData() {
       SD.remove(s_upPath);
       spiUnlock();
       s_upOk = false;
-      s_upErr = "Schreibfehler (SD voll?)";
+      s_upErr = "Write error (SD full?)";
       Serial.printf("[WEBFM] Upload write error: %s\n", s_upPath);
     }
   } else if (up.status == UPLOAD_FILE_END) {
@@ -361,7 +361,7 @@ void drawOtaScreen(Adafruit_GFX& g) {
   gui::printAt(g, 16, 120, "Firmware-Update", 3);
   gui::printAt(g, 16, 160, "In progress - please wait", 2);
   gui::printAt(g, 16, 184, "Do NOT turn off.", 2);
-  gui::printAt(g, 16, 230, "Neustart erfolgt automatisch.", 2);
+  gui::printAt(g, 16, 230, "Restarting automatically.", 2);
 }
 
 // Netzfreier Versions-Endpunkt (für die Erstanzeige beim Seitenaufbau — kein
@@ -401,7 +401,7 @@ void handleOtaUpdate() {
 
   // Einmaliger Vollbild-Hinweis, dann blockierend flashen.
   display::render(drawOtaScreen, true);
-  Serial.printf("[WEBFM] OTA-Update angestossen (%s -> %s)\n", r.current, r.latest);
+  Serial.printf("[WEBFM] OTA update started (%s -> %s)\n", r.current, r.latest);
 
   char err[80] = "";
   if (ota::apply(r.url, err, sizeof(err))) {
@@ -424,7 +424,7 @@ void ensureServer() {
   s_server->on("/api/ota/version", HTTP_GET,  handleOtaVersion);
   s_server->on("/api/ota/check",   HTTP_GET,  handleOtaCheck);
   s_server->on("/api/ota/update",  HTTP_POST, handleOtaUpdate);
-  s_server->onNotFound([]() { sendJsonErr(404, "unbekannter Endpunkt"); });
+  s_server->onNotFound([]() { sendJsonErr(404, "unknown endpoint"); });
 }
 
 }  // namespace
@@ -453,8 +453,8 @@ bool start() {
   s_requests = 0;
   s_ip[0] = '\0';
   s_state = State::CONNECTING;
-  BATTLOG_EVENT("WLAN", "an (%s)", s_ssid);   // Debug-Akku-Logger (no-op ohne BATTLOG)
-  Serial.printf("[WEBFM] Verbinde mit '%s' ... (freier Heap: %u KB)\n",
+  BATTLOG_EVENT("Wi-Fi", "on (%s)", s_ssid);   // Battery debug logger (no-op without BATTLOG)
+  Serial.printf("[WEBFM] Connecting to '%s'... (free heap: %u KB)\n",
                 s_ssid, (unsigned)(ESP.getFreeHeap() / 1024));
   return true;
 }
@@ -468,8 +468,8 @@ void stop() {
   mesh_client::setSuspended(false);
   s_state = State::OFF;
   s_ip[0] = '\0';
-  BATTLOG_EVENT("WLAN", "aus");   // Debug-Akku-Logger (no-op ohne BATTLOG)
-  Serial.printf("[WEBFM] WiFi aus (freier Heap: %u KB)\n",
+  BATTLOG_EVENT("Wi-Fi", "off");   // Battery debug logger (no-op without BATTLOG)
+  Serial.printf("[WEBFM] Wi-Fi off (free heap: %u KB)\n",
                 (unsigned)(ESP.getFreeHeap() / 1024));
 }
 
@@ -482,7 +482,7 @@ void poll() {
       s_server->begin();
       if (MDNS.begin("fennek")) MDNS.addService("http", "tcp", 80);
       s_state = State::RUNNING;
-      Serial.printf("[WEBFM] Verbunden: http://%s/ (http://fennek.local/)\n", s_ip);
+      Serial.printf("[WEBFM] Connected: http://%s/ (http://fennek.local/)\n", s_ip);
     } else if (millis() - s_connectT0 > kConnectTimeoutMs) {
       Serial.println("[WEBFM] Connection failed (timeout) — Wi-Fi off");
       WiFi.disconnect(true);

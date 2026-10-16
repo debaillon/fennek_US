@@ -868,13 +868,13 @@ bool begin() {
   spiUnlock();
 
   s_ready = true;
-  BATTLOG_EVENT("Mesh", "Radio an");   // Debug-Akku-Logger (no-op ohne BATTLOG)
+  BATTLOG_EVENT("Mesh", "Radio on");   // Battery debug logger (no-op without BATTLOG)
 
   // Funkparameter aus den Settings anwenden (std_init nutzte die Compile-Defaults).
   applyRadioParams();
 
   settings::MeshParams p = settings::meshParams();
-  Serial.printf("[MESH] bereit: '%s' @ %.3f MHz SF%u BW%.1f CR4/%u %udBm%s\n",
+  Serial.printf("[MESH] ready: '%s' @ %.3f MHz SF%u BW%.1f CR4/%u %udBm%s\n",
                 s_mesh->name(), (double)p.freqMhz, p.sf, (double)p.bwKhz, p.cr, p.txDbm,
                 settings::meshEco() ? " [RX-Eco]" : " (noise-floor calibration in progress)");
 

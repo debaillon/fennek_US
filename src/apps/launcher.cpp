@@ -20,7 +20,7 @@ using gui::Rect;
 
 // Zwei Homescreen-Seiten à 10 Kacheln (2 Spalten x 5 Reihen). Seitenwechsel per
 // Touch (Pfeile ‹/› rechts in der Hinweiszeile) oder Tastatur (A/D am Spaltenrand
-// wechselt die Seite; Q/E blättern direkt).
+// changes pages; Q/E switch pages directly).
 constexpr int kPerPage = 10;
 constexpr int kPages   = 2;
 constexpr int kTiles   = kPerPage * kPages;
@@ -30,27 +30,27 @@ constexpr int kCol[2] = {8, 124};
 constexpr int kRowY0  = appmgr::CONTENT_Y + 6;     // 30
 constexpr int kRowGap = 52;                        // 30, 82, 134, 186, 238 -> Ende 284
 
-constexpr int kHintY = 296;                        // Now-Playing-/Resume-Zeile
-// Tap-Zonen für den Seitenwechsel (rechts in der Hinweiszeile). Bewusst groß und
-// bündig bis zum rechten Display-Rand (Finger-tauglich; vorher 24x22 zu klein,
-// v. a. „nach rechts" war kaum zu treffen). Die Pfeile/Indikator werden weiter
+constexpr int kHintY = 296;                        // Now-playing/resume line
+// Tap zones for page changes (on the right side of the hint line). Intentionally
+// large and flush with the right edge of the display for finger input; 24x22 was
+// too small, especially for tapping "right". The arrows/indicator remain
 // innen gezeichnet (kPrevPage.x + 6/18 bzw. kNextPage.x + 6).
 const Rect kPrevPage{168, kHintY - 8, 36, 30};
 const Rect kNextPage{204, kHintY - 8, 36, 30};
 
 struct Tile {
-  i18n::Str label;   // String-ID, beim Zeichnen aufgelöst (Sprachwechsel!)
+  i18n::Str label;   // String ID resolved when drawn
   App*      app;
 };
 Tile s_tiles[kTiles] = {};
-int  s_page   = 0;   // aktuelle Homescreen-Seite
+int  s_page   = 0;   // Current home screen page
 int  s_cursor = 0;   // Tastatur-Cursor (globaler Kachel-Index)
 
 // Position einer Kachel-Slot-Nummer (0..kPerPage-1) im Raster der aktuellen Seite.
 Rect slotRect(int slot) {
   return Rect{kCol[slot % 2], kRowY0 + (slot / 2) * kRowGap, kTileW, kTileH};
 }
-// Gibt es auf Seite p überhaupt eine belegte Kachel?
+// Is there at least one occupied tile on page p?
 bool pageHasTiles(int p) {
   for (int s = 0; s < kPerPage; s++)
     if (s_tiles[p * kPerPage + s].label != i18n::Str::None) return true;
@@ -65,12 +65,12 @@ class LauncherApp : public App {
 
   void handleInput(const InputEvent& e) override {
     if (e.type == InputEvent::TAP) {
-      // Seitenpfeile (nur wenn es mehr als eine belegte Seite gibt).
+      // Page arrows (only when more than one page is occupied).
       if (kPages > 1) {
         if (kPrevPage.hit(e.x, e.y)) { flipPage(-1); return; }
         if (kNextPage.hit(e.x, e.y)) { flipPage(+1); return; }
       }
-      // Hinweis-Zeile: Now-Playing -> Musik-App; Resume-Angebot -> abspielen.
+      // Hint line: Now Playing -> Music app; Resume offer -> play.
       if (e.y >= kHintY - 8) { onHintActivate(); return; }
       for (int slot = 0; slot < kPerPage; slot++) {
         int i = s_page * kPerPage + slot;
@@ -101,7 +101,7 @@ class LauncherApp : public App {
   }
 
   void tick() override {
-    // Now-Playing-Zeile aktuell halten (Track-Wechsel im Hintergrund).
+    // Keep the Now Playing line current (track may change in the background).
     if (appmgr::isDirty()) return;
     audio::Status st = audio::status();
     int cur = st.playing ? st.pos : -1;
@@ -118,7 +118,7 @@ class LauncherApp : public App {
       if (slot == s_cursor)
         g.drawRoundRect(r.x + 1, r.y + 1, r.w - 2, r.h - 2, 7, GxEPD_BLACK);
       // Belegte Kacheln zeigen ein Icon links + kleines Label rechts daneben;
-      // ohne Icon/ohne App fällt es auf den großen Text-Label zurück.
+      // If there is no icon or app, fall back to the large text label.
       if (s_tiles[i].app &&
           launcher_icons::draw(g, s_tiles[i].label, r.x + 22, r.y + r.h / 2)) {
         const char* label = i18n::tr(s_tiles[i].label);
@@ -144,7 +144,7 @@ class LauncherApp : public App {
       }
     }
 
-    // Hinweis-Zeile: Now-Playing oder Resume-Angebot.
+    // Hint line: Now Playing or Resume offer.
     audio::Status st = audio::status();
     s_shownIndex = st.playing ? st.pos : -1;
     g.setTextSize(1);
@@ -186,7 +186,7 @@ class LauncherApp : public App {
  private:
   int s_shownIndex = -1;
 
-  // Erster belegter Slot einer Seite (für die Cursor-Position nach Seitenwechsel).
+  // First occupied slot on a page (for cursor placement after changing pages).
   int firstSlot(int p) {
     for (int s = 0; s < kPerPage; s++)
       if (s_tiles[p * kPerPage + s].label != i18n::Str::None) return s;
@@ -212,7 +212,7 @@ class LauncherApp : public App {
     if (n != s_cursor) { s_cursor = n; appmgr::markDirty(); }
   }
 
-  // Hinweis-Zeile aktivieren: läuft Musik -> Musik-App; sonst Resume starten.
+  // Activate the hint line: open Music if playing; otherwise resume playback.
   void onHintActivate() {
     audio::Status st = audio::status();
     if (st.playing) {
@@ -222,10 +222,10 @@ class LauncherApp : public App {
     char p[TRACK_PATH_LEN]; uint32_t pos;
     settings::lastTrack(p, sizeof(p), &pos);
     if (p[0] && library::indexOfPath(p) >= 0) {
-      // Ab gespeicherter Position fortsetzen (Seek zuverlässig bei CBR-MP3).
+      // Resume from the saved position (seeking is reliable for CBR MP3).
       audio::queueBegin(audio::Owner::Music);
       audio::queueAdd(p);
-      audio::queueCommit(0, pos > 5 ? pos - 5 : 0);   // 5 s Überlappung
+      audio::queueCommit(0, pos > 5 ? pos - 5 : 0);   // 5 s overlap
       if (s_tiles[0].app) appmgr::launch(s_tiles[0].app);
     }
   }

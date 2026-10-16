@@ -1,2 +1,2 @@
-// Host-Shim: leer (siehe Adafruit_I2CDevice.h).
+// Empty host shim (see Adafruit_I2CDevice.h).
 #pragma once

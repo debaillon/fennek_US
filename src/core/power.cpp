@@ -172,7 +172,7 @@ void drawSleepBanner(Adafruit_GFX& g) {
   localtime_r(&tt, &lt);
   if (lt.tm_year + 1900 >= 2025) {
     char clk[16];
-    snprintf(clk, sizeof(clk), "Nach %02d:%02d", lt.tm_hour, lt.tm_min);
+    snprintf(clk, sizeof(clk), "As of %02d:%02d", lt.tm_hour, lt.tm_min);
     g.setTextSize(2);
     uint16_t cw, ch;
     gui::textBounds(g, clk, &cw, &ch);
@@ -226,7 +226,7 @@ void armWakeups() {
           ? (uint64_t)(s_alarmWakeEpoch - now) * 1000000ULL : 1000000ULL;
       esp_sleep_enable_timer_wakeup(us);
     }
-    Serial.printf("[PWR] Akku kritisch (%u%%) — Schlaf ohne Stunden-Wake\n",
+    Serial.printf("[PWR] Battery critical (%u%%) — sleeping without hourly wake\n",
                   (unsigned)s_sleepPct);
     return;
   }
@@ -340,8 +340,8 @@ void noteBoot() {
   else                   s_abnormalBoots = 0;
   if (s_abnormalBoots < 3) return;
 
-  Serial.printf("[PWR] %u abnormale Resets in Folge (zuletzt %d) — "
-                "Not-Standby, nur Knopf weckt\n",
+  Serial.printf("[PWR] %u consecutive abnormal resets (last %d) — "
+                "emergency standby; button wake only\n",
                 (unsigned)s_abnormalBoots, (int)rr);
   board::powerOn();            // Pins definiert treiben, damit die Holds greifen
   board::perfPower(false);
@@ -356,10 +356,10 @@ void logSleepDebug() {
   // sauber; alles andere = Abbruch mitten in enterStandby()/Timer-Wake (etwa
   // durch den Task-Watchdog) — genau die bisher unsichtbaren Fälle.
   if (s_sleepPhase != PH_SLEEP_OK)
-    Serial.printf("[PWR] Letzte Schlafphase UNSAUBER beendet: Phase=%u\n",
+    Serial.printf("[PWR] Last sleep period ended uncleanly: phase=%u\n",
                   (unsigned)s_sleepPhase);
 #ifdef BATTLOG
-  BATTLOG_EVENT("Schlaf", "Phase=%u Wakes=%lu Crashes=%u",
+  BATTLOG_EVENT("Sleep", "Phase=%u Wakes=%lu Crashes=%u",
                 (unsigned)s_sleepPhase, (unsigned long)s_timerWakes,
                 (unsigned)s_abnormalBoots);
   // Wake-Historie (RTC-RAM) als battlog-Zeilen ausgeben: eine pro Timer-Wake/
@@ -398,7 +398,7 @@ void logSleepDebug() {
         snprintf(mA, sizeof(mA), " %ldmA", ma);
       }
     }
-    BATTLOG_EVENT("Schlaf", "%s Ph=%u %u%% %umV %umAh%s",
+    BATTLOG_EVENT("Sleep", "%s Ph=%u %u%% %umV %umAh%s",
                   ts, (unsigned)e.phase, (unsigned)e.pct, (unsigned)e.mv,
                   (unsigned)e.rm, mA);
   }
@@ -415,7 +415,7 @@ uint32_t idleMs() { return millis() - s_lastActivity; }
 bool locked() { return s_locked; }
 
 void enterStandby() {
-  Serial.println("[FENNEK] Standby — gehe in Deep Sleep ...");
+  Serial.println("[FENNEK] Entering deep sleep...");
 
   // Fallnetz: hängt irgendwas ab hier (SD-Export, E-Ink, I2C), beißt nach 60 s
   // der Task-Watchdog (Panic-Reset → Vollboot → battlog-Zeile → Auto-Standby)
@@ -444,7 +444,7 @@ void enterStandby() {
 
   // 1c) Debug-Akku-Logger: Standby-Zeile schreiben und Ring sofort nach SD
   //     spülen (Bus ist ruhig, Peripherie noch versorgt) — „vor Standby".
-  BATTLOG_EVENT("Standby", "Akku %u%%", (unsigned)battery::percent());
+  BATTLOG_EVENT("Standby", "Battery %u%%", (unsigned)battery::percent());
   BATTLOG_FLUSH("Standby");
 
   // 2) Schlafender Fennek aufs E-Ink (bleibt stromlos stehen) — vorher den
@@ -480,7 +480,7 @@ void enterStandby() {
     if (btnPressed()) hiSince = millis();
     if (millis() - hiSince >= 300) break;
     if (millis() - waitStart >= 10000) {
-      Serial.println("[PWR] Knopf bleibt LOW (klemmt?) — schlafe trotzdem");
+      Serial.println("[PWR] Button remains LOW (stuck?) — sleeping anyway");
       break;
     }
     delay(10);
@@ -599,8 +599,8 @@ void poll() {
     if (!battery::external() && battery::milliVolts() > 100 &&
         battery::percent() <= kCritPct) {
       if (++s_critHits >= 2) {
-        Serial.println("[PWR] Akku kritisch (<=5%) — Not-Standby");
-        BATTLOG_EVENT("Akku", "kritisch (%u%%) — Not-Standby",
+        Serial.println("[PWR] Battery critical (<=5%) — emergency standby");
+        BATTLOG_EVENT("Battery", "critical (%u%%) — emergency standby",
                       (unsigned)battery::percent());
         enterStandby();          // kehrt nicht zurück
       }
@@ -619,7 +619,7 @@ void poll() {
       noteActivity();             // Knopfdruck zählt als Aktivität
     } else if (!s_armed && now - s_btnDownAt >= LONGPRESS_MS) {
       s_armed = true;             // nur einmal pro Druck
-      Serial.println("[PWR] Standby via Langdruck (GPIO0)");
+      Serial.println("[PWR] Standby via long press (GPIO0)");
       enterStandby();             // Langdruck → kehrt nicht zurück
     }
   } else if (s_btnDownAt != 0) {  // Flanke LOW->HIGH (losgelassen)
@@ -651,7 +651,7 @@ void poll() {
     return;
   }
   if (now - s_lastActivity >= (uint32_t)mins * 60000UL) {
-    Serial.printf("[PWR] Auto-Standby: idle %lus (Schwelle %u min)\n",
+    Serial.printf("[PWR] Auto-standby: idle %lus (threshold %u min)\n",
                   (unsigned long)((now - s_lastActivity) / 1000), mins);
     // Vor dem Auto-Standby (Gerät idle, Audio aus): bei veralteter Uhr zuerst
     // GPS-Zeit holen (genau, kein WLAN) — gelingt das, schläft das Gerät mit

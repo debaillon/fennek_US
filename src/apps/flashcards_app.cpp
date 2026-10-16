@@ -4,14 +4,16 @@
 // =============================================================================
 // flashcards_app.cpp — study flashcard decks from the SD card (Leitner system).
 //
-// Decks liegen als Textdateien unter /flashcards/*.txt (oder .tsv), eine Karte
+// Decks are text files under /flashcards/*.txt (or .tsv), one card
 // One card per line: "front<TAB>back" (or "... | ..."); lines starting with
 // '#' are comments.
-// Lernfortschritt je Deck unter /flashcards/.progress/<deck>.bin (Karten über
-// flashcards::cardKey(front) referenziert -> übersteht Umsortieren des Decks).
+// Learning progress is stored per deck at /flashcards/.progress/<deck>.bin.
+// Cards are identified by flashcards::cardKey(front), so progress survives
+// deck reordering.
 //
-// SD-Disziplin wie notes_app: jede SD-Operation gechunkt unter spiLock; geparst
-// und gezeichnet wird lock-frei. Parser/Leitner-Logik sind host-getestet.
+// SD access follows notes_app: perform each operation in chunks under spiLock;
+// parsing and drawing happen without the lock. The parser and Leitner logic
+// are host-tested.
 // =============================================================================
 #include "flashcards_app.h"
 
@@ -40,14 +42,14 @@ constexpr int W = EINK_W;
 constexpr const char* kDeckDir = "/flashcards";
 constexpr const char* kProgDir = "/flashcards/.progress";
 constexpr int kMaxDecks = 64;
-constexpr int kMaxCards = 2000;     // PSRAM-Hartgrenze (Überlauf-Schutz)
+constexpr int kMaxCards = 2000;     // PSRAM hard limit (overflow protection)
 constexpr int kNameLen  = 48;
 constexpr uint32_t kClockOk = 1700000000UL;   // Systemzeit gilt als gestellt
 
-// Zufall für das Mischen der Übungs-Warteschlange (kein Seed nötig, HW-RNG).
+// Randomness for shuffling the study queue (no seed needed; use the hardware RNG).
 uint32_t rnd(uint32_t n) { return n ? esp_random() % n : 0; }
 
-// --- Persistenz-Karte ---------------------------------------------------------
+// --- Persistent card state ---------------------------------------------------
 struct LCard {
   Card     c;
   uint32_t key;
@@ -72,16 +74,16 @@ const Rect kReveal {10, 250, 220, 50};
 const Rect kWrong  {10, 250, 105, 50};
 const Rect kRight  {125, 250, 105, 50};
 
-// --- Layout: Übersicht (Statistik) -------------------------------------------
+// --- Layout: overview (statistics) --------------------------------------------
 const Rect kStudyBtn  {12,  256, 104, 50};
 const Rect kStatsBack {124, 256, 104, 50};
 
-// --- Zustand ------------------------------------------------------------------
+// --- State ---------------------------------------------------------------------
 enum Screen { DECKS, STATS, STUDY, DONE };
 Screen s_screen = DECKS;
 
-char (*s_decks)[kNameLen] = nullptr;   // Deck-Dateinamen
-int  s_deckCount = -1;                  // -1 = noch nicht gescannt
+char (*s_decks)[kNameLen] = nullptr;   // Deck filenames
+int  s_deckCount = -1;                  // -1 = not scanned yet
 int  s_sel = 0, s_off = 0;
 
 LCard*    s_cards = nullptr;
@@ -89,7 +91,7 @@ int       s_cardCount = 0;
 char      s_deckName[kNameLen] = "";
 bool      s_progDirty = false;
 
-int*  s_queue = nullptr;        // Index-Warteschlange fälliger Karten
+int*  s_queue = nullptr;        // Index queue of due cards
 int   s_queueLen = 0, s_qpos = 0;
 constexpr int kQueueCap = kMaxCards * 3;
 
@@ -125,8 +127,16 @@ int cmpName(const void* a, const void* b) {
   return strcasecmp((const char*)a, (const char*)b);
 }
 
+void deckTitle(const char* filename, char* out, size_t n) {
+  strncpy(out, filename, n - 1);
+  out[n - 1] = '\0';
+  size_t len = strlen(out);
+  if (len > 4) out[len - 4] = '\0';
+  if (strcmp(out, "schwedisch") == 0) snprintf(out, n, "Vocabulary");
+}
+
 // =============================================================================
-// Deck-Liste scannen
+// Scan the deck list.
 // =============================================================================
 void scanDecks() {
   if (!ensureBuffers() || !board::sdReady()) { s_deckCount = -1; return; }
@@ -154,17 +164,18 @@ void scanDecks() {
   }
   spiLock(); dir.close(); spiUnlock();
   qsort(s_decks, s_deckCount, kNameLen, cmpName);
-  Serial.printf("[CARDS] %d Deck(s) unter %s\n", s_deckCount, kDeckDir);
+  Serial.printf("[CARDS] %d deck(s) in %s\n", s_deckCount, kDeckDir);
 }
 
 // =============================================================================
-// Deck + Fortschritt laden
+// Load a deck and its progress.
 // =============================================================================
 void progPath(const char* deck, char* out, size_t n) {
   snprintf(out, n, "%s/%s.prg", kProgDir, deck);
 }
 
-// Fortschrittsdatei: uint32 count, dann count x {uint32 key, uint8 box, uint32 lastSeen}.
+// Progress file: uint32 count, followed by count x
+// {uint32 key, uint8 box, uint32 lastSeen}.
 void loadProgress() {
   char path[96];
   progPath(s_deckName, path, sizeof(path));
@@ -218,11 +229,11 @@ void saveProgress() {
   }
   spiLock(); f.close(); spiUnlock();
   if (ok) s_progDirty = false;
-  Serial.printf("[CARDS] Progress %s (%s, %d cards)\n",
-                s_deckName, ok ? "ok" : "FEHLER", s_cardCount);
+  Serial.printf("[CARDS] Progress for %s (%s, %d cards)\n",
+                s_deckName, ok ? "ok" : "ERROR", s_cardCount);
 }
 
-// Deck-Datei streamen und in s_cards parsen (512-B-Chunks unter spiLock).
+// Stream the deck file and parse it into s_cards (512-byte chunks under spiLock).
 void parseDeckFile() {
   s_cardCount = 0;
   char path[96];
@@ -233,7 +244,7 @@ void parseDeckFile() {
   spiUnlock();
   if (!open) return;
 
-  // Eine angefangene Zeile bleibt zwischen den Chunks in line/ll stehen.
+  // Keep an incomplete line in line/ll between chunks.
   char line[256];
   int  ll = 0;
   uint8_t buf[512];
@@ -262,15 +273,15 @@ void parseDeckFile() {
       else if (ll < (int)sizeof(line) - 1) line[ll++] = ch;
     }
   }
-  if (ll > 0 && s_cardCount < kMaxCards) commit();   // letzte Zeile ohne '\n'
+  if (ll > 0 && s_cardCount < kMaxCards) commit();   // Last line without '\n'
   spiLock(); f.close(); spiUnlock();
   Serial.printf("[CARDS] Deck %s: %d cards\n", s_deckName, s_cardCount);
 }
 
-// Warteschlange für eine Übung bauen: fällige Karten sammeln (ohne gestellte
-// Uhr: alle), gemischt, dann nach Box aufsteigend (wenig Gelerntes zuerst), und
-// auf kSessionLimit (10) Karten begrenzt. Falsch beantwortete kommen in rate()
-// innerhalb der Sitzung erneut dran, ohne neue Karten über das Limit zu holen.
+// Build a study queue: collect due cards (all cards if the clock is unset),
+// shuffle, then sort by box ascending (least-learned first). Limit the queue
+// to kSessionLimit (10) cards. Incorrect answers are requeued by rate() during
+// the session without adding new cards beyond the limit.
 void buildQueue() {
   uint32_t now = (uint32_t)timesync::now();
   bool clockOk = now >= kClockOk;
@@ -291,11 +302,11 @@ void openDeck(int idx) {
   s_progDirty = false;
   parseDeckFile();
   loadProgress();
-  s_screen = STATS;   // erst Übersicht zeigen, Lernen startet der Nutzer
+  s_screen = STATS;   // Show the overview first; the user starts studying
   appmgr::markDirty();
 }
 
-// Aus der Übersicht eine Übung starten.
+// Start a study session from the overview.
 void startStudy() {
   buildQueue();
   s_seen = 0; s_correct = 0;
@@ -313,11 +324,11 @@ void rate(bool correct) {
   LCard& lc = s_cards[ci];
   uint32_t now = (uint32_t)timesync::now();
   lc.box = flashcards::nextBox(lc.box, correct);
-  if (now >= kClockOk) lc.lastSeen = now;   // ohne Uhr nicht terminierbar
+  if (now >= kClockOk) lc.lastSeen = now;   // Cannot schedule cards without a clock
   s_progDirty = true;
   s_seen++;
   if (correct) s_correct++;
-  else if (s_queueLen < kQueueCap) s_queue[s_queueLen++] = ci;   // nochmal drannehmen
+  else if (s_queueLen < kQueueCap) s_queue[s_queueLen++] = ci;   // Requeue for another try
   s_qpos++;
   s_revealed = false;
   if (s_qpos >= s_queueLen) { saveProgress(); s_screen = DONE; }
@@ -340,7 +351,7 @@ void moveSel(int delta) {
 // =============================================================================
 // Zeichnen
 // =============================================================================
-// Wort-Umbruch in eine Box; gibt das y nach dem letzten gezeichneten Wort zurück.
+// Wrap words inside a box; return y after the last drawn word.
 int drawWrapped(Adafruit_GFX& g, int x, int y, int boxW, const char* text, uint8_t size) {
   int cols = boxW / (6 * size);
   if (cols < 1) cols = 1;
@@ -349,13 +360,13 @@ int drawWrapped(Adafruit_GFX& g, int x, int y, int boxW, const char* text, uint8
   int ll = 0;
   const char* p = text;
   while (*p) {
-    // nächstes Wort
+    // Next word
     const char* ws = p;
     while (*ws == ' ') ws++;
     const char* we = ws;
     while (*we && *we != ' ') we++;
     int wlen = (int)(we - ws);
-    if (wlen > cols) wlen = cols;   // überlanges Wort hart kappen
+    if (wlen > cols) wlen = cols;   // Hard-truncate words that are too long
     if (ll > 0 && ll + 1 + wlen > cols) {
       line[ll] = '\0';
       gui::printAt(g, x, y, line, size);
@@ -383,7 +394,7 @@ void deckListDraw(Adafruit_GFX& g) {
   if (s_deckCount == 0) {
     gui::printAt(g, 14, 70, "No decks in", 2);
     gui::printAt(g, 14, 96, "/flashcards", 2);
-    gui::printAt(g, 14, 130, "Deck = Textdatei,", 1);
+    gui::printAt(g, 14, 130, "Deck = text file,", 1);
     gui::printAt(g, 14, 144, "Line format: front<TAB>back", 1);
     return;
   }
@@ -393,11 +404,8 @@ void deckListDraw(Adafruit_GFX& g) {
     bool seld = (idx == s_sel);
     if (seld) g.fillRect(0, y, W, ROW_H, GxEPD_BLACK);
     g.setTextColor(seld ? GxEPD_WHITE : GxEPD_BLACK);
-    // ".txt"/".tsv" für die Anzeige abschneiden.
     char nm[kNameLen];
-    strncpy(nm, s_decks[idx], sizeof(nm) - 1); nm[sizeof(nm) - 1] = '\0';
-    size_t ln = strlen(nm);
-    if (ln > 4) nm[ln - 4] = '\0';
+    deckTitle(s_decks[idx], nm, sizeof(nm));
     gui::printAt(g, 8, y + 8, nm, 2);
   }
   g.setTextColor(GxEPD_BLACK);
@@ -406,23 +414,21 @@ void deckListDraw(Adafruit_GFX& g) {
   gui::drawButton(g, kDown, "S",    false);
 }
 
-// Übersicht: Gesamt/Bearbeitet/Fällig + Verteilung über die Leitner-Fächer.
+// Overview: total/studied/due counts plus the distribution across Leitner boxes.
 void statsDraw(Adafruit_GFX& g) {
   g.setTextColor(GxEPD_BLACK);
   char nm[kNameLen];
-  strncpy(nm, s_deckName, sizeof(nm) - 1); nm[sizeof(nm) - 1] = '\0';
-  size_t ln = strlen(nm);
-  if (ln > 4) nm[ln - 4] = '\0';   // ".txt"/".tsv" abschneiden
+  deckTitle(s_deckName, nm, sizeof(nm));
   gui::printAt(g, 8, TOP + 4, nm, 2);
   g.drawLine(0, HEADER_H, W, HEADER_H, GxEPD_BLACK);
 
   if (s_cardCount == 0) {
-    gui::printAt(g, 14, 90, "Deck ist leer", 2);
+    gui::printAt(g, 14, 90, "Deck is empty", 2);
     gui::drawButton(g, kStatsBack, "Back", true);
     return;
   }
 
-  // Karten je Box zählen + Bearbeitet/Fällig ermitteln.
+  // Count cards per box and determine studied/due counts.
   int boxCnt[flashcards::kBoxCount] = {0};
   int seen = 0, due = 0;
   uint32_t now = (uint32_t)timesync::now();
@@ -439,13 +445,13 @@ void statsDraw(Adafruit_GFX& g) {
   int y = LIST_Y + 4;
   snprintf(s, sizeof(s), "Cards: %d", s_cardCount);
   gui::printAt(g, 12, y, s, 2); y += 24;
-  snprintf(s, sizeof(s), "Bearbeitet: %d", seen);
+  snprintf(s, sizeof(s), "Studied: %d", seen);
   gui::printAt(g, 12, y, s, 2); y += 24;
-  if (clockOk) snprintf(s, sizeof(s), "Faellig: %d", due);
-  else         snprintf(s, sizeof(s), "Faellig: alle");
+  if (clockOk) snprintf(s, sizeof(s), "Due: %d", due);
+  else         snprintf(s, sizeof(s), "Due: all");
   gui::printAt(g, 12, y, s, 2); y += 30;
 
-  // Balken je Leitner-Fach (Label = Wiedervorlage-Intervall in Tagen).
+  // Draw a bar for each Leitner box (labels show the review interval in days).
   static const char* kBoxLabel[flashcards::kBoxCount] = {"new", "1d", "3d", "7d", "16d"};
   int maxCnt = 1;
   for (int b = 0; b < flashcards::kBoxCount; b++)
@@ -459,7 +465,7 @@ void statsDraw(Adafruit_GFX& g) {
     if (bw > 0) g.fillRect(barX, ry, bw, barH, GxEPD_BLACK);
     snprintf(s, sizeof(s), "%d", boxCnt[b]);
     int tx = barX + bw + 4;
-    if (tx > W - 24) { tx = barX + bw - 14; g.setTextColor(GxEPD_WHITE); }  // Zahl in den Balken
+    if (tx > W - 24) { tx = barX + bw - 14; g.setTextColor(GxEPD_WHITE); }  // Put the count inside the bar.
     gui::printAt(g, tx, ry + 3, s, 1);
     g.setTextColor(GxEPD_BLACK);
   }
@@ -473,20 +479,20 @@ void studyDraw(Adafruit_GFX& g) {
   char hdr[40];
   snprintf(hdr, sizeof(hdr), "%d / %d", s_qpos + 1, s_queueLen);
   gui::printAt(g, 8, TOP + 4, hdr, 2);
-  gui::printAt(g, W - 70, TOP + 8, "Q=zurueck", 1);
+  gui::printAt(g, W - 70, TOP + 8, "Q=back", 1);
   g.drawLine(0, HEADER_H, W, HEADER_H, GxEPD_BLACK);
 
   int ci = s_queue[s_qpos];
   const LCard& lc = s_cards[ci];
 
-  // Vorderseite (Frage).
+  // Front of the card (question).
   drawWrapped(g, 12, LIST_Y + 6, W - 24, lc.c.front, 2);
 
   if (s_revealed) {
     g.drawLine(12, 168, W - 12, 168, GxEPD_BLACK);
     drawWrapped(g, 12, 180, W - 24, lc.c.back, 2);
-    gui::drawButton(g, kWrong, "Falsch", false);
-    gui::drawButton(g, kRight, "Gewusst", true);
+    gui::drawButton(g, kWrong, "Wrong", false);
+    gui::drawButton(g, kRight, "Correct", true);
   } else {
     gui::drawButton(g, kReveal, "Show answer", true);
   }
@@ -497,7 +503,7 @@ void doneDraw(Adafruit_GFX& g) {
   gui::printAt(g, 8, TOP + 4, i18n::tr(i18n::Str::AppCards), 2);
   g.drawLine(0, HEADER_H, W, HEADER_H, GxEPD_BLACK);
   if (s_cardCount == 0) {
-    gui::printAt(g, 14, 80, "Deck ist leer", 2);
+    gui::printAt(g, 14, 80, "Deck is empty", 2);
   } else if (s_seen == 0) {
     gui::printAt(g, 14, 80, "Nothing due.", 2);
     gui::printAt(g, 14, 110, "Review later", 1);
@@ -505,7 +511,7 @@ void doneDraw(Adafruit_GFX& g) {
   } else {
     gui::printAt(g, 14, 80, "Done!", 3);
     char s[48];
-    snprintf(s, sizeof(s), "Gewusst: %d / %d", s_correct, s_seen);
+    snprintf(s, sizeof(s), "Correct: %d / %d", s_correct, s_seen);
     gui::printAt(g, 14, 130, s, 2);
   }
   gui::drawButton(g, Rect{20, 250, 200, 50}, "Back", true);
@@ -579,7 +585,7 @@ void studyInput(const InputEvent& e) {
 
 void doneInput(const InputEvent& e) {
   if (e.type == InputEvent::TAP || e.key == '\r' || e.key == 'q' || e.key == 'Q' || e.key == '\b') {
-    s_screen = STATS;   // zurück zur Übersicht (aktualisierte Fächer)
+    s_screen = STATS;   // Return to the overview (updated boxes)
     appmgr::markDirty();
   }
 }

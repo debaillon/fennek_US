@@ -2,20 +2,20 @@
 // Copyright (C) 2026 Dr. Daniel Dumke
 
 // =============================================================================
-// mathquiz_core.h — Kopfrechen-Aufgabengenerator, Arduino-frei (host-testbar).
+// mathquiz_core.h — mental math problem generator, Arduino-independent (host-testable).
 //
-// Erzeugt deterministisch (Zufall als Callback injiziert) eine Rechenaufgabe je
-// Operation und Schwierigkeitsstufe. Invarianten der Generierung:
-//  - Subtraktion liefert NIE ein negatives Ergebnis (b <= a).
-//  - Division geht IMMER glatt auf (a = Quotient * b), Divisor >= 2.
-// Damit kommt die UI mit reiner Ziffern-Eingabe ohne Minus/Komma aus.
+// Deterministically generates an arithmetic problem for each operation and
+// difficulty level (randomness is injected as a callback). Generation invariants:
+//  - Subtraction NEVER produces a negative result (b <= a).
+//  - Division is ALWAYS exact (a = quotient * b), with divisor >= 2.
+// This lets the UI accept digits only, without minus signs or decimals.
 //
-// Zeit-Ziel: jede Aufgabe soll in ~20 s lösbar sein. Dafür sind die Zahlen-
-// bereiche bewusst gedeckelt UND Aufgaben, die man im Kopf nur näherungsweise
-// rechnet (große Produkte, Geld-Prozente), tragen ein Schätzfenster `tol`:
-// eine Antwort innerhalb von ±tol zählt als „gut geschätzt" (s. accept()).
-// Schnelle, exakte Aufgaben (Plus/Minus, kleines 1x1, glatte Division,
-// Rule of 72) behalten tol=0 und verlangen weiter den genauen Wert.
+// Time target: each problem should be solvable in about 20 s. Number ranges
+// are intentionally limited, and problems solved approximately in your head
+// (large products, monetary percentages) have an estimate window `tol`: an
+// answer within ±tol counts as a good estimate (see accept()). Quick, exact
+// problems (addition/subtraction, small multiplication, exact division, and
+// Rule of 72) keep tol=0 and still require the exact value.
 // =============================================================================
 #pragma once
 
@@ -23,46 +23,46 @@
 
 namespace mathquiz {
 
-// Grundrechenarten + CFO-/Finanz-Operationen. Bei den Geld-Ops ist der
-// Grundbetrag stets ein Vielfaches von 100 -> ganzzahlige Ergebnisse; die
-// Felder a/b sind je Op unterschiedlich belegt (s. Kommentare), die UI
-// formatiert den Aufgabentext entsprechend.
+// Basic arithmetic + CFO/finance operations. For money operations, the base
+// amount is always a multiple of 100, producing integer results. Fields a/b
+// have different meanings per operation (see comments); the UI formats the
+// problem text accordingly.
 enum Op : uint8_t {
   ADD = 0, SUB = 1, MUL = 2, DIV = 3,
-  PCT = 4,        // "b% von a"        -> a*b/100
-  MARKUP = 5,     // "a + b%"          -> a*(100+b)/100   (Netto + MwSt)
-  DISCOUNT = 6,   // "a - b%"          -> a*(100-b)/100   (Rabatt)
-  SHARE = 7,      // "a/b = ?%"        -> a*100/b          (Anteil/Marge in %)
-  GROWTH = 8,     // "a > end = ?%"    -> Wachstum a->end in %
-  RULE72 = 9,     // "2x bei b% = ?J"  -> 72/b  (Verdopplungszeit, Rule of 72)
+  PCT = 4,        // "b% of a"         -> a*b/100
+  MARKUP = 5,     // "a + b%"          -> a*(100+b)/100   (net + tax)
+  DISCOUNT = 6,   // "a - b%"          -> a*(100-b)/100   (discount)
+  SHARE = 7,      // "a/b = ?%"        -> a*100/b          (share/margin in %)
+  GROWTH = 8,     // "a > end = ?%"    -> growth from a to end in %
+  RULE72 = 9,     // "2x at b% = ?y"   -> 72/b (doubling time, Rule of 72)
   OP_COUNT = 10
 };
 
-// Operations-Bitmaske (16 Bit, da >8 Operationen).
+// Operation bitmask (16-bit because there are more than 8 operations).
 inline uint16_t opBit(Op o) { return (uint16_t)(1u << o); }
 
-// Liefert 0..n-1 (Gerät: esp_random()%n, Host: deterministischer Stub).
+// Returns 0..n-1 (device: esp_random()%n; host: deterministic stub).
 using RndFn = uint32_t (*)(uint32_t);
 
 struct Problem {
-  int32_t a, b;     // Operanden (bei DIV gilt a / b)
-  uint8_t op;       // Op
+  int32_t a, b;     // Operands (for DIV, a / b)
+  uint8_t op;       // Operation
   int32_t answer;
-  int32_t tol;      // erlaubtes Schätzfenster (absolute Abweichung; 0 = exakt)
+  int32_t tol;      // Allowed estimate window (absolute difference; 0 = exact)
 };
 
-// Bewertung einer Antwort.
+// Answer grade.
 enum Verdict : uint8_t { WRONG = 0, EXACT = 1, CLOSE = 2 };
 
 struct Range { int32_t lo, hi; };
 
 namespace detail {
-// Ganzzahl aus [lo, hi] (inklusiv).
+// Integer in [lo, hi] (inclusive).
 inline int32_t pick(RndFn rnd, int32_t lo, int32_t hi) {
   if (hi <= lo) return lo;
   return lo + (int32_t)rnd((uint32_t)(hi - lo + 1));
 }
-// pct % des Betrags, aber mindestens 1 (sonst hätte ein kleiner Wert kein Fenster).
+// pct percent of the amount, but at least 1 (otherwise a small value has no window).
 inline int32_t pctOf(int32_t value, int pct) {
   int32_t v = value < 0 ? -value : value;
   int32_t t = v * pct / 100;
@@ -70,23 +70,23 @@ inline int32_t pctOf(int32_t value, int pct) {
 }
 }  // namespace detail
 
-// Schätzfenster (absolute Abweichung) für eine Aufgabe. Aufgaben, die man im
-// Kopf nur näherungsweise löst, bekommen ein prozentuales Fenster (das mit der
-// Stufe wächst); reine Kopf-Rechen-Aufgaben mit exakter Erwartung bleiben bei 0.
+// Estimate window (absolute difference) for a problem. Problems solved only
+// approximately in your head get a percentage window that grows with level;
+// mental arithmetic problems requiring an exact answer keep a window of 0.
 inline int32_t toleranceFor(uint8_t op, uint8_t level, int32_t answer) {
   switch (op) {
-    case MUL:                                  // großes 1x1: schätzbar ab Mittel
+    case MUL:                                  // Large multiplication: estimates allowed from medium level
       return level == 0 ? 0 : detail::pctOf(answer, level == 1 ? 5 : 10);
-    case PCT: case MARKUP: case DISCOUNT:      // Geldbeträge: immer schätzbar
+    case PCT: case MARKUP: case DISCOUNT:      // Monetary amounts: estimates always allowed
       return detail::pctOf(answer, level == 0 ? 2 : (level == 1 ? 4 : 7));
-    case SHARE: case GROWTH:                    // Prozent-Ergebnis: ±1..2 Punkte
+    case SHARE: case GROWTH:                    // Percentage result: ±1..2 points
       return level == 2 ? 2 : 1;
-    default:                                     // ADD/SUB/DIV/RULE72: exakt
+    default:                                     // ADD/SUB/DIV/RULE72: exact
       return 0;
   }
 }
 
-// Erzeugt eine Aufgabe für Operation op und Stufe level (0=Leicht..2=Schwer).
+// Generate a problem for operation op and level (0=Easy..2=Hard).
 inline Problem generate(Op op, uint8_t level, RndFn rnd) {
   if (level > 2) level = 2;
   Problem p{};
@@ -102,12 +102,12 @@ inline Problem generate(Op op, uint8_t level, RndFn rnd) {
     case SUB: {
       static const Range r[3] = {{1, 20}, {2, 100}, {10, 1000}};
       p.a = detail::pick(rnd, r[level].lo, r[level].hi);
-      p.b = detail::pick(rnd, r[level].lo, p.a);   // b<=a -> kein Negativergebnis
+      p.b = detail::pick(rnd, r[level].lo, p.a);   // b<=a -> no negative result
       p.answer = p.a - p.b;
       break;
     }
     case MUL: {
-      // Bereiche gedeckelt (20-s-Ziel); große Produkte ab Mittel sind schätzbar.
+      // Limited ranges (20 s target); large products can be estimated from medium level.
       static const Range ra[3] = {{1, 10}, {2, 12}, {2, 19}};
       static const Range rb[3] = {{1, 10}, {2, 15}, {2, 30}};
       p.a = detail::pick(rnd, ra[level].lo, ra[level].hi);
@@ -116,8 +116,8 @@ inline Problem generate(Op op, uint8_t level, RndFn rnd) {
       break;
     }
     case DIV: {
-      // Quotient q und Divisor b ganzzahlig ziehen, a = q*b -> exakt teilbar.
-      // Divisor bleibt klein (<=12), damit die Division im Kopf rasch aufgeht.
+      // Choose integer quotient q and divisor b; a = q*b, so division is exact.
+      // Keep the divisor small (<=12) for quick mental division.
       static const Range rb[3] = {{2, 9}, {2, 10}, {2, 12}};
       static const Range rq[3] = {{1, 10}, {2, 12}, {2, 30}};
       p.b = detail::pick(rnd, rb[level].lo, rb[level].hi);
@@ -131,9 +131,8 @@ inline Problem generate(Op op, uint8_t level, RndFn rnd) {
     case DISCOUNT:
     case SHARE:
     case GROWTH: {
-      // Grundbetrag G = 100*K (größere "Geld"-Zahlen) und Prozentsatz aus einem
-      // realistischen Satz. Da G ein Vielfaches von 100 ist, bleibt der Anteil
-      // G*pct/100 = K*pct stets ganzzahlig.
+      // Base amount G = 100*K (larger monetary values) and a percentage from a
+      // realistic set. Since G is a multiple of 100, G*pct/100 = K*pct is an integer.
       static const Range rk[3] = {{1, 20}, {1, 100}, {2, 500}};   // -> G = 100..50000
       static const int8_t pEasy[] = {10, 20, 25, 50};
       static const int8_t pMed[]  = {5, 10, 15, 20, 25, 50};
@@ -155,8 +154,8 @@ inline Problem generate(Op op, uint8_t level, RndFn rnd) {
       break;
     }
     case RULE72: {
-      // Verdopplungszeit nach der "Rule of 72": Jahre ~= 72 / Zinssatz. Nur
-      // Teiler von 72 -> ganzzahliges Jahresergebnis.
+      // Doubling time using the Rule of 72: years ~= 72 / interest rate.
+      // Choose only divisors of 72 to get an integer number of years.
       static const int8_t rates[] = {2, 3, 4, 6, 8, 9, 12};
       int32_t r = rates[rnd(7)];
       p.a = 0;
@@ -170,8 +169,8 @@ inline Problem generate(Op op, uint8_t level, RndFn rnd) {
   return p;
 }
 
-// Bewertet eine eingegebene Antwort: exakt, gut geschätzt (innerhalb ±tol) oder
-// falsch. Eine gute Schätzung zählt für die Statistik wie eine richtige Antwort.
+// Grade an answer: exact, good estimate (within ±tol), or incorrect. A good
+// estimate counts as a correct answer in the statistics.
 inline Verdict accept(const Problem& p, int32_t given) {
   if (given == p.answer) return EXACT;
   int32_t d = given - p.answer;
@@ -179,7 +178,7 @@ inline Verdict accept(const Problem& p, int32_t given) {
   return (p.tol > 0 && d <= p.tol) ? CLOSE : WRONG;
 }
 
-// Wählt aus einer Operations-Bitmaske zufällig eine erlaubte Operation.
+// Randomly choose an allowed operation from an operation bitmask.
 inline Op pickOp(uint16_t mask, RndFn rnd) {
   Op ops[OP_COUNT];
   int n = 0;
@@ -189,7 +188,7 @@ inline Op pickOp(uint16_t mask, RndFn rnd) {
   return ops[rnd((uint32_t)n)];
 }
 
-// Rechenzeichen für die Anzeige (CP437-sicher: 'x' und ':' statt ×/÷).
+// Arithmetic symbols for display (CP437-safe: 'x' and ':' instead of ×/÷).
 inline char opChar(uint8_t op) {
   switch (op) {
     case ADD: return '+';

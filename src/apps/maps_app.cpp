@@ -22,37 +22,37 @@ constexpr int OX  = 0;
 constexpr int OY  = appmgr::CONTENT_Y;          // 24
 constexpr int VW  = EINK_W;                      // 240
 constexpr int VH  = EINK_H - appmgr::CONTENT_Y;  // 296
-constexpr int FOOT_H = 28;                        // Statuszeilen-Band unten
+constexpr int FOOT_H = 28;                        // Status bar at the bottom
 
-// z13 ist die tiefste NRW-weit vorhandene Stufe (z14-16 nur Dortmund-Detail);
-// bei z15 ueber Duesseldorf gaebe es nur leeres Punktraster.
+// z13 is the lowest zoom level available across NRW (z14-16 cover Dortmund
+// only); at z15 over Düsseldorf, only the empty dot grid would be available.
 constexpr int DEFAULT_ZOOM = 13;
-// Fallback-Zentrum ohne Fix/Mesh-Pos (Duesseldorf, NRW-weit bekachelt).
+// Fallback center without a GPS fix or Mesh position (Düsseldorf, tiled across NRW).
 constexpr double FALLBACK_LAT = 51.2277;
 constexpr double FALLBACK_LON = 6.7735;
 
-double s_lat = FALLBACK_LAT, s_lon = FALLBACK_LON;   // Karten-Zentrum
+double s_lat = FALLBACK_LAT, s_lon = FALLBACK_LON;   // Map center
 int    s_zoom = DEFAULT_ZOOM;
 bool   s_follow = true;
-bool   s_viewDirty = true;            // Kacheln müssen neu geladen werden
+bool   s_viewDirty = true;            // Tiles need to be reloaded
 
-// Mesh-Pos-Drosselung.
+// Mesh position update throttling.
 uint32_t s_lastMeshMs = 0;
 double   s_meshLat = 0, s_meshLon = 0;
 
 bool s_lastFixValid = false;
-bool s_gpsTimeSeen  = false;   // Einmal-Log: RMC lieferte in dieser Session Datum+Zeit
+bool   s_gpsTimeSeen  = false;   // Log once when RMC provides date and time in this session
 
 void markDirty() { appmgr::markDirty(); }
 
 void clampZoom() {
   int lo = maps_tiles::minZoom(), hi = maps_tiles::maxZoom();
-  if (hi < 0) return;                 // keine Kacheln — Zoom unverändert lassen
+  if (hi < 0) return;                 // No tiles — leave zoom unchanged
   if (s_zoom < lo) s_zoom = lo;
   if (s_zoom > hi) s_zoom = hi;
 }
 
-// Pixel-Abstand zweier WGS84-Punkte bei aktuellem Zoom (zur Redraw-Entscheidung).
+// Pixel distance between two WGS84 points at the current zoom (for redraw decisions).
 double pixelDist(double aLat, double aLon, double bLat, double bLon) {
   double ax = maps_tiles::lonToTileXf(aLon, s_zoom) * maps_tiles::kTilePx;
   double ay = maps_tiles::latToTileYf(aLat, s_zoom) * maps_tiles::kTilePx;
@@ -61,7 +61,7 @@ double pixelDist(double aLat, double aLon, double bLat, double bLon) {
   return sqrt((ax - bx) * (ax - bx) + (ay - by) * (ay - by));
 }
 
-// Näherungs-Distanz in Metern (für die Mesh-Pos-Drossel).
+// Approximate distance in meters (for Mesh position throttling).
 double meters(double aLat, double aLon, double bLat, double bLon) {
   double dLat = (aLat - bLat) * 111320.0;
   double dLon = (aLon - bLon) * 111320.0 * cos(aLat * M_PI / 180.0);
@@ -97,7 +97,7 @@ void zoomBy(int d) {
   if (z != s_zoom) { s_zoom = z; s_viewDirty = true; markDirty(); }
 }
 
-// --- Zeichnen -------------------------------------------------------------------
+// --- Drawing --------------------------------------------------------------------
 void drawMarker(Adafruit_GFX& g) {
   const gps::Fix& f = gps::current();
   if (!f.valid) return;
@@ -108,7 +108,7 @@ void drawMarker(Adafruit_GFX& g) {
   int sx = OX + VW / 2 + (int)lround(mpx - cpx);
   int sy = OY + VH / 2 + (int)lround(mpy - cpy);
   if (sx < OX || sx >= OX + VW || sy < OY || sy >= OY + VH - FOOT_H) return;
-  // Weißer Hof + schwarzer Ring + Fadenkreuz, damit der Marker auf der Karte sticht.
+  // White halo, black ring, and crosshair make the marker stand out on the map.
   g.fillCircle(sx, sy, 6, GxEPD_WHITE);
   g.drawCircle(sx, sy, 6, GxEPD_BLACK);
   g.drawCircle(sx, sy, 5, GxEPD_BLACK);
@@ -200,7 +200,7 @@ class MapsApp : public App {
       if (!s_gpsTimeSeen) {   // Einmal pro Session: belegt, dass RMC-Zeit ankommt
         s_gpsTimeSeen = true;
         Serial.printf("[MAPS] Received GPS time: %lu UTC (fix=%s) -> timesync\n",
-                      (unsigned long)f.epochUtc, f.valid ? "ja" : "nein");
+                      (unsigned long)f.epochUtc, f.valid ? "yes" : "no");
       }
       timesync::gpsSync(f.epochUtc);
     }

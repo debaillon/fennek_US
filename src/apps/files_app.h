@@ -2,12 +2,12 @@
 // Copyright (C) 2026 Dr. Daniel Dumke
 
 // =============================================================================
-// files_app.h — App „Dateien": Web-Dateiverwaltung der SD-Karte über WLAN.
+// files_app.h — Files app: manage SD card files over Wi-Fi.
 //
-// Dünner UI-Mantel um services/webfm: WiFi startet erst auf expliziten
-// Nutzerwunsch (Enter/Tap, nicht beim Betreten — WiFi kostet Strom) und endet
-// beim Verlassen der App. Während der Server läuft, ist Audio gestoppt und
-// die Mesh-Pumpe pausiert (SPI-/Core-Konkurrenz, siehe webfm.h).
+// Thin UI wrapper around services/webfm: Wi-Fi starts only on explicit user
+// action (Enter/tap, not on entry; Wi-Fi uses power) and stops when leaving the
+// app. While the server is running, audio is stopped and the Mesh pump paused
+// due to SPI/Core contention (see webfm.h).
 // =============================================================================
 #pragma once
 

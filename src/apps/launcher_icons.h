@@ -2,13 +2,13 @@
 // Copyright (C) 2026 Dr. Daniel Dumke
 
 // =============================================================================
-// launcher_icons.h — App-Icons für den Homescreen, rein per GFX-Primitiven.
+// launcher_icons.h — home screen app icons drawn using GFX primitives.
 //
-// Jedes Icon wird schwarz und zentriert um (cx,cy) gezeichnet, Bounding ~38x38
-// px (passt in eine 108x46-Kachel mit Rand). Keine Bitmap-Blobs: alle Glyphen
-// aus Linien/Kreisen/Rechtecken/Dreiecken, damit sie 1-bit-scharf bleiben und
-// ohne PROGMEM-Daten auskommen. draw() liefert false, wenn es für die ID kein
-// Icon gibt — der Aufrufer fällt dann auf den Text-Label zurück.
+// Each icon is drawn in black and centered at (cx,cy), with a ~38x38 px bounding
+// box (fits in a 108x46 tile with margin). No bitmap blobs: all glyphs use
+// lines/circles/rectangles/triangles to stay sharp at 1 bit and avoid PROGMEM
+// data. draw() returns false if no icon exists for the ID; the caller then
+// falls back to the text label.
 // =============================================================================
 #pragma once
 
@@ -18,7 +18,7 @@
 
 namespace launcher_icons {
 
-// 2-px-Strich (horizontal verdickt) — auf E-Ink kräftiger als drawLine.
+// 2 px stroke (thickened horizontally), bolder on E-Ink than drawLine.
 inline void line2(Adafruit_GFX& g, int x0, int y0, int x1, int y1) {
   g.drawLine(x0, y0, x1, y1, GxEPD_BLACK);
   g.drawLine(x0 + 1, y0, x1 + 1, y1, GxEPD_BLACK);
@@ -30,21 +30,21 @@ inline void vbar(Adafruit_GFX& g, int x, int y, int h) { g.fillRect(x, y, 2, h, 
 inline void music(Adafruit_GFX& g, int cx, int cy) {
   g.fillCircle(cx - 6, cy + 9, 5, GxEPD_BLACK);     // Notenkopf
   g.fillRect(cx - 2, cy - 13, 2, 22, GxEPD_BLACK);  // Hals
-  line2(g, cx, cy - 13, cx + 7, cy - 7);            // Fähnchen
+  line2(g, cx, cy - 13, cx + 7, cy - 7);            // Flag
   line2(g, cx, cy - 8, cx + 7, cy - 2);
 }
 
-// --- Hörbuch: Kopfhörer ------------------------------------------------------
+// --- Audiobook: headphones ----------------------------------------------------
 inline void headphones(Adafruit_GFX& g, int cx, int cy) {
   for (int r = 13; r <= 15; r++)
-    g.drawCircleHelper(cx, cy + 2, r, 0x3, GxEPD_BLACK);  // Bügel (obere Hälfte)
+    g.drawCircleHelper(cx, cy + 2, r, 0x3, GxEPD_BLACK);  // Headband (upper half)
   g.fillRoundRect(cx - 17, cy + 1, 7, 13, 2, GxEPD_BLACK);
   g.fillRoundRect(cx + 10, cy + 1, 7, 13, 2, GxEPD_BLACK);
 }
 
-// --- Lesen: aufgeschlagenes Buch --------------------------------------------
+// --- Reading: open book -------------------------------------------------------
 inline void book(Adafruit_GFX& g, int cx, int cy) {
-  vbar(g, cx - 1, cy - 8, 20);                                  // Buchrücken
+  vbar(g, cx - 1, cy - 8, 20);                                  // Book spine
   g.drawLine(cx - 1, cy - 8, cx - 16, cy - 11, GxEPD_BLACK);    // linke Seite
   g.drawLine(cx - 16, cy - 11, cx - 16, cy + 8, GxEPD_BLACK);
   g.drawLine(cx - 16, cy + 8, cx - 1, cy + 11, GxEPD_BLACK);
@@ -68,12 +68,12 @@ inline void mesh(Adafruit_GFX& g, int cx, int cy) {
 // --- Optionen: Zahnrad -------------------------------------------------------
 inline void gear(Adafruit_GFX& g, int cx, int cy) {
   const int o[8][2] = {{13, 0}, {9, 9}, {0, 13}, {-9, 9}, {-13, 0}, {-9, -9}, {0, -13}, {9, -9}};
-  for (auto& p : o) g.fillRect(cx + p[0] - 2, cy + p[1] - 2, 4, 4, GxEPD_BLACK);  // Zähne
+  for (auto& p : o) g.fillRect(cx + p[0] - 2, cy + p[1] - 2, 4, 4, GxEPD_BLACK);  // Teeth
   g.fillCircle(cx, cy, 9, GxEPD_BLACK);
   g.fillCircle(cx, cy, 3, GxEPD_WHITE);   // Nabe
 }
 
-// --- Spiele: Würfel (5er-Seite) ---------------------------------------------
+// --- Games: die (five side) ---------------------------------------------------
 inline void dice(Adafruit_GFX& g, int cx, int cy) {
   g.drawRoundRect(cx - 14, cy - 14, 28, 28, 4, GxEPD_BLACK);
   const int p[5][2] = {{-7, -7}, {7, -7}, {0, 0}, {-7, 7}, {7, 7}};
@@ -104,7 +104,7 @@ inline void alarm(Adafruit_GFX& g, int cx, int cy) {
   g.drawCircle(cx, cy + 2, 11, GxEPD_BLACK);
   line2(g, cx, cy + 2, cx, cy - 5);                 // Zeiger
   line2(g, cx, cy + 2, cx + 5, cy + 4);
-  g.drawLine(cx - 11, cy + 13, cx - 14, cy + 16, GxEPD_BLACK);  // Füße
+  g.drawLine(cx - 11, cy + 13, cx - 14, cy + 16, GxEPD_BLACK);  // Feet
   g.drawLine(cx + 11, cy + 13, cx + 14, cy + 16, GxEPD_BLACK);
 }
 
@@ -167,7 +167,7 @@ inline void todo(Adafruit_GFX& g, int cx, int cy) {
   hbar(g, cx + 1, cy + 1, 14);
 }
 
-// Dispatch nach Tile-ID. false -> kein Icon, Aufrufer zeichnet Text-Label.
+// Dispatch by tile ID. false = no icon; caller draws the text label.
 inline bool draw(Adafruit_GFX& g, i18n::Str id, int cx, int cy) {
   switch (id) {
     case i18n::Str::TileMusic:    music(g, cx, cy);      return true;

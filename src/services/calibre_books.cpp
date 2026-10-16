@@ -288,7 +288,7 @@ bool downloadOne(const char* base, uint32_t id,
   WiFiClient* st = httpOpenFollow(*http, *cs, *cp, url, &code, true);
   if (!st) {
     if (code == 404) *noEpub = true;
-    Serial.printf("[CALIBRE] Buch %lu: HTTP %d\n", (unsigned long)id, code);
+    Serial.printf("[CALIBRE] Book %lu: HTTP %d\n", (unsigned long)id, code);
     delete http; delete cs; delete cp;
     return false;
   }
@@ -304,12 +304,12 @@ bool downloadOne(const char* base, uint32_t id,
     // Gleicher Name schon in /books (manuell kopiert oder Titel-Doppelung):
     // nichts laden, nur im Manifest vermerken.
     http->end(); delete http; delete cs; delete cp;
-    Serial.printf("[CALIBRE] %s existiert schon\n", nameOut);
+    Serial.printf("[CALIBRE] %s already exists\n", nameOut);
     return true;
   }
 
   int contentLen = http->getSize();
-  Serial.printf("[CALIBRE] Buch %lu: %d B -> %s\n", (unsigned long)id, contentLen, nameOut);
+  Serial.printf("[CALIBRE] Book %lu: %d B -> %s\n", (unsigned long)id, contentLen, nameOut);
 
   spiLock();
   if (!SD.exists(kBooksDir)) SD.mkdir(kBooksDir);
@@ -359,7 +359,7 @@ bool downloadOne(const char* base, uint32_t id,
       if (!http->connected() && st->available() == 0) break;
       if (millis() - last > kStallMs) {
         ok = false;
-        Serial.printf("[CALIBRE] Download-Timeout nach %u B (connected=%d)\n",
+        Serial.printf("[CALIBRE] Download timeout after %u B (connected=%d)\n",
                       (unsigned)written, http->connected() ? 1 : 0);
         break;
       }
@@ -372,7 +372,7 @@ bool downloadOne(const char* base, uint32_t id,
   delete http; delete cs; delete cp;
 
   if (ok && contentLen > 0 && written < (size_t)contentLen) {
-    Serial.printf("[CALIBRE] %s: unvollstaendig %u/%d\n", nameOut, (unsigned)written, contentLen);
+    Serial.printf("[CALIBRE] %s: incomplete %u/%d\n", nameOut, (unsigned)written, contentLen);
     ok = false;
   }
   if (ok && written == 0) ok = false;

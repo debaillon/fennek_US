@@ -10,16 +10,15 @@ same Adafruit-GFX drawing code and CP437 fonts as the firmware, into a
 `GFXcanvas1` (240×320, 1 bit). The result is **pixel-accurate** to the display,
 using sample data.
 
-Text comes from the same i18n table as the firmware (`core/i18n.h`). The
-renderer’s second argument selects the language. `screenshots.sh` creates a
-subdirectory per language under `docs/screenshots/<language>/` (one README
-language per folder).
+Text comes from the same English string catalog as the firmware
+(`core/i18n.h`). `screenshots.sh` writes the English screenshots to
+`docs/screenshots/en/`. Existing localized screenshot folders are historical
+assets and are not regenerated.
 
 ```bash
 pio run -e fennek        # once, so Adafruit-GFX is available under .pio/libdeps/
-bash tools/screenshots.sh            # -> docs/screenshots/{en,de,sv}/*.png (2x)
+bash tools/screenshots.sh            # -> docs/screenshots/en/*.png (2x)
 bash tools/screenshots.sh 3          # use a different scale
-bash tools/screenshots.sh 2 en es    # render selected languages (de/it/sv/en/es)
 ```
 
 Components:

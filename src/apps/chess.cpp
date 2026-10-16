@@ -5,11 +5,11 @@
 // chess.cpp — Schach-UI (siehe chess.h). Logik/KI in chess_core.* (perft-
 // und suchgetestet auf dem Host).
 //
-// KI-Task: chess::search ist reine CPU-Arbeit (keine SPI-/Audio-Berührung)
-// und läuft als eigener FreeRTOS-Task (Prio 1, Core 1) — loop() und die
-// Mesh-Pumpe bleiben über das Round-Robin der gleichen Prio bedienbar,
-// Audio (Core 0, Prio 4) ist gar nicht betroffen. tick() pollt das Ergebnis;
-// ein Generationszähler entwertet Resultate nach "Neues Spiel".
+// AI task: chess::search is pure CPU work (no SPI/audio access). It runs as a
+// separate FreeRTOS task (priority 1, Core 1), so loop() and the Mesh pump
+// remain responsive through round-robin scheduling at the same priority.
+// Audio (Core 0, priority 4) is unaffected. tick() polls for the result; a
+// generation counter invalidates results after starting a new game.
 // =============================================================================
 #include "chess.h"
 
@@ -41,7 +41,7 @@ const i18n::Str kLevelName[3] = {i18n::Str::LevelEasy, i18n::Str::LevelMid, i18n
 const int      kDepth[3]     = {2, 3, 4};
 const uint32_t kNodeLimit[3] = {15000, 60000, 250000};
 
-// Figurbuchstaben (deutsch): Bauer Springer Läufer Turm Dame König.
+// Piece letters (German): pawn, knight, bishop, rook, queen, king.
 const char kLetter[7] = {' ', 'B', 'S', 'L', 'T', 'D', 'K'};
 
 // --- Spielzustand ------------------------------------------------------------------
@@ -49,31 +49,31 @@ enum Sub : uint8_t { SETUP, BOARD };
 Sub s_sub = SETUP;
 
 chess::Pos  s_pos;
-chess::Move s_moves[chess::MAX_MOVES];   // legale Züge der aktuellen Stellung
+chess::Move s_moves[chess::MAX_MOVES];   // Legal moves in the current position
 int         s_nMoves = 0;
 
-bool        s_active = false;     // Partie vorhanden (auch beendete Stellung)
-uint8_t     s_result = 0;         // 0 läuft, 1 Weiß gewinnt, 2 Schwarz, 3 Remis
+bool        s_active = false;     // Game exists (including a finished position)
+uint8_t     s_result = 0;         // 0 ongoing, 1 White wins, 2 Black wins, 3 draw
 const char* s_resultText = "";
 
 uint8_t s_mode = 0;       // 0 = gegen Fennek, 1 = 2 Spieler
 int8_t  s_human = 1;      // Farbe des Menschen (Modus 0)
 uint8_t s_level = 1;
 
-int s_sel = -1;           // gewähltes Ausgangsfeld (-1 = keins)
+int s_sel = -1;           // Selected source square (-1 = none)
 int s_cursor = 12;        // Tastatur-Cursor (e2)
-int s_promoTo = -1, s_promoFrom = -1;   // Umwandlungs-Dialog aktiv wenn >= 0
+int s_promoTo = -1, s_promoFrom = -1;   // Promotion dialog active when >= 0
 
 // Stellungs-Historie seit letztem irreversiblen Zug (Remis durch Wiederholung).
 uint32_t s_hist[120];
 int      s_nHist = 0;
 
-bool s_dirtySave = false;   // Partie seit letztem NVS-Write verändert
+bool s_dirtySave = false;   // Game changed since the last NVS write
 
 // --- KI-Task ------------------------------------------------------------------------
 volatile bool s_thinking = false;
 volatile bool s_aiDone = false;
-volatile bool s_analyzing = false;   // Trainer wertet gerade einen Schülerzug aus
+volatile bool s_analyzing = false;   // Trainer is evaluating the player's move
 volatile uint32_t s_aiGen = 0;    // entwertet Alt-Ergebnisse nach Neustart
 chess::Move s_aiMove;
 bool        s_aiOk = false;
@@ -82,10 +82,10 @@ int         s_aiDepth;
 uint32_t    s_aiLimit;
 
 // --- Trainer-Feedback ---------------------------------------------------------
-chess::Pos      s_analyzeBefore;   // Stellung vor dem Schülerzug
-chess::Move     s_analyzePlayed;   // der zu bewertende Schülerzug
+chess::Pos      s_analyzeBefore;   // Position before the player's move
+chess::Move     s_analyzePlayed;   // Player's move to evaluate
 chess::MoveEval s_eval;            // Analyse-Ergebnis (aus dem Task)
-bool            s_haveEval = false;// Feedback vorhanden (anzeigen)
+bool            s_haveEval = false;// Feedback is available (display it)
 char s_fbHead[48], s_fbReason[48], s_fbRec[32];   // aufbereitete Feedback-Zeilen
 
 void aiTaskFn(void*) {
@@ -147,7 +147,7 @@ const char* classNameTr(chess::MoveClass c) {
   }
 }
 
-// Konkreteste passende Begründung wählen.
+// Choose the most specific matching explanation.
 const char* reasonTr(const chess::MoveEval& e) {
   if (e.getsMated)     return i18n::tr(i18n::Str::ChessRsnMate);
   if (e.missedMate)    return i18n::tr(i18n::Str::ChessRsnMissM);
@@ -161,12 +161,12 @@ const char* reasonTr(const chess::MoveEval& e) {
   return i18n::tr(i18n::Str::ChessRsnBetter);
 }
 
-// Aus s_eval die drei Anzeige-Zeilen bauen (nach Task-Ende, im UI-Thread).
+// Build the three display lines from s_eval after the task ends, on the UI thread.
 void buildFeedback() {
   char ev[10];
   int sc = s_eval.scoreAfter;
-  if      (sc >=  99000) snprintf(ev, sizeof(ev), "#");     // Schüler setzt matt
-  else if (sc <= -99000) snprintf(ev, sizeof(ev), "-#");    // Schüler wird matt
+  if      (sc >=  99000) snprintf(ev, sizeof(ev), "#");     // Player delivers checkmate
+  else if (sc <= -99000) snprintf(ev, sizeof(ev), "-#");    // Player is checkmated
   else                   snprintf(ev, sizeof(ev), "%+.1f", sc / 100.0);
 
   char mv[16];
@@ -207,7 +207,8 @@ void startTrainerAnalysis() {
   s_aiDone = false;
   s_analyzing = true;
   s_thinking = true;
-  // 24 KB Stack wie beim KI-Task (Negamax kopiert je Ebene Stellung + Zugliste).
+  // Use the same 24 KB stack as the AI task (Negamax copies the position and move
+  // list at each level).
   if (xTaskCreatePinnedToCore(trainerTaskFn, "chess_tr", 24576, nullptr, 1, nullptr, 1) != pdPASS) {
     s_thinking = false;
     s_analyzing = false;
@@ -256,7 +257,7 @@ void updateResult() {
     if (s_mode == 0 &&
         ((s_result == 1 && s_human > 0) || (s_result == 2 && s_human < 0)))
       settings::addChessWin();
-    settings::setChessGame(nullptr, 0);   // beendete Partien nicht wiederherstellen
+    settings::setChessGame(nullptr, 0);   // Do not restore finished games
     s_dirtySave = false;
   }
 }
@@ -274,7 +275,8 @@ void applyMove(const chess::Move& m) {
 }
 
 void maybeStartAi() {
-  // Engine-Gegner gilt für "gegen Fennek" (0) und "Trainer" (2), nicht 2-Spieler (1).
+  // The engine is the opponent in "vs. Fennek" (0) and "Trainer" (2), but not
+  // in two-player mode (1).
   if (!s_result && s_mode != 1 && s_pos.stm != s_human && !s_thinking)
     startThinking();
 }
@@ -299,7 +301,7 @@ void newGame() {
   s_dirtySave = true;
   s_sub = BOARD;
   Serial.printf("[GAME] Chess: new game (%s, level %s)\n",
-                s_mode ? "2 Spieler" : "gegen Fennek", i18n::tr(kLevelName[s_level]));
+                s_mode ? "2 players" : "vs. Fennek", i18n::tr(kLevelName[s_level]));
   maybeStartAi();
   appmgr::markDirty();
 }
@@ -314,7 +316,7 @@ bool loadGame() {
   s_active = true;
   s_result = 0;
   s_nHist = 0;
-  s_hist[s_nHist++] = chess::hashPos(s_pos);   // Historie vor dem Save entfällt bewusst
+  s_hist[s_nHist++] = chess::hashPos(s_pos);   // Intentionally omit history before saving
   s_sel = -1;
   s_promoFrom = s_promoTo = -1;
   s_analyzing = false;
@@ -327,13 +329,13 @@ bool loadGame() {
 
 // --- Zugeingabe ------------------------------------------------------------------------
 void afterHumanMove() {
-  // Trainer: erst den Schülerzug bewerten (der Task liefert zugleich den
-  // Antwortzug). Sonst normal die Engine ziehen lassen.
+  // In trainer mode, evaluate the player's move first (the task also returns
+  // the engine's reply). Otherwise, let the engine make a normal move.
   if (s_mode == 2) startTrainerAnalysis();
   else             maybeStartAi();
 }
 
-// Schülerzug ausführen; im Trainer-Modus die Ausgangsstellung für die Analyse sichern.
+// Make the player's move; in trainer mode, save the position for analysis.
 void applyHumanMove(const chess::Move& m) {
   if (s_mode == 2) { s_analyzeBefore = s_pos; s_analyzePlayed = m; }
   applyMove(m);
@@ -370,7 +372,7 @@ void tapSquare(int sq) {
 
   for (int i = 0; i < s_nMoves; i++) {
     if (s_moves[i].from != s_sel || s_moves[i].to != sq) continue;
-    if (s_moves[i].promo) {   // Umwandlung: Figur wählen lassen
+    if (s_moves[i].promo) {   // Promotion: prompt for a piece
       s_promoFrom = s_sel;
       s_promoTo = sq;
       appmgr::markDirty();
@@ -379,7 +381,7 @@ void tapSquare(int sq) {
     applyHumanMove(s_moves[i]);
     return;
   }
-  // illegales Ziel: Auswahl stehen lassen, kein Refresh
+  // Illegal destination: keep the selection and do not refresh.
 }
 
 // --- Setup-Dialog ------------------------------------------------------------------------
@@ -397,7 +399,7 @@ void setupChange(int row) {
   appmgr::markDirty();
 }
 
-// Gegner-Name für Modus 0/1/2.
+// Opponent name for modes 0/1/2.
 const char* opponentName() {
   if (s_mode == 1) return i18n::tr(i18n::Str::TwoPlayers);
   if (s_mode == 2) return i18n::tr(i18n::Str::ChessTrainer);
@@ -478,7 +480,7 @@ void drawSquare(Adafruit_GFX& g, int sq) {
         g.drawPixel(x + xx, y + yy, GxEPD_BLACK);
   }
 
-  // Auswahl: dicker Rahmen. Tastatur-Cursor: dünner Innenrahmen.
+  // Selection: thick border. Keyboard cursor: thin inner border.
   if (sq == s_sel) {
     for (int i = 0; i < 3; i++)
       g.drawRect(x + i, y + i, kCell - 2 * i, kCell - 2 * i, GxEPD_BLACK);
@@ -486,7 +488,7 @@ void drawSquare(Adafruit_GFX& g, int sq) {
     g.drawRect(x + 2, y + 2, kCell - 4, kCell - 4, GxEPD_BLACK);
   }
 
-  // Legale Ziele des gewählten Felds markieren.
+  // Mark legal destinations for the selected square.
   if (s_sel >= 0 && sq != s_sel) {
     for (int i = 0; i < s_nMoves; i++) {
       if (s_moves[i].from == s_sel && s_moves[i].to == sq) {
@@ -532,7 +534,7 @@ void drawPromoDialog(Adafruit_GFX& g) {
 }
 
 void boardInput(const InputEvent& e) {
-  // Umwandlungs-Dialog fängt alles ab.
+  // The promotion dialog captures all input.
   if (s_promoFrom >= 0) {
     const int x = (EINK_W - 200) / 2, y = 130;
     if (e.type == InputEvent::TAP) {
@@ -605,8 +607,8 @@ void boardDraw(Adafruit_GFX& g) {
 
   g.setTextSize(1);
   if (s_mode == 2) {
-    // Trainer: Bewertung des letzten Schülerzugs (3 Zeilen) — oder Hinweis,
-    // solange noch kein Zug bewertet wurde.
+    // Trainer: evaluate the player's last move (three lines), or show a hint
+    // until a move has been evaluated.
     if (s_haveEval) {
       g.setCursor(6, 280); gui::print(g, s_fbHead);
       g.setCursor(6, 292); gui::print(g, s_fbReason);
@@ -663,10 +665,10 @@ void tick() {
       s_analyzing = false;
       if (s_aiOk) {
         buildFeedback();                       // Feedback-Zeilen aus s_eval
-        if (s_eval.hasReply && !s_result)      // Trainer zieht (Partie läuft weiter)
+        if (s_eval.hasReply && !s_result)      // Trainer responds (game continues)
           applyMove(s_eval.reply);
         else
-          appmgr::markDirty();                 // nur Feedback anzeigen (Partie-Ende)
+          appmgr::markDirty();                 // Only update feedback (end of game)
       } else {
         appmgr::markDirty();
       }

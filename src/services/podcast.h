@@ -4,21 +4,21 @@
 // =============================================================================
 // podcast.h — Podcast-Abonnements: Feed-Verwaltung + Episoden-Sync.
 //
-// Hintergrund (CLAUDE.md): WLAN und Audio schließen sich auf dieser Hardware
-// aus (WiFi-Task auf Core 0 verdrängt den Audio-Task, beide am SPI-Bus). Der
-// Sync verwaltet das WLAN daher selbst (audio::stop + mesh suspend), lädt die
-// Episode gechunkt auf die SD (Netz-I/O nach spiUnlock, SD-Writes unter
-// spiLock) und schaltet das WLAN wieder ab — wie scrobble/notes_ai.
+// Background (CLAUDE.md): Wi-Fi and audio cannot run together on this hardware
+// (the Wi-Fi task on Core 0 preempts the audio task, and both use the SPI bus).
+// Sync therefore manages Wi-Fi itself (audio::stop + mesh suspend), streams
+// episodes to the SD card (network I/O after spiUnlock, SD writes under
+// spiLock), and then turns Wi-Fi off again, as in scrobble/notes_ai.
 //
-// Speichermodell (alles auf SD, ohne SD wird still übersprungen):
+// Storage model (everything is on SD; silently skipped when no SD card is present):
 //   /podcasts/feeds.txt        — Abos, eine Zeile "URL" oder "URL<TAB>Name".
-//                                Per WebFM editierbar (wie /meshcore/channels.txt).
-//   /podcasts/<slug>/          — ein Ordner je Feed (Slug aus der URL).
-//   /podcasts/<slug>/episode.* — die EINE behaltene (neueste) Folge.
-//   /podcasts/<slug>/state.txt — guid/title/file der lokal vorliegenden Folge.
+//                                Editable through WebFM (like /meshcore/channels.txt).
+//   /podcasts/<slug>/          — one directory per feed (slug from the URL).
+//   /podcasts/<slug>/episode.* — the single retained (newest) episode.
+//   /podcasts/<slug>/state.txt — guid/title/file for the locally available episode.
 //
-// Default-Policy: "immer nur die letzte Folge behalten" — beim Sync wird das
-// erste <item> des Feeds geladen und jede ältere Audiodatei im Ordner gelöscht.
+// Default policy: "keep only the latest episode" — sync downloads the first
+// <item> in the feed and deletes every older audio file in the directory.
 // =============================================================================
 #pragma once
 
@@ -31,49 +31,49 @@ constexpr int kMaxFeeds = 16;
 
 struct Feed {
   char url[256];
-  char name[64];    // Anzeigename (aus feeds.txt; sonst Slug)
-  char slug[40];    // Ordnername unter /podcasts
+  char name[64];    // Display name (from feeds.txt; otherwise the slug)
+  char slug[40];    // Directory name under /podcasts
 };
 
 // Lokal vorliegende Episode eines Feeds (aus state.txt).
 struct Local {
   char title[96];
   char guid[96];
-  char file[128];   // voller SD-Pfad der Audiodatei ("" = keine)
+  char file[128];   // Full SD path to the audio file ("" = none)
 };
 
-// Standard-Feed, mit dem feeds.txt beim ersten Start vorbelegt wird.
+// Default feed used to populate feeds.txt on first startup.
 constexpr const char* kDefaultFeedUrl  = "https://freakshow.fm/feed/mp3/";
 constexpr const char* kDefaultFeedName = "Freakshow";
 
-// /podcasts + feeds.txt sicherstellen (legt den Default an, falls leer).
-// SPI-leichtgewichtig, aus main() nach SD-Mount aufrufbar.
+// Ensure /podcasts and feeds.txt exist (create the default feed if empty).
+// SPI-lightweight; callable from main() after the SD card is mounted.
 void begin();
 
-// --- Feed-Verwaltung (liest/schreibt feeds.txt unter spiLock) ----------------
+// --- Feed management (reads/writes feeds.txt under spiLock) ------------------
 int  readFeeds(Feed* out, int cap);
 int  feedCount();
 bool feed(int idx, Feed* out);
-bool addFeed(const char* url, const char* name);   // hängt an feeds.txt an
+bool addFeed(const char* url, const char* name);   // Append to feeds.txt
 bool removeFeed(int idx);
 
-// Lokal vorliegende Episode (aus <slug>/state.txt). false = noch keine.
+// Locally available episode (from <slug>/state.txt). false = none yet.
 bool localEpisode(const Feed& f, Local* out);
 
-// Fortschritts-Callback für die UI (phase: kurzer Text; pct -1 = unbestimmt).
+// Progress callback for the UI (phase: short text; pct -1 = indeterminate).
 typedef void (*Progress)(const char* phase, int pct);
 
-// Manueller Sync (Konsole/App): verwaltet WLAN selbst, blockierend. Lädt für
-// jeden Feed die neueste Folge, falls neu, und löscht ältere. log bekommt eine
-// kurze Statuszeile. true = ≥1 neue Folge geladen oder nichts zu tun.
+// Manual sync (console/app): manages Wi-Fi itself and blocks. Downloads the
+// latest episode for each feed if new and deletes older episodes. log receives
+// a short status line. true = at least one new episode downloaded or nothing to do.
 bool syncAll(char* log, size_t logN, Progress prog);
 
-// Wie syncAll, aber nur ein Feed (idx).
+// Like syncAll, but for one feed (idx).
 bool syncOne(int idx, char* log, size_t logN, Progress prog);
 
-// Auto-Sync VOR dem Auto-Standby (RTC-RAM-Back-off; nur wenn
-// settings::podcastAutoSync()). Synchronisiert je Standby NUR EINEN Feed
-// (Round-Robin), damit das WLAN kurz bleibt. No-op ohne Feeds/Konfiguration.
+// Automatic sync BEFORE automatic standby (RTC-RAM back-off; only when
+// settings::podcastAutoSync() is enabled). Syncs only ONE feed per standby
+// (round-robin) to keep Wi-Fi use brief. No-op if feeds/settings are absent.
 bool flushBeforeStandby();
 
 }  // namespace podcast

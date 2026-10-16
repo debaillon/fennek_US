@@ -78,8 +78,8 @@ void writeState(const char* slug, const char* title, const char* guid, const cha
   spiUnlock();
 }
 
-// --- WLAN auf/zu (zentraler Helfer: Scan → stärkstes bekanntes Netz) ------------
-// Modem-Sleep aus für vollen Download-Durchsatz erledigt wifi::connect zentral.
+// --- Wi-Fi on/off (central helper: scan for the strongest known network) --------
+// wifi::connect disables modem sleep for full download throughput.
 bool wifiUp(const char* ssid, const char* pass) {
   (void)ssid; (void)pass;
   return wifi::connect(kConnectTimeoutMs);
@@ -87,10 +87,10 @@ bool wifiUp(const char* ssid, const char* pass) {
 
 void wifiDown() { wifi::disconnect(); }
 
-// HTTP-GET mit manueller Redirect-Auflösung (max 6 Hops; deckt http→https und
-// CDN-Umleitungen ab, die der eingebaute Follow je nach Schema-Wechsel verschluckt).
-// rangeStart > 0 → sendet Range: bytes=<n>- auf jedem Hop; akzeptiert 200 und 206.
-// Bei Erfolg bleibt http offen und der Stream wird zurückgegeben (Aufrufer ruft http.end()).
+// HTTP GET with manual redirect resolution (max. 6 hops; handles http→https and
+// CDN redirects that the built-in follow may miss when the scheme changes).
+// rangeStart > 0 sends Range: bytes=<n>- on each hop; accepts 200 and 206.
+// On success, leaves http open and returns the stream (caller invokes http.end()).
 WiFiClient* httpOpenFollow(HTTPClient& http, WiFiClientSecure& cs, WiFiClient& cp,
                            const char* url, int* code, size_t rangeStart = 0) {
   String cur = url;
@@ -278,7 +278,7 @@ bool downloadEpisode(const char* url, const char* dest, podcast::Progress prog, 
       }
     } else {
       if (!http->connected() && st->available() == 0) break;
-      if (millis() - last > kStallMs) { ok = false; Serial.println("[PODCAST] Download-Timeout"); break; }
+      if (millis() - last > kStallMs) { ok = false; Serial.println("[PODCAST] Download timeout"); break; }
       delay(5);
     }
   }
@@ -289,7 +289,7 @@ bool downloadEpisode(const char* url, const char* dest, podcast::Progress prog, 
 
   // Vollständigkeit prüfen (contentLen = verbleibende Bytes bei 206)
   if (ok && contentLen > 0 && written < (size_t)contentLen) {
-    Serial.printf("[PODCAST] %s: unvollstaendig %u/%d\n", feedName, (unsigned)written, contentLen);
+    Serial.printf("[PODCAST] %s: incomplete %u/%d\n", feedName, (unsigned)written, contentLen);
     ok = false;
   }
   if (ok && written == 0 && partSize == 0) ok = false;
@@ -307,7 +307,7 @@ bool downloadEpisode(const char* url, const char* dest, podcast::Progress prog, 
   SD.remove(urlFile);  // .dl_url nach erfolgreichem Download aufräumen
   spiUnlock();
   if (!ren) { Serial.println("[PODCAST] Rename failed"); return false; }
-  Serial.printf("[PODCAST] %s: %u Bytes gesamt -> %s\n", feedName, (unsigned)(partSize + written), dest);
+  Serial.printf("[PODCAST] %s: %u bytes total -> %s\n", feedName, (unsigned)(partSize + written), dest);
   return true;
 }
 
@@ -358,7 +358,7 @@ int syncFeedWifiUp(const podcast::Feed& f, podcast::Progress prog) {
 
   char ext[8]; podcast::urlExt(meta.url, ext, sizeof(ext));
   char dest[160]; snprintf(dest, sizeof(dest), "%s/episode%s", dir, ext);
-  Serial.printf("[PODCAST] %s: lade '%s'\n", f.name, meta.title);
+  Serial.printf("[PODCAST] %s: downloading '%s'\n", f.name, meta.title);
   if (!downloadEpisode(meta.url, dest, prog, f.name)) return -1;
 
   char keep[24]; snprintf(keep, sizeof(keep), "episode%s", ext);
@@ -455,7 +455,7 @@ void begin() {
   spiLock();
   File f = SD.open(kFeeds, FILE_WRITE);
   if (f) {
-    f.printf("# Podcast-Feeds — eine RSS-URL pro Zeile, optional <TAB>Name\n");
+    f.printf("# Podcast feeds — one RSS URL per line, optional <TAB>name\n");
     f.printf("%s\t%s\n", kDefaultFeedUrl, kDefaultFeedName);
     f.close();
     Serial.printf("[PODCAST] feeds.txt angelegt (Default: %s)\n", kDefaultFeedName);
@@ -534,7 +534,7 @@ bool removeFeed(int idx) {
   File f = SD.open(kFeeds, FILE_WRITE);   // FILE_WRITE trunkiert
   bool ok = (bool)f;
   if (ok) {
-    f.printf("# Podcast-Feeds — eine RSS-URL pro Zeile, optional <TAB>Name\n");
+    f.printf("# Podcast feeds — one RSS URL per line, optional <TAB>name\n");
     for (int i = 0; i < n; ++i) {
       if (i == idx) continue;
       f.printf("%s\t%s\n", feeds[i].url, feeds[i].name);

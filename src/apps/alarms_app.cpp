@@ -20,11 +20,12 @@ using gui::Rect;
 constexpr int W      = EINK_W;
 constexpr int TOP    = appmgr::CONTENT_Y;     // 24
 constexpr int ROW_H  = 26;
-constexpr int kLastRow  = alarmclock::kMaxAlarms - 1;   // nur die Wecker-Zeilen
-// Klingelton bleibt per Konsole `alarm sound <pfad>` setzbar; Default = Piepton.
+constexpr int kLastRow  = alarmclock::kMaxAlarms - 1;   // Alarm rows only
+// The ringtone remains configurable via `alarm sound <path>` in the console;
+// the default is a beep.
 
 const Rect kBack    {6, 270, 104, 42};
-const Rect kSnooze  {12, 232, 100, 56};       // Klingel-Bildschirm
+const Rect kSnooze  {12, 232, 100, 56};       // Alarm screen
 const Rect kStop    {128, 232, 100, 56};
 
 // Wiederholungs-Presets; eigene (per Konsole gesetzte) Masken zeigen "eigen".
@@ -32,8 +33,8 @@ const Rect kStop    {128, 232, 100, 56};
 struct DayPreset { const char* name; uint8_t mask; bool once; };
 const DayPreset kDays[] = {
   {"Once",       0x00, true},
-  {"Taeglich",   0x00, false},
-  {"Werktags",   0x1F, false},   // Mo-Fr
+  {"Daily",      0x00, false},
+  {"Weekdays",   0x1F, false},   // Mon-Fri
   {"Weekend",    0x60, false},   // Saturday + Sunday
 };
 constexpr int kNumDays = (int)(sizeof(kDays) / sizeof(kDays[0]));
@@ -43,20 +44,20 @@ enum Field { F_HOUR, F_MIN, F_DAYS, F_SIGNAL, F_ENABLED, F_COUNT };
 enum Screen { LIST, EDIT };
 int  s_screen  = LIST;
 int  s_sel     = 0;              // LIST: 0..kSoundRow ; EDIT: 0..F_COUNT-1
-int  s_editIdx = -1;             // welcher Wecker editiert wird
+int  s_editIdx = -1;             // Alarm currently being edited
 alarmclock::Alarm s_buf = {};    // Arbeitskopie im Editor
 
-int  s_typeCount = 0;            // getippte Ziffern im aktuellen Zeit-Feld (0..2)
+int  s_typeCount = 0;            // Digits typed in the current time field (0..2)
 
-bool s_wasRinging = false;       // Flankenerkennung fürs Auto-Aufpoppen
+bool s_wasRinging = false;       // Edge detection for automatic screen activation
 
 void markDirty() { appmgr::markDirty(); }
 
 void daysLabel(uint8_t mask, bool once, char* out, size_t n) {
   for (int i = 0; i < kNumDays; i++)
     if (kDays[i].mask == mask && kDays[i].once == once) { snprintf(out, n, "%s", kDays[i].name); return; }
-  // Eigene Maske (Konsole): Kürzel auflisten.
-  static const char* dn[7] = {"Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"};
+  // Custom mask (set in the console): list abbreviated day names.
+  static const char* dn[7] = {"Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"};
   out[0] = '\0';
   if (once) strncat(out, "1x ", n - strlen(out) - 1);
   for (int d = 0; d < 7; d++)
@@ -73,25 +74,25 @@ void cycleDays(int dir) {
   s_buf.once    = kDays[idx].once;
 }
 
-// Signal-Presets, durch die das „Signal"-Feld im Editor zykelt.
+// Signal presets cycled through by the "Signal" field in the editor.
 struct SigPreset { uint8_t mask; const char* name; };
 const SigPreset kSig[] = {
-  {alarmclock::SIG_TONE,                                                         "Ton"},
-  {alarmclock::SIG_BLINK,                                                        "Blinken"},
+  {alarmclock::SIG_TONE,                                                         "Tone"},
+  {alarmclock::SIG_BLINK,                                                        "Blink"},
   {alarmclock::SIG_VIBRA,                                                        "Vibration"},
-  {(uint8_t)(alarmclock::SIG_TONE | alarmclock::SIG_BLINK),                      "Ton+Blink"},
-  {(uint8_t)(alarmclock::SIG_TONE | alarmclock::SIG_BLINK | alarmclock::SIG_VIBRA), "Alle"},
+  {(uint8_t)(alarmclock::SIG_TONE | alarmclock::SIG_BLINK),                      "Tone+Blink"},
+  {(uint8_t)(alarmclock::SIG_TONE | alarmclock::SIG_BLINK | alarmclock::SIG_VIBRA), "All"},
 };
 constexpr int kNumSig = (int)(sizeof(kSig) / sizeof(kSig[0]));
 
 const char* signalLabel(uint8_t sig) {
   for (int i = 0; i < kNumSig; i++) if (kSig[i].mask == sig) return kSig[i].name;
-  return "Ton+Blink";
+  return "Tone+Blink";
 }
 
-// Ziffer ins fokussierte Zeit-Feld tippen (Telefon-Uhr-Logik): zwei Ziffern pro
-// Feld; eine zu große erste Ziffer (Stunde >2, Minute >5) ist einstellig und
-// springt sofort weiter. Stunde→Minute automatisch.
+// Type a digit in the focused time field (phone clock logic): two digits per
+// field. If the first digit is too large (hour >2, minute >5), use it as a
+// single digit and immediately advance. Automatically advance from hour to minute.
 void typeDigit(int d) {
   if (s_sel == F_HOUR) {
     if (s_typeCount == 0) {
@@ -122,7 +123,7 @@ void openEdit(int i) {
   s_typeCount = 0;
   s_buf = alarmclock::get(i);
   if (!s_buf.enabled && s_buf.hour == 0 && s_buf.minute == 0) {
-    s_buf.hour = 7;            // sinnvolle Vorbelegung für einen neuen Wecker
+    s_buf.hour = 7;            // Sensible default for a new alarm
     s_buf.minute = 0;
   }
   s_screen = EDIT;
@@ -138,7 +139,7 @@ void saveEdit() {
   markDirty();
 }
 
-// --- Klingel-Bildschirm ---------------------------------------------------------
+// --- Alarm screen --------------------------------------------------------------
 void drawRinging(Adafruit_GFX& g) {
   g.setTextColor(GxEPD_BLACK);
   gui::printAt(g, 30, TOP + 24, i18n::tr(i18n::Str::AppAlarm), 4);
@@ -159,7 +160,7 @@ void drawRinging(Adafruit_GFX& g) {
   gui::drawButton(g, kStop, "Stop", true);
 }
 
-// --- Liste ----------------------------------------------------------------------
+// --- List -----------------------------------------------------------------------
 void drawListRow(Adafruit_GFX& g, int i, int y) {
   bool sel = (s_sel == i);
   g.setTextSize(2);
@@ -179,7 +180,7 @@ void drawListRow(Adafruit_GFX& g, int i, int y) {
     gui::print(g, "--:--");
     g.setTextSize(1);
     g.setCursor(96, y + 11);
-    gui::print(g, i18n::tr(i18n::Str::StandbyOff));   // "Aus"
+    gui::print(g, i18n::tr(i18n::Str::StandbyOff));   // "Off"
   }
   g.drawFastHLine(0, y + ROW_H, W, GxEPD_BLACK);
   if (sel) {
@@ -188,7 +189,7 @@ void drawListRow(Adafruit_GFX& g, int i, int y) {
   }
 }
 
-// --- Editor ---------------------------------------------------------------------
+// --- Editor --------------------------------------------------------------------
 void fieldValue(int f, char* v, size_t n) {
   switch (f) {
     case F_HOUR:    snprintf(v, n, "%02u", (unsigned)s_buf.hour); break;
@@ -200,11 +201,11 @@ void fieldValue(int f, char* v, size_t n) {
 }
 const char* fieldName(int f) {
   switch (f) {
-    case F_HOUR:    return "Stunde";
+    case F_HOUR:    return "Hour";
     case F_MIN:     return "Minute";
-    case F_DAYS:    return "Tage";
+    case F_DAYS:    return "Days";
     case F_SIGNAL:  return "Signal";
-    case F_ENABLED: return "Aktiv";
+    case F_ENABLED: return "Enabled";
   }
   return "";
 }
@@ -248,7 +249,7 @@ void drawEditRow(Adafruit_GFX& g, int f, int y) {
   }
 }
 
-// --- Eingabe --------------------------------------------------------------------
+// --- Input ----------------------------------------------------------------------
 void onRingKey(char k) {
   if (k == 'z' || k == 'Z' || k == ' ') alarmclock::snooze();
   else                                  alarmclock::dismiss();
@@ -266,14 +267,14 @@ void onListKey(char k) {
 }
 
 void onEditKey(char k) {
-  if (k >= '0' && k <= '9') { typeDigit(k - '0'); return; }   // Zeit direkt tippen
+  if (k >= '0' && k <= '9') { typeDigit(k - '0'); return; }   // Type the time directly
   switch (k) {
     case 'w': case 'W': case 'i': case 'I': s_typeCount = 0; s_sel = (s_sel + F_COUNT - 1) % F_COUNT; markDirty(); break;
     case 's': case 'S': case 'k': case 'K': s_typeCount = 0; s_sel = (s_sel + 1) % F_COUNT; markDirty(); break;
     case 'a': case 'A': case 'j': case 'J': s_typeCount = 0; changeField(s_sel, -1); break;
     case 'd': case 'D': case 'l': case 'L': s_typeCount = 0; changeField(s_sel, +1); break;
     case '\r':          s_typeCount = 0; changeField(s_sel, +1); break;
-    case '\b': case 'q': case 'Q': saveEdit(); break;   // zurück = speichern
+    case '\b': case 'q': case 'Q': saveEdit(); break;   // Back = save
     default: break;
   }
 }
@@ -288,7 +289,7 @@ void onListTouch(int x, int y) {
   if (kBack.hit(x, y)) { appmgr::goHome(); return; }
   int row = (y - TOP) / ROW_H;
   if (row < 0 || row > kLastRow) return;
-  if (row != s_sel) { s_sel = row; markDirty(); return; }   // erster Tap wählt
+  if (row != s_sel) { s_sel = row; markDirty(); return; }   // First tap selects
   openEdit(row);
 }
 
@@ -313,7 +314,7 @@ class AlarmsApp : public App {
     if (s_screen == EDIT) saveEdit();
   }
 
-  // Klingelt ein Wecker, während eine andere App vorn ist: diese App holen.
+  // If an alarm rings while another app is in front, bring this app forward.
   void background() override {
     bool r = alarmclock::ringing();
     if (r && appmgr::current() != this) appmgr::launch(this);

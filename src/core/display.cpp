@@ -63,7 +63,7 @@ bool initPanel(bool initial) {
   for (uint16_t ms : kResetPulseMs) {
     g_disp.init(115200, initial, ms, false);
     if (panelReady(kReadyTimeoutMs)) return true;
-    Serial.printf("[EINK] BUSY bleibt aktiv nach %u-ms-Reset — neuer Versuch\n",
+    Serial.printf("[EINK] BUSY remains active after %u ms reset — retrying\n",
                   (unsigned)ms);
   }
   Serial.println("[EINK] Panel not responding (BUSY active) — continuing anyway");

@@ -4,8 +4,8 @@
 // =============================================================================
 // launcher.h — Homescreen mit App-Kacheln.
 //
-// Die erste beim appmgr registrierte App; Tap auf eine Kachel startet die
-// zugehörige App. Kacheln ohne App (nullptr) sind Platzhalter ("bald").
+// The first app registered with appmgr; tapping a tile launches its app.
+// Tiles without an app (nullptr) are placeholders ("coming soon").
 // =============================================================================
 #pragma once
 
@@ -17,7 +17,7 @@ namespace launcher {
 App* get();
 
 // Kachel idx (0..5) belegen. app == nullptr -> deaktivierter Platzhalter.
-// Label als String-ID, damit Kacheln bei Sprachwechsel sofort umschalten.
+// Store the label as a string ID for resolution when the tile is drawn.
 void setTile(int idx, i18n::Str label, App* app);
 
 }  // namespace launcher

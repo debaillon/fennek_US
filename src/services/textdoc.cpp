@@ -308,7 +308,7 @@ void indexStep(uint32_t budgetBytes) {
     while (s_pages > 1 && s_pageOff[s_pages - 1] >= s_fsize) s_pages--;
     s_ready = true;
     writeIndexCache();
-    Serial.printf("[TXT] Index fertig: %d Seiten (%u Bytes)\n", s_pages, (unsigned)s_fsize);
+    Serial.printf("[TXT] Index ready: %d pages (%u bytes)\n", s_pages, (unsigned)s_fsize);
   }
 }
 

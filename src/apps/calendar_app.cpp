@@ -75,7 +75,7 @@ void drawSyncing(Adafruit_GFX& g) {
   g.setTextColor(GxEPD_BLACK);
   gui::printAt(g, 8, TOP + 4, i18n::tr(i18n::Str::AppCalendar), 2);
   g.drawLine(0, HEADER_H, W, HEADER_H, GxEPD_BLACK);
-  gui::printAt(g, 10, 120, "Synchronisiere ...", 2);
+  gui::printAt(g, 10, 120, "Syncing...", 2);
   gui::printAt(g, 10, 150, "Wi-Fi active (audio off)", 1);
 }
 

@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Dr. Daniel Dumke
 
 // =============================================================================
-// games_app.cpp — Spiele-Menü + Screen-Dispatch (siehe games_app.h).
+// games_app.cpp — games menu and screen dispatch (see games_app.h).
 // =============================================================================
 #include "games_app.h"
 
@@ -43,7 +43,7 @@ const Entry kMenu[kEntries] = {
   {i18n::Str::GameSudoku, GSUDOKU, sudoku_ui::menuLine},
 };
 
-// 5 Buttons à 46 px (y 56..310) unter der Überschrift.
+// Five 46 px buttons (y 56..310) below the heading.
 const Rect kBtn[kEntries] = {
   {10,  56, 220, 46},
   {10, 108, 220, 46},
@@ -115,8 +115,8 @@ class GamesApp : public App {
   }
 
   void onEnter() override {
-    // Immer im Menü starten (auch beim lastApp-Restore nach Reboot);
-    // die Spielstände selbst leben in den Modulen weiter.
+    // Always start in the menu (including lastApp restore after reboot);
+    // game state remains in each game's module.
     s_screen = MENU;
   }
 

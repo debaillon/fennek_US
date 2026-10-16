@@ -17,9 +17,9 @@ namespace {
 using gui::Rect;
 
 constexpr Rect kBtnStart = {70, 150, 100, 40};
-constexpr Rect kBack     = {6, 286, 72, 28};   // „Zurück" (eine Ebene): Server aus bzw. Launcher
+constexpr Rect kBack     = {6, 286, 72, 28};   // Back one level: stop the server or return to launcher
 
-// Letzter gezeichneter Zustand (tick() erkennt Änderungen -> markDirty).
+// Last displayed state (tick() detects changes and calls markDirty).
 webfm::State s_shownState = webfm::State::OFF;
 uint32_t     s_shownReqs = 0;
 uint32_t     s_lastReqDraw = 0;
@@ -42,9 +42,9 @@ void drawNoCreds(Adafruit_GFX& g) {
   centered(g, 112, i18n::tr(i18n::Str::FilesNoCreds2), 1);
   gui::printAt(g, 40, 128, "Wi-Fi SSID / password", 1);
   centered(g, 152, i18n::tr(i18n::Str::FilesNoCreds3), 1);
-  // Konsolen-Befehle wörtlich (nicht übersetzt, vgl. core/console.cpp).
+  // Console commands are shown verbatim (see core/console.cpp).
   gui::printAt(g, 40, 168, "wifi ssid <Name>", 1);
-  gui::printAt(g, 40, 184, "wifi pass <Passwort>", 1);
+  gui::printAt(g, 40, 184, "wifi pass <password>", 1);
 }
 
 void drawIdle(Adafruit_GFX& g) {
@@ -92,12 +92,12 @@ class FilesApp : public App {
     s_shownReqs = webfm::requestCount();
   }
 
-  // Verlassen der App = Server aus (vorhersehbar, kein Dauer-Stromfresser).
+  // Leaving the app stops the server (predictable and avoids continuous power draw).
   void onLeave() override { webfm::stop(); }
 
   void handleInput(const InputEvent& e) override {
-    // Sichtbarer „Zurück"-Knopf = wie Q/Backspace: läuft der Server, erst stoppen;
-    // sonst zum Launcher.
+    // The visible Back button behaves like Q/Backspace: stop the server if it
+    // is running; otherwise return to the launcher.
     if (e.type == InputEvent::TAP && kBack.hit(e.x, e.y)) {
       if (webfm::state() != webfm::State::OFF) { webfm::stop(); appmgr::markDirty(); }
       else appmgr::goHome();
@@ -135,9 +135,10 @@ class FilesApp : public App {
       appmgr::markDirty();
       return;
     }
-    // Request-Zähler gedrosselt nachziehen (max. alle 50 s ein Refresh —
-    // Invariante 7: E-Ink nur bei echter Änderung, koalesziert). Der Zähler ist
-    // reine Info; ein häufigerer Voll-Redraw kostet nur sichtbares E-Ink-Flackern.
+    // Update the request counter at a limited rate (refresh at most every 50 s;
+    // invariant 7: refresh E-Ink only for real changes, coalescing updates).
+    // The counter is informational; more frequent full redraws only cause
+    // visible E-Ink flicker.
     if (st == webfm::State::RUNNING && webfm::requestCount() != s_shownReqs &&
         millis() - s_lastReqDraw > 50000) {
       appmgr::markDirty();

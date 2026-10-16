@@ -1,4 +1,4 @@
-// Arduino.h — minimaler Host-Shim, damit Adafruit-GFX am PC kompiliert.
+// Arduino.h — minimal host shim so Adafruit-GFX can compile on a PC.
 #pragma once
 
 #define ARDUINO 10805
@@ -17,7 +17,7 @@
 typedef uint8_t  byte;
 typedef bool     boolean;
 
-// Adafruit-GFX kennt diese Arduino-Helfer.
+// Adafruit-GFX uses these Arduino helpers.
 #ifndef _swap_int16_t
 #define _swap_int16_t(a, b) { int16_t t = a; a = b; b = t; }
 #endif
@@ -47,10 +47,10 @@ typedef bool     boolean;
 #define sq(x) ((x) * (x))
 #endif
 
-// PROGMEM-String-Helfertyp (nur als Zeiger benutzt).
+// PROGMEM string helper type (used only as a pointer).
 class __FlashStringHelper;
 
-// Minimaler Ersatz für Arduino-String (Adafruit-GFX überlädt getTextBounds darauf).
+// Minimal replacement for Arduino String (Adafruit-GFX overloads getTextBounds for it).
 class String {
   std::string s_;
  public:
