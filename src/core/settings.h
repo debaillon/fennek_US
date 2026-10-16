@@ -72,9 +72,9 @@ void    lastBook(char* out, size_t n);
 void    setLastBook(const char* path);
 
 // --- Mesh radio parameters ----------------------------------------------------
-// Defaults to "EU/UK Narrow" (standard in Germany/NRW as of 2026):
-// 869.618 MHz, 62.5 kHz bandwidth, SF 8, CR 4/8, 22 dBm. Changes are applied
-// to the radio live by mesh_client::applyRadioParams().
+// Defaults to "EU/UK Narrow": 869.618 MHz, 62.5 kHz bandwidth, SF 8, CR 4/5,
+// 22 dBm. The Settings app also provides EU and US 915 presets. Changes are
+// applied to the radio live by mesh_client::applyRadioParams().
 struct MeshParams {
   float   freqMhz;
   float   bwKhz;

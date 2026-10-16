@@ -214,6 +214,8 @@ Core 1:  Mesh pump (mesh_app::background → spiLock)
 Default **“EU/UK Narrow”**: **869.618 MHz, BW 62.5 kHz, SF 8, CR 4/5**,
 22 dBm, DIO2 RF switch, 2.4 V TCXO. NVS values
 (`settings::meshParams()`) are authoritative; Settings app “Options → Radio”.
+Radio presets also include **US 915** (910.525 MHz, BW 62.5 kHz, SF 7,
+CR 4/5); manual frequency tuning spans 863–870 MHz and 902–928 MHz.
 `initContacts()` **must** be called in `MeshClient::begin()` or the first
 advert causes a NULL `contacts` crash.
 

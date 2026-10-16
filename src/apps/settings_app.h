@@ -4,10 +4,10 @@
 // =============================================================================
 // settings_app.h — Einstellungen als App.
 //
-// Funk-Parameter (Preset EU Narrow / EU Klassisch oder einzeln: Frequenz,
-// Bandbreite, SF, CR, Sendeleistung), Node-Name und Geräte-Infos. Änderungen
-// werden sofort im NVS gespeichert und — falls das Mesh läuft — live aufs
-// Radio angewandt (mesh_client::applyRadioParams()).
+// Radio parameters (EU Narrow / EU Classic / US 915 presets or individually
+// adjustable frequency, bandwidth, SF, CR, and transmit power), node name, and
+// device info. Changes are saved to NVS immediately and applied live if mesh is running
+// (mesh_client::applyRadioParams()).
 // =============================================================================
 #pragma once
 

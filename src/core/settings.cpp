@@ -269,7 +269,7 @@ void setLastBook(const char* path) {
 // --- Mesh radio parameters -----------------------------------------------------
 namespace {
 
-// Defaults: "EU/UK Narrow" (common in Germany's North Rhine-Westphalia region).
+// Default preset: EU/UK Narrow.
 constexpr MeshParams kMeshDefaults = {869.618f, 62.5f, 8, 5, 22};
 
 bool       s_meshLoaded = false;

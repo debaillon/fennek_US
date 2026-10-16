@@ -60,7 +60,7 @@ SPI bus, while still delivering stutter-free audio playback.
 | **📡 Mesh** | Lean MeshCore client: public and hashtag channels (`#test` …), DMs with delivery status, contacts from adverts, message log on SD incl. history reload |
 | **🎮 Games** | 2048, Minesweeper, Chess (Negamax AI) and Tic-Tac-Toe — logic host-tested |
 | **📝 Notes** | One note per day under `/notes` (`YYYY-MM-DD.md`); "+ Today" opens or appends to today's note, the list shows every day newest-first with a first-line preview, append-style editor with delete confirmation |
-| **⚙️ Options** | Radio presets (EU Narrow = DE/NRW standard 869.618 MHz / 62.5 kHz / SF8), individual parameters, node name, battery info, firmware version |
+| **⚙️ Options** | Radio presets (EU Narrow, EU Classic, US 915 at 910.525 MHz), individual EU/US-band frequency tuning, node name, battery info, firmware version |
 
 Plus: a status line (battery, playback), standby/key-lock via the button, and a
 serial debug console over USB (type `help` — `status`, `chan test hello`,
@@ -112,8 +112,10 @@ pio device monitor -b 115200   # log + debug console
 ```
 
 The firmware also runs **without an SD card** (apps then show a hint). Radio
-parameters are configurable at runtime in the Options app; the default is the
-**EU/UK Narrow** preset commonly used in Germany.
+parameters are configurable at runtime in Options → Radio. Presets include
+**EU Narrow**, **EU Classic**, and **US 915** (910.525 MHz, within the US
+902–928 MHz band). Manual frequency tuning is available in the EU and US bands.
+The default remains **EU/UK Narrow**.
 
 > ⚠️ Custom firmware replaces the factory software. You flash at your own risk —
 > a way back to the original firmware is available via the

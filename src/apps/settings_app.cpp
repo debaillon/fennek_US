@@ -149,14 +149,14 @@ const TzPreset kTz[] = {
 };
 constexpr int kNumTz = (int)(sizeof(kTz) / sizeof(kTz[0]));
 
-// Presets from the MeshCore community. Narrow matches the common
-// 869.618 / 62.5 / SF8 / CR4-5 configuration.
+// Presets from the MeshCore community.
 struct Preset { const char* name; settings::MeshParams p; };
 const Preset kPresets[] = {
   {"EU Narrow",    {869.618f, 62.5f,  8, 5, 22}},
   {"EU Classic",  {869.525f, 250.0f, 11, 5, 22}},
+  {"US 915",       {910.525f, 62.5f,  7, 5, 22}},
 };
-constexpr int kNumPresets = 2;
+constexpr int kNumPresets = (int)(sizeof(kPresets) / sizeof(kPresets[0]));
 
 void markDirty() { appmgr::markDirty(); }
 
@@ -186,6 +186,38 @@ float nextBw(float bw, int dir) {
   if (idx < 0) idx = 3;
   if (idx > 3) idx = 0;
   return steps[idx];
+}
+
+float nextFreq(float freqMhz, int dir) {
+  constexpr float kStepMhz = 0.025f;
+  constexpr float kEuMinMhz = 863.0f;
+  constexpr float kEuMaxMhz = 870.0f;
+  constexpr float kUsMinMhz = 902.0f;
+  constexpr float kUsMaxMhz = 928.0f;
+
+  if (dir > 0) {
+    if (freqMhz < kEuMaxMhz) {
+      const float next = freqMhz + kStepMhz;
+      return next < kEuMaxMhz ? next : kEuMaxMhz;
+    }
+    if (freqMhz < kUsMinMhz) return kUsMinMhz;
+    if (freqMhz < kUsMaxMhz) {
+      const float next = freqMhz + kStepMhz;
+      return next < kUsMaxMhz ? next : kUsMaxMhz;
+    }
+    return kEuMinMhz;
+  }
+
+  if (freqMhz > kUsMinMhz && freqMhz <= kUsMaxMhz) {
+    const float next = freqMhz - kStepMhz;
+    return next > kUsMinMhz ? next : kUsMinMhz;
+  }
+  if (freqMhz > kEuMaxMhz) return kEuMaxMhz;
+  if (freqMhz > kEuMinMhz) {
+    const float next = freqMhz - kStepMhz;
+    return next > kEuMinMhz ? next : kEuMinMhz;
+  }
+  return kUsMaxMhz;
 }
 
 // Change the row value (dir = -1/+1).
@@ -241,9 +273,7 @@ void changeRow(int row, int dir) {
       return;
     }
     case ROW_FREQ:
-      p.freqMhz += dir * 0.025f;
-      if (p.freqMhz < 863.0f) p.freqMhz = 863.0f;
-      if (p.freqMhz > 870.0f) p.freqMhz = 870.0f;
+      p.freqMhz = nextFreq(p.freqMhz, dir);
       break;
     case ROW_BW:  p.bwKhz = nextBw(p.bwKhz, dir); break;
     case ROW_SF:
